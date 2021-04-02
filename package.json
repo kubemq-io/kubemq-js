@@ -1,0 +1,51 @@
+{
+  "name": "kubemq-js",
+  "version": "0.1.0",
+  "description": "kubemq-js-sdk",
+  "main": "lib/index",
+  "types": "lib/index",
+  "engines": {
+    "node": ">= 14.16 <15"
+  },
+  "devDependencies": {
+    "@grpc/grpc-js": "^1.2.12",
+    "@grpc/proto-loader": "^0.5.6",
+    "@types/jest": "~26.0.20",
+    "@types/node": "~14.14.31",
+    "@typescript-eslint/eslint-plugin": "~4.16.1",
+    "@typescript-eslint/parser": "~4.16.1",
+    "dotenv": "^8.2.0",
+    "eslint": "~7.21.0",
+    "eslint-config-prettier": "~8.1.0",
+    "eslint-plugin-jest": "~24.1.5",
+    "glob": "^7.1.6",
+    "google-protobuf": "^3.15.6",
+    "jest": "~26.6.3",
+    "prettier": "~2.2.1",
+    "rimraf": "~3.0.2",
+    "text-encoding": "^0.7.0",
+    "ts-jest": "~26.5.2",
+    "ts-node": "^9.1.1",
+    "tsutils": "~3.20.0",
+    "typescript": "~4.2.2",
+    "uuid": "^8.3.2"
+  },
+  "scripts": {
+    "start": "node build/src/main.js",
+    "clean": "rimraf coverage build tmp",
+    "build": "tsc -p tsconfig.release.json",
+    "build:watch": "tsc -w -p tsconfig.release.json",
+    "lint": "eslint . --ext .ts,.tsx",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch"
+  },
+  "author": "Lior Nabat",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "tslib": "~2.1.0",
+    "uuid": "^8.3.2"
+  },
+  "volta": {
+    "node": "14.16.0"
+  }
+}
