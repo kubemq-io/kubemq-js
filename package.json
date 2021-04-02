@@ -5,7 +5,7 @@
   "main": "lib/index",
   "types": "lib/index",
   "engines": {
-    "node": ">= 14.16 <15"
+    "node": ">= 14.16"
   },
   "devDependencies": {
     "@grpc/grpc-js": "^1.2.12",
