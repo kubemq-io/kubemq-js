@@ -1,6 +1,7 @@
 import { Config } from './config';
-import { Empty, kubemqClient } from './protos';
+import * as kubemq from './protos';
 import { credentials } from '@grpc/grpc-js';
+
 const defaultOptions: Config = {
   address: 'localhost:50000',
   dialTimeout: 30000,
@@ -25,6 +26,7 @@ export interface ResponseStream<T> {
   on(event: 'end', fn: () => void): this;
   // on(event: 'status', fn: (status: grpc.StatusObject) => void): this;
   on(event: 'error', fn: (err: Error) => void): this;
+  cancel(): void;
 }
 
 export interface IRequestStream<T> {
@@ -38,20 +40,20 @@ export interface IDuplexStream<T, R>
     ResponseStream<R> {}
 export class Client {
   protected clientOptions: Config;
-  protected grpcClient: kubemqClient;
+  protected grpcClient: kubemq.kubemqClient;
   constructor(Options: Config) {
     this.clientOptions = { ...defaultOptions, ...Options };
     this.init();
   }
   private init() {
-    this.grpcClient = new kubemqClient(
+    this.grpcClient = new kubemq.kubemqClient(
       this.clientOptions.address,
       credentials.createInsecure(),
     );
   }
   public ping(): Promise<ServerInfo> {
     return new Promise<ServerInfo>((resolve, reject) => {
-      this.grpcClient.ping(new Empty(), (e, res) => {
+      this.grpcClient.ping(new kubemq.Empty(), (e, res) => {
         if (e) {
           reject(e);
           return;
