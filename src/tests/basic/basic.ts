@@ -1,8 +1,8 @@
-import { Options } from '../options';
 import { Client } from '../../client';
+import { Config } from '../../config';
 
 function main() {
-  const opts: Options = {
+  const opts: Config = {
     address: 'localhost:50000',
   };
   const client = new Client(opts);
