@@ -16,7 +16,7 @@ function main() {
   setTimeout(() => {
     for (let i = 0; i < 20; i++) {
       eventsClient
-        .send({ channel: 'events.single', body: 'data' })
+        .send({ channel: 'events.single',body: Utils.stringToBytes('data') })
         .catch((reason) => console.error(reason));
     }
   }, 2000);

@@ -20,7 +20,7 @@ function main() {
     streamer.onError.on((error) => console.error(error));
     streamer.onStateChanged.on((state) => console.log(state));
     for (let i = 0; i < 20; i++) {
-      streamer.write({ channel: 'events_store.stream', body: 'data' });
+      streamer.write({ channel: 'events_store.stream', body: Utils.stringToBytes('data') });
     }
   }, 2000);
 
