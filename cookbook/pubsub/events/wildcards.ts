@@ -10,7 +10,7 @@ const eventsClient = new EventsClient(opts);
 const subscriberA = eventsClient.subscribe({
   channel: 'events.A',
 
-  onDataFn: (event: EventsReceiveMessage) => {
+  onEventFn: (event: EventsReceiveMessage) => {
     console.log('SubscriberA', event);
   },
   onErrorFn: (e) => {
@@ -24,7 +24,7 @@ const subscriberA = eventsClient.subscribe({
 const subscriberB = eventsClient.subscribe({
   channel: 'events.B',
   group: 'g1',
-  onDataFn: (event: EventsReceiveMessage) => {
+  onEventFn: (event: EventsReceiveMessage) => {
     console.log('SubscriberB', event);
   },
   onErrorFn: (e) => {
@@ -36,7 +36,7 @@ const subscriberB = eventsClient.subscribe({
 });
 const subscriberC = eventsClient.subscribe({
   channel: 'events.*',
-  onDataFn: (event: EventsReceiveMessage) => {
+  onEventFn: (event: EventsReceiveMessage) => {
     console.log('SubscriberC', event);
   },
   onErrorFn: (e) => {
