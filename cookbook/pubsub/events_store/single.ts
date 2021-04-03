@@ -1,15 +1,21 @@
 import { Config } from '../../../src';
 import { Utils } from '../../../src/utils';
-import { EventsClient, EventsReceiveMessage } from '../../../src/events';
+
+import {
+  EventsStoreClient,
+  EventsStoreReceiveMessage,
+  EventStoreType,
+} from '../../../src/events_store';
 
 const opts: Config = {
   address: 'localhost:50000',
   clientId: Utils.uuid(),
 };
-const eventsClient = new EventsClient(opts);
-const subscriber = eventsClient.subscribe({
-  channel: 'events.single',
-  onEventFn: (event: EventsReceiveMessage) => {
+const eventsStoreClient = new EventsStoreClient(opts);
+const subscriber = eventsStoreClient.subscribe({
+  channel: 'events_store.single',
+  requestType: EventStoreType.StartFromFirst,
+  onEventFn: (event: EventsStoreReceiveMessage) => {
     console.log(event);
   },
   onErrorFn: (e) => {
@@ -22,8 +28,8 @@ const subscriber = eventsClient.subscribe({
 
 setTimeout(() => {
   for (let i = 0; i < 20; i++) {
-    eventsClient
-      .send({ channel: 'events.single', body: 'data' })
+    eventsStoreClient
+      .send({ channel: 'events_store.single', body: 'data' })
       .catch((reason) => console.error(reason));
   }
 }, 2000);
