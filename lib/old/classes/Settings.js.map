@@ -1,0 +1,1 @@
+{"version":3,"file":"Settings.js","sourceRoot":"","sources":["../../../old/classes/Settings.ts"],"names":[],"mappings":";;;AAAA,MAAa,QAAQ;IAYnB,YAAsB,QAAgB;QAAhB,aAAQ,GAAR,QAAQ,CAAQ;QAX/B,aAAQ,GAAG,EAAE,CAAC;IAWoB,CAAC;IAR1C,WAAW,CAAC,KAAa;QACvB,IAAI,CAAC,QAAQ,GAAG,KAAK,CAAC;QACtB,OAAO,IAAI,CAAC;IACd,CAAC;IAED,IAAI,OAAO;QACT,OAAO,IAAI,CAAC,QAAQ,CAAC;IACvB,CAAC;CAEF;AAbD,4BAaC"}
