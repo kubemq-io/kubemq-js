@@ -5,10 +5,12 @@ import { Utils } from './utils';
 import { TypedEvent } from './common';
 import { Empty } from './protos';
 
-export interface CommandsMessage extends BaseMessage {
+export interface QueriesMessage extends BaseMessage {
   timeout?: number;
+  cacheKey?: string;
+  cacheTTL?: number;
 }
-export interface CommandsReceiveMessage {
+export interface QueriesReceiveMessage {
   id: string;
   channel: string;
   metadata: string;
@@ -17,35 +19,38 @@ export interface CommandsReceiveMessage {
   replyChannel: string;
 }
 
-export interface CommandsResponse {
+export interface QueriesResponse {
   id: string;
   replyChannel?: string;
   clientId: string;
+  metadata?: string;
+  body?: Uint8Array | string;
+  tags?: Map<string, string>;
   timestamp: number;
   executed: boolean;
   error: string;
 }
 
-export interface CommandsSubscriptionRequest {
+export interface QueriesSubscriptionRequest {
   channel: string;
   group?: string;
   clientId?: string;
 }
 
-export interface CommandsSubscriptionResponse {
+export interface QueriesSubscriptionResponse {
   state: StreamState;
-  onCommand: TypedEvent<CommandsReceiveMessage>;
+  onQuery: TypedEvent<QueriesReceiveMessage>;
   onError: TypedEvent<Error>;
   onStateChanged: TypedEvent<StreamState>;
   cancel(): void;
 }
 
-export class CommandsClient extends Client {
+export class QueriesClient extends Client {
   constructor(Options: Config) {
     super(Options);
   }
 
-  public send(message: CommandsMessage): Promise<CommandsResponse> {
+  public send(message: QueriesMessage): Promise<QueriesResponse> {
     const pbMessage = new pb.Request();
     pbMessage.setRequestid(message.id ? message.id : Utils.uuid());
     pbMessage.setClientid(
@@ -61,9 +66,10 @@ export class CommandsClient extends Client {
     pbMessage.setTimeout(
       message.timeout ? message.timeout : this.clientOptions.defaultRpcTimeout,
     );
-    pbMessage.setRequesttypedata(1);
-
-    return new Promise<CommandsResponse>((resolve, reject) => {
+    pbMessage.setRequesttypedata(2);
+    pbMessage.setCachekey(message.cacheKey ? message.cacheKey : '');
+    pbMessage.setCachettl(message.cacheTTL ? message.cacheTTL : 0);
+    return new Promise<QueriesResponse>((resolve, reject) => {
       this.grpcClient.sendRequest(pbMessage, this.metadata(), (e, response) => {
         if (e) {
           reject(e);
@@ -75,21 +81,28 @@ export class CommandsClient extends Client {
           error: response.getError(),
           executed: response.getExecuted(),
           timestamp: response.getTimestamp(),
+          body: response.getBody(),
+          metadata: response.getMetadata(),
+          tags: response.getTagsMap(),
         });
       });
     });
   }
 
-  public response(message: CommandsResponse): Promise<Empty> {
+  public response(message: QueriesResponse): Promise<Empty> {
     const pbMessage = new pb.Response();
     pbMessage.setRequestid(message.id);
     pbMessage.setClientid(
       message.clientId ? message.clientId : this.clientOptions.clientId,
     );
     pbMessage.setReplychannel(message.replyChannel);
-
     pbMessage.setError(message.error);
     pbMessage.setExecuted(message.executed);
+    pbMessage.setBody(message.body);
+    pbMessage.setMetadata(message.metadata);
+    if (message.tags != null) {
+      pbMessage.getTagsMap().set(message.tags);
+    }
     return new Promise<Empty>((resolve, reject) => {
       this.grpcClient.sendResponse(
         pbMessage,
@@ -106,15 +119,15 @@ export class CommandsClient extends Client {
   }
 
   public subscribe(
-    request: CommandsSubscriptionRequest,
-  ): CommandsSubscriptionResponse {
+    request: QueriesSubscriptionRequest,
+  ): QueriesSubscriptionResponse {
     const pbSubRequest = new pb.Subscribe();
     pbSubRequest.setClientid(
       request.clientId ? request.clientId : this.clientOptions.clientId,
     );
     pbSubRequest.setGroup(request.group ? request.group : '');
     pbSubRequest.setChannel(request.channel);
-    pbSubRequest.setSubscribetypedata(3);
+    pbSubRequest.setSubscribetypedata(4);
 
     const stream = this.grpcClient.subscribeToRequests(
       pbSubRequest,
@@ -123,11 +136,11 @@ export class CommandsClient extends Client {
 
     let state = StreamState.Initialized;
     let onStateChanged = new TypedEvent<StreamState>();
-    let onCommand = new TypedEvent<CommandsReceiveMessage>();
+    let onQuery = new TypedEvent<QueriesReceiveMessage>();
     let onError = new TypedEvent<Error>();
 
     stream.on('data', function (data: pb.Request) {
-      onCommand.emit({
+      onQuery.emit({
         id: data.getRequestid(),
         channel: data.getChannel(),
         metadata: data.getMetadata(),
@@ -156,7 +169,7 @@ export class CommandsClient extends Client {
     });
     return {
       state: state,
-      onCommand: onCommand,
+      onQuery: onQuery,
       onStateChanged: onStateChanged,
       onError: onError,
       cancel() {

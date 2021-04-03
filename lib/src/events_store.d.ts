@@ -1,5 +1,6 @@
-import { BaseMessage, Client } from './client';
+import { BaseMessage, Client, StreamState } from './client';
 import { Config } from './config';
+import { TypedEvent } from './common';
 export declare enum EventStoreType {
     StartNewOnly = 1,
     StartFromFirst = 2,
@@ -30,19 +31,19 @@ export interface EventsStoreSubscriptionRequest {
     clientId?: string;
     requestType: EventStoreType;
     requestTypeValue?: number;
-    onEventFn?: (event: EventsStoreReceiveMessage) => void;
-    onErrorFn?: (e: Error) => void;
-    onCloseFn?: () => void;
 }
 export interface EventsStoreSubscriptionResponse {
+    state: StreamState;
+    onEvent: TypedEvent<EventsStoreReceiveMessage>;
+    onError: TypedEvent<Error>;
+    onStateChanged: TypedEvent<StreamState>;
     cancel(): void;
 }
-export interface EventsStoreStreamRequest {
-    onResultFn?: (result: EventsStoreSendResult) => void;
-    onErrorFn?: (e: Error) => void;
-    onCloseFn?: () => void;
-}
 export interface EventsStoreStreamResponse {
+    state: StreamState;
+    onResult: TypedEvent<EventsStoreSendResult>;
+    onError: TypedEvent<Error>;
+    onStateChanged: TypedEvent<StreamState>;
     write(message: EventsStoreMessage): void;
     end(): void;
     cancel(): void;
@@ -50,7 +51,7 @@ export interface EventsStoreStreamResponse {
 export declare class EventsStoreClient extends Client {
     constructor(Options: Config);
     send(message: EventsStoreMessage): Promise<EventsStoreSendResult>;
-    stream(request: EventsStoreStreamRequest): EventsStoreStreamResponse;
+    stream(): EventsStoreStreamResponse;
     subscribe(request: EventsStoreSubscriptionRequest): EventsStoreSubscriptionResponse;
 }
 //# sourceMappingURL=events_store.d.ts.map

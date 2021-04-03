@@ -28,7 +28,7 @@ subscriberC.onStateChanged.on((state) => console.log('SubscriberC', state));
 setTimeout(() => {
   for (let i = 0; i < 20; i++) {
     eventsClient
-      .send({ channel: 'events.A;events.B', body: 'data' })
+      .send({ channel: 'events.A;events.B', body: Utils.stringToBytes('data') })
       .catch((reason) => console.error(reason));
   }
 }, 2000);

@@ -25,5 +25,10 @@ export interface Config {
      * Connection JWT token.
      */
     authToken?: string;
+    /**
+     * Duration in milliseconds to wait for RPC (Command and Query) response.
+     * Defaults to 60 seconds.
+     */
+    defaultRpcTimeout?: number;
 }
 //# sourceMappingURL=config.d.ts.map

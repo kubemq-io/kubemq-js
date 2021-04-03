@@ -25,7 +25,7 @@ export interface BaseMessage {
   channel?: string;
   clientId?: string;
   metadata?: string;
-  body?: Uint8Array | string;
+  body?: Uint8Array;
   tags?: Map<string, string>;
 }
 

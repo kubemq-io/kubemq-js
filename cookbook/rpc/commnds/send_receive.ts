@@ -1,4 +1,4 @@
-import { CommandsClient, Config } from '../../../src';
+import {CommandsClient, Config, Utils} from '../../../src';
 
 function main() {
   const opts: Config = {
@@ -54,7 +54,7 @@ function main() {
       commandsClient
         .send({
           channel: 'commands',
-          body: 'data',
+          body: Utils.stringToBytes('data'),
           timeout: 10000,
           clientId: 'command-sender',
         })
