@@ -7,7 +7,7 @@ function main() {
   };
   const eventsStoreClient = new EventsStoreClient(opts);
   const subscriber = eventsStoreClient.subscribe({
-    channel: 'events_store.single',
+    channel: 'events_store.stream',
     requestType: EventStoreType.StartFromFirst,
   });
   subscriber.onEvent.on((event) => console.log(event));
@@ -15,10 +15,12 @@ function main() {
   subscriber.onStateChanged.on((state) => console.log(state));
 
   setTimeout(() => {
+    const streamer = eventsStoreClient.stream();
+    streamer.onResult.on((result) => console.log(result));
+    streamer.onError.on((error) => console.error(error));
+    streamer.onStateChanged.on((state) => console.log(state));
     for (let i = 0; i < 20; i++) {
-      eventsStoreClient
-        .send({ channel: 'events_store.single', body: 'data' })
-        .catch((reason) => console.error(reason));
+      streamer.write({ channel: 'events_store.stream', body: 'data' });
     }
   }, 2000);
 

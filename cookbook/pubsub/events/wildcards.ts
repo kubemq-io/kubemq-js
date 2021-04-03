@@ -1,51 +1,30 @@
-import { Config } from '../../../src/config';
-import { Utils } from '../../../src/utils';
-import { EventsClient, EventsReceiveMessage } from '../../../src/events';
-
+import { EventsClient, Utils, Config } from '../../../src';
 const opts: Config = {
   address: 'localhost:50000',
   clientId: Utils.uuid(),
 };
 const eventsClient = new EventsClient(opts);
+
 const subscriberA = eventsClient.subscribe({
   channel: 'events.A',
-
-  onEventFn: (event: EventsReceiveMessage) => {
-    console.log('SubscriberA', event);
-  },
-  onErrorFn: (e) => {
-    console.error(e);
-  },
-  onCloseFn: () => {
-    console.log('close');
-  },
 });
+subscriberA.onEvent.on((event) => console.log('SubscriberA', event));
+subscriberA.onError.on((error) => console.error('SubscriberA', error));
+subscriberA.onStateChanged.on((state) => console.log('SubscriberA', state));
 
 const subscriberB = eventsClient.subscribe({
   channel: 'events.B',
-  group: 'g1',
-  onEventFn: (event: EventsReceiveMessage) => {
-    console.log('SubscriberB', event);
-  },
-  onErrorFn: (e) => {
-    console.error(e);
-  },
-  onCloseFn: () => {
-    console.log('close');
-  },
 });
+subscriberB.onEvent.on((event) => console.log('SubscriberB', event));
+subscriberB.onError.on((error) => console.error('SubscriberB', error));
+subscriberB.onStateChanged.on((state) => console.log('SubscriberB', state));
+
 const subscriberC = eventsClient.subscribe({
   channel: 'events.*',
-  onEventFn: (event: EventsReceiveMessage) => {
-    console.log('SubscriberC', event);
-  },
-  onErrorFn: (e) => {
-    console.error(e);
-  },
-  onCloseFn: () => {
-    console.log('close');
-  },
 });
+subscriberC.onEvent.on((event) => console.log('SubscriberC', event));
+subscriberC.onError.on((error) => console.error('SubscriberC', error));
+subscriberC.onStateChanged.on((state) => console.log('SubscriberC', state));
 setTimeout(() => {
   for (let i = 0; i < 20; i++) {
     eventsClient
@@ -55,7 +34,5 @@ setTimeout(() => {
 }, 2000);
 
 setTimeout(() => {
-  subscriberA.cancel();
-  subscriberB.cancel();
-  subscriberC.cancel();
+  eventsClient.close();
 }, 4000);
