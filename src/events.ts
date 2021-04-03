@@ -65,7 +65,10 @@ export class EventsClient extends Client {
         this.metadata(),
         this.callOptions(),
         (e) => {
-          if (e) reject(e);
+          if (e) {
+            reject(e);
+            return;
+          }
           resolve({ id: pbMessage.getEventid(), sent: true });
         },
       );
