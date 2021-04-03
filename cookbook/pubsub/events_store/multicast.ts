@@ -8,8 +8,7 @@ function main() {
   const eventsStoreClient = new EventsStoreClient(opts);
 
   const subscriberA = eventsStoreClient.subscribe({
-    channel: 'events_store.loadbalance',
-    group: 'g1',
+    channel: 'events_store.A',
     clientId: 'clientA',
     requestType: EventStoreType.StartFromFirst,
   });
@@ -18,12 +17,10 @@ function main() {
   subscriberA.onStateChanged.on((state) => console.log('SubscriberA', state));
 
   const subscriberB = eventsStoreClient.subscribe({
-    channel: 'events_store.loadbalance',
-    group: 'g1',
+    channel: 'events_store.B',
     clientId: 'clientB',
     requestType: EventStoreType.StartFromFirst,
   });
-
   subscriberB.onEvent.on((event) => console.log('SubscriberB', event));
   subscriberB.onError.on((error) => console.error('SubscriberB', error));
   subscriberB.onStateChanged.on((state) => console.log('SubscriberB', state));
@@ -31,7 +28,7 @@ function main() {
   setTimeout(() => {
     for (let i = 0; i < 20; i++) {
       eventsStoreClient
-        .send({ channel: 'events_store.loadbalance', body: 'data' })
+        .send({ channel: 'events_store.A;events_store.B', body: 'data' })
         .catch((reason) => console.error(reason));
     }
   }, 2000);

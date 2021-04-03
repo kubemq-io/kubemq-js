@@ -1,6 +1,4 @@
-import { Config } from '../../../src';
-import { Utils } from '../../../src/utils';
-import { EventsClient, EventsReceiveMessage } from '../../../src/events';
+import { EventsClient, Utils, Config } from '../../../src';
 
 const opts: Config = {
   address: 'localhost:50000',
@@ -9,31 +7,20 @@ const opts: Config = {
 const eventsClient = new EventsClient(opts);
 const subscriber = eventsClient.subscribe({
   channel: 'events.stream',
-  onEventFn: (event: EventsReceiveMessage) => {
-    console.log(event);
-  },
-  onErrorFn: (e) => {
-    console.error(e);
-  },
-  onCloseFn: () => {
-    console.log('close');
-  },
 });
-
+subscriber.onEvent.on((event) => console.log(event));
+subscriber.onError.on((error) => console.error(error));
+subscriber.onStateChanged.on((state) => console.log(state));
 setTimeout(() => {
-  const streamer = eventsClient.stream({
-    onErrorFn: (e) => {
-      console.error(e);
-    },
-    onCloseFn: () => {
-      console.log('close');
-    },
-  });
+  const streamer = eventsClient.stream();
+  streamer.onResult.on((result) => console.log(result));
+  streamer.onError.on((error) => console.error(error));
+  streamer.onStateChanged.on((state) => console.log(state));
   for (let i = 0; i < 20; i++) {
     streamer.write({ channel: 'events.stream', body: 'data' });
   }
 }, 2000);
 
 setTimeout(() => {
-  subscriber.cancel();
+  eventsClient.close();
 }, 4000);
