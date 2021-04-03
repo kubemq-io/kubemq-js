@@ -3,49 +3,63 @@ import { Config } from './config';
 import * as pb from '../src/protos';
 import { Utils } from './utils';
 
-export interface EventsMessage extends BaseMessage {}
-export interface EventsReceiveMessage {
+export enum EventStoreType {
+  StartNewOnly = 1,
+  StartFromFirst,
+  StartFromLast,
+  StartAtSequence,
+  StartAtTime,
+  StartAtTimeDelta,
+}
+export interface EventsStoreMessage extends BaseMessage {}
+export interface EventsStoreReceiveMessage {
   id: string;
   channel: string;
   metadata: string;
   body: Uint8Array | string;
   tags: Map<string, string>;
+  timestamp: number;
+  sequence: number;
 }
-export interface EventsSendResult {
+export interface EventsStoreSendResult {
   id: string;
   sent: boolean;
+  error: string;
 }
 
-export interface EventsSubscriptionRequest {
+export interface EventsStoreSubscriptionRequest {
   channel: string;
   group?: string;
   clientId?: string;
-  onEventFn?: (event: EventsReceiveMessage) => void;
+  requestType: EventStoreType;
+  requestTypeValue?: number;
+  onEventFn?: (event: EventsStoreReceiveMessage) => void;
   onErrorFn?: (e: Error) => void;
   onCloseFn?: () => void;
 }
 
-export interface EventsSubscriptionResponse {
+export interface EventsStoreSubscriptionResponse {
   cancel(): void;
 }
 
-export interface EventsStreamRequest {
+export interface EventsStoreStreamRequest {
+  onResultFn?: (result: EventsStoreSendResult) => void;
   onErrorFn?: (e: Error) => void;
   onCloseFn?: () => void;
 }
 
-export interface EventsStreamResponse {
-  write(message: EventsMessage): void;
+export interface EventsStoreStreamResponse {
+  write(message: EventsStoreMessage): void;
   end(): void;
   cancel(): void;
 }
 
-export class EventsClient extends Client {
+export class EventsStoreClient extends Client {
   constructor(Options: Config) {
     super(Options);
   }
 
-  public send(message: EventsMessage): Promise<EventsSendResult> {
+  public send(message: EventsStoreMessage): Promise<EventsStoreSendResult> {
     const pbMessage = new pb.Event();
     pbMessage.setEventid(message.id ? message.id : Utils.uuid());
     pbMessage.setClientid(
@@ -57,24 +71,39 @@ export class EventsClient extends Client {
     if (message.tags != null) {
       pbMessage.getTagsMap().set(message.tags);
     }
-    pbMessage.setStore(false);
-    return new Promise<EventsSendResult>((resolve, reject) => {
+    pbMessage.setStore(true);
+    return new Promise<EventsStoreSendResult>((resolve, reject) => {
       this.grpcClient.sendEvent(
         pbMessage,
         this.metadata(),
         this.callOptions(),
-        (e) => {
+        (e, result) => {
           if (e) reject(e);
-          resolve({ id: pbMessage.getEventid(), sent: true });
+          if (result != null)
+            resolve({
+              id: result.getEventid(),
+              sent: result.getSent(),
+              error: result.getError(),
+            });
         },
       );
     });
   }
-  public stream(request: EventsStreamRequest): EventsStreamResponse {
+  public stream(request: EventsStoreStreamRequest): EventsStoreStreamResponse {
     const stream = this.grpcClient.sendEventsStream(
       this.metadata(),
       this.callOptions(),
     );
+    stream.on('data', function (result: pb.Result) {
+      if (request.onResultFn != null) {
+        request.onResultFn({
+          id: result.getEventid(),
+          sent: result.getSent(),
+          error: result.getError(),
+        });
+      }
+    });
+
     stream.on('error', function (e: Error) {
       if (request.onErrorFn != null) {
         request.onErrorFn(e);
@@ -86,8 +115,9 @@ export class EventsClient extends Client {
         request.onCloseFn();
       }
     });
+
     const clientIdFromOptions = this.clientOptions.clientId;
-    const writeFn = function (message: EventsMessage): void {
+    const writeFn = function (message: EventsStoreMessage): void {
       const pbMessage = new pb.Event();
       pbMessage.setEventid(message.id ? message.id : Utils.uuid());
       pbMessage.setClientid(
@@ -99,21 +129,27 @@ export class EventsClient extends Client {
       if (message.tags != null) {
         pbMessage.getTagsMap().set(message.tags);
       }
-      pbMessage.setStore(false);
+      pbMessage.setStore(true);
       stream.write(pbMessage);
     };
     return { write: writeFn, cancel: stream.cancel, end: stream.end };
   }
   public subscribe(
-    request: EventsSubscriptionRequest,
-  ): EventsSubscriptionResponse {
+    request: EventsStoreSubscriptionRequest,
+  ): EventsStoreSubscriptionResponse {
     const pbSubRequest = new pb.Subscribe();
     pbSubRequest.setClientid(
       request.clientId ? request.clientId : this.clientOptions.clientId,
     );
     pbSubRequest.setGroup(request.group ? request.group : '');
     pbSubRequest.setChannel(request.channel);
-    pbSubRequest.setSubscribetypedata(1);
+    pbSubRequest.setSubscribetypedata(2);
+    pbSubRequest.setEventsstoretypedata(
+      request.requestType ? request.requestType : 1,
+    );
+    pbSubRequest.setEventsstoretypevalue(
+      request.requestTypeValue ? request.requestTypeValue : 0,
+    );
     const stream = this.grpcClient.subscribeToEvents(
       pbSubRequest,
       this.metadata(),
@@ -127,6 +163,8 @@ export class EventsClient extends Client {
           metadata: data.getMetadata(),
           body: data.getBody(),
           tags: data.getTagsMap(),
+          timestamp: data.getTimestamp(),
+          sequence: data.getSequence(),
         });
       }
     });

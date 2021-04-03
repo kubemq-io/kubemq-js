@@ -1,6 +1,6 @@
 import { Config } from './config';
 import * as kubemq from './protos';
-import { credentials } from '@grpc/grpc-js';
+import * as grpc from '@grpc/grpc-js';
 
 const defaultOptions: Config = {
   address: 'localhost:50000',
@@ -21,23 +21,7 @@ export interface BaseMessage {
   body?: Uint8Array | string;
   tags?: Map<string, string>;
 }
-export interface ResponseStream<T> {
-  on(event: 'data', fn: (item: T) => void): this;
-  on(event: 'end', fn: () => void): this;
-  // on(event: 'status', fn: (status: grpc.StatusObject) => void): this;
-  on(event: 'error', fn: (err: Error) => void): this;
-  cancel(): void;
-}
 
-export interface IRequestStream<T> {
-  write(item: T): void;
-  end(): void;
-  cancel(): void;
-}
-
-export interface IDuplexStream<T, R>
-  extends IRequestStream<T>,
-    ResponseStream<R> {}
 export class Client {
   protected clientOptions: Config;
   protected grpcClient: kubemq.kubemqClient;
@@ -48,8 +32,31 @@ export class Client {
   private init() {
     this.grpcClient = new kubemq.kubemqClient(
       this.clientOptions.address,
-      credentials.createInsecure(),
+      this.getChannelCredentials(),
     );
+  }
+  protected metadata(): grpc.Metadata {
+    const meta = new grpc.Metadata();
+    if (this.clientOptions.authToken != null) {
+      meta.add('authorization', this.clientOptions.authToken);
+    }
+    return meta;
+  }
+  protected callOptions(): grpc.CallOptions {
+    return {
+      deadline: new Date(Date.now() + this.clientOptions.dialTimeout),
+    };
+  }
+  private getChannelCredentials(): grpc.ChannelCredentials {
+    if (this.clientOptions.credentials != null) {
+      return grpc.credentials.createSsl(
+        this.clientOptions.credentials.rootCertificate,
+        null,
+        this.clientOptions.credentials.certChain,
+      );
+    } else {
+      return grpc.credentials.createInsecure();
+    }
   }
   public ping(): Promise<ServerInfo> {
     return new Promise<ServerInfo>((resolve, reject) => {

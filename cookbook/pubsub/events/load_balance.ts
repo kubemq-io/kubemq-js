@@ -10,7 +10,7 @@ const eventsClient = new EventsClient(opts);
 const subscriberA = eventsClient.subscribe({
   channel: 'events.loadbalance',
   group: 'g1',
-  onDataFn: (event: EventsReceiveMessage) => {
+  onEventFn: (event: EventsReceiveMessage) => {
     console.log('SubscriberA', event);
   },
   onErrorFn: (e) => {
@@ -23,7 +23,7 @@ const subscriberA = eventsClient.subscribe({
 const subscriberB = eventsClient.subscribe({
   channel: 'events.loadbalance',
   group: 'g1',
-  onDataFn: (event: EventsReceiveMessage) => {
+  onEventFn: (event: EventsReceiveMessage) => {
     console.log('SubscriberB', event);
   },
   onErrorFn: (e) => {
