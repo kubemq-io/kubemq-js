@@ -1,6 +1,4 @@
-import { Config } from '../../../src/config';
-import { Utils } from '../../../src/utils';
-import { EventsClient, EventsReceiveMessage } from '../../../src/events';
+import { EventsClient, Config, Utils } from '../../../src';
 
 const opts: Config = {
   address: 'localhost:50000',
@@ -10,29 +8,18 @@ const eventsClient = new EventsClient(opts);
 const subscriberA = eventsClient.subscribe({
   channel: 'events.loadbalance',
   group: 'g1',
-  onEventFn: (event: EventsReceiveMessage) => {
-    console.log('SubscriberA', event);
-  },
-  onErrorFn: (e) => {
-    console.error(e);
-  },
-  onCloseFn: () => {
-    console.log('close');
-  },
 });
+subscriberA.onEvent.on((event) => console.log('SubscriberA', event));
+subscriberA.onError.on((error) => console.error('SubscriberA', error));
+subscriberA.onStateChanged.on((state) => console.log('SubscriberA', state));
+
 const subscriberB = eventsClient.subscribe({
   channel: 'events.loadbalance',
   group: 'g1',
-  onEventFn: (event: EventsReceiveMessage) => {
-    console.log('SubscriberB', event);
-  },
-  onErrorFn: (e) => {
-    console.error(e);
-  },
-  onCloseFn: () => {
-    console.log('close');
-  },
 });
+subscriberB.onEvent.on((event) => console.log('SubscriberB', event));
+subscriberB.onError.on((error) => console.error('SubscriberB', error));
+subscriberB.onStateChanged.on((state) => console.log('SubscriberB', state));
 setTimeout(() => {
   for (let i = 0; i < 20; i++) {
     eventsClient
@@ -42,6 +29,5 @@ setTimeout(() => {
 }, 2000);
 
 setTimeout(() => {
-  subscriberA.cancel();
-  subscriberB.cancel();
+  eventsClient.close();
 }, 4000);

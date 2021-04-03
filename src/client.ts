@@ -2,6 +2,12 @@ import { Config } from './config';
 import * as kubemq from './protos';
 import * as grpc from '@grpc/grpc-js';
 
+export enum StreamState {
+  Initialized,
+  Ready = 1,
+  Error,
+  Closed,
+}
 const defaultOptions: Config = {
   address: 'localhost:50000',
   dialTimeout: 30000,
