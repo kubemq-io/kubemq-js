@@ -1,5 +1,5 @@
-import { Client } from '../../client';
-import { Config } from '../../config';
+import { Client } from '../../../src/client';
+import { Config } from '../../../src/config';
 
 function main() {
   const opts: Config = {
