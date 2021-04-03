@@ -1,4 +1,4 @@
-import {CommandsClient, Config, Utils} from '../../../src';
+import { CommandsClient, Config, Utils } from '../../../src';
 
 function main() {
   const opts: Config = {
