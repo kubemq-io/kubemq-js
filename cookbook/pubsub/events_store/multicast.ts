@@ -1,4 +1,4 @@
-import { Config, EventsStoreClient, EventStoreType } from '../../../src';
+import { Config, EventsStoreClient, EventStoreType,Utils } from '../../../src';
 
 function main() {
   const opts: Config = {
@@ -28,7 +28,7 @@ function main() {
   setTimeout(() => {
     for (let i = 0; i < 20; i++) {
       eventsStoreClient
-        .send({ channel: 'events_store.A;events_store.B', body: 'data' })
+        .send({ channel: 'events_store.A;events_store.B', body: Utils.stringToBytes('data') })
         .catch((reason) => console.error(reason));
     }
   }, 2000);
