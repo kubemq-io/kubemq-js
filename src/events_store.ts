@@ -78,7 +78,10 @@ export class EventsStoreClient extends Client {
         this.metadata(),
         this.callOptions(),
         (e, result) => {
-          if (e) reject(e);
+          if (e) {
+            reject(e);
+            return;
+          }
           if (result != null)
             resolve({
               id: result.getEventid(),
