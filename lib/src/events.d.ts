@@ -1,5 +1,6 @@
-import { BaseMessage, Client } from './client';
+import { BaseMessage, Client, StreamState } from './client';
 import { Config } from './config';
+import { TypedEvent } from './common';
 export interface EventsMessage extends BaseMessage {
 }
 export interface EventsReceiveMessage {
@@ -17,18 +18,19 @@ export interface EventsSubscriptionRequest {
     channel: string;
     group?: string;
     clientId?: string;
-    onEventFn?: (event: EventsReceiveMessage) => void;
-    onErrorFn?: (e: Error) => void;
-    onCloseFn?: () => void;
 }
 export interface EventsSubscriptionResponse {
+    state: StreamState;
+    onEvent: TypedEvent<EventsReceiveMessage>;
+    onError: TypedEvent<Error>;
+    onStateChanged: TypedEvent<StreamState>;
     cancel(): void;
 }
-export interface EventsStreamRequest {
-    onErrorFn?: (e: Error) => void;
-    onCloseFn?: () => void;
-}
 export interface EventsStreamResponse {
+    state: StreamState;
+    onResult: TypedEvent<EventsSendResult>;
+    onError: TypedEvent<Error>;
+    onStateChanged: TypedEvent<StreamState>;
     write(message: EventsMessage): void;
     end(): void;
     cancel(): void;
@@ -36,7 +38,7 @@ export interface EventsStreamResponse {
 export declare class EventsClient extends Client {
     constructor(Options: Config);
     send(message: EventsMessage): Promise<EventsSendResult>;
-    stream(request: EventsStreamRequest): EventsStreamResponse;
+    stream(): EventsStreamResponse;
     subscribe(request: EventsSubscriptionRequest): EventsSubscriptionResponse;
 }
 //# sourceMappingURL=events.d.ts.map
