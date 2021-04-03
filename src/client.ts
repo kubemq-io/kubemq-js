@@ -11,6 +11,7 @@ export enum StreamState {
 const defaultOptions: Config = {
   address: 'localhost:50000',
   dialTimeout: 30000,
+  defaultRpcTimeout: 60000,
 };
 export interface ServerInfo {
   host: string;
