@@ -17,7 +17,10 @@ function main() {
   setTimeout(() => {
     for (let i = 0; i < 20; i++) {
       eventsStoreClient
-        .send({ channel: 'events_store.single', body: Utils.stringToBytes('data') })
+        .send({
+          channel: 'events_store.single',
+          body: Utils.stringToBytes('data'),
+        })
         .catch((reason) => console.error(reason));
     }
   }, 2000);
