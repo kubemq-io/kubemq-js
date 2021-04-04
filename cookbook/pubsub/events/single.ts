@@ -1,34 +1,42 @@
 import { Utils, EventsClient, Config } from '../../../src';
 
-function main() {
-  const opts: Config = {
-    address: 'localhost:50000',
-    clientId: Utils.uuid(),
-  };
-  const eventsClient = new EventsClient(opts);
-
-  eventsClient
+const opts: Config = {
+  address: 'localhost:50000',
+  clientId: Utils.uuid(),
+};
+const eventsClient = new EventsClient(opts);
+(async () => {
+  await eventsClient
     .subscribe({
       channel: 'events.single',
     })
     .then((subscriber) => {
       subscriber.onEvent.on((event) => console.log(event));
-      subscriber.onError.on((error) => console.error(error));
+      subscriber.onError.on((error) => {
+        console.error(error);
+      });
       subscriber.onStateChanged.on((state) => console.log(state));
     })
-    .catch((reason) => console.log(reason));
+    .catch((reason) => {
+      console.log(reason);
+    });
+})();
 
-  setTimeout(() => {
-    for (let i = 0; i < 20; i++) {
-      eventsClient
-        .send({ channel: 'events.single', body: Utils.stringToBytes('data') })
-        .catch((reason) => console.error(reason));
+setTimeout(async () => {
+  let isError: boolean = false;
+  for (let i = 0; i < 10; i++) {
+    await eventsClient
+      .send({ channel: 'events.single', body: Utils.stringToBytes('data') })
+      .catch((reason) => {
+        console.error(reason);
+        isError = true;
+      });
+    if (isError) {
+      break;
     }
-  }, 2000);
+  }
+}, 2000);
 
-  setTimeout(() => {
-    eventsClient.close();
-  }, 4000);
-}
-
-main();
+setTimeout(() => {
+  eventsClient.close();
+}, 4000);
