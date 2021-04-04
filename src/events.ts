@@ -36,7 +36,7 @@ export interface EventsStreamResponse {
   onResult: TypedEvent<EventsSendResult>;
   onError: TypedEvent<Error>;
   onStateChanged: TypedEvent<StreamState>;
-  write(message: EventsMessage): void;
+  write(message: EventsMessage): Promise<void>;
   end(): void;
   cancel(): void;
 }
@@ -99,30 +99,36 @@ export class EventsClient extends Client {
           }
         });
         const clientIdFromOptions = this.clientOptions.clientId;
-        const writeFn = function (message: EventsMessage): void {
-          const pbMessage = new pb.Event();
-          pbMessage.setEventid(message.id ? message.id : Utils.uuid());
-          pbMessage.setClientid(
-            message.clientId ? message.clientId : clientIdFromOptions,
-          );
-          pbMessage.setChannel(message.channel);
-          pbMessage.setBody(message.body);
-          pbMessage.setMetadata(message.metadata);
-          if (message.tags != null) {
-            pbMessage.getTagsMap().set(message.tags);
-          }
-          pbMessage.setStore(false);
-          stream.write(pbMessage);
-          if (state !== StreamState.Ready) {
-            state = StreamState.Ready;
-            onStateChanged.emit(StreamState.Ready);
-          }
-          onResult.emit({
-            id: pbMessage.getEventid(),
-            sent: true,
+        const writeFn = function (message: EventsMessage): Promise<void> {
+          return new Promise<void>((resolve, reject) => {
+            try {
+              const pbMessage = new pb.Event();
+              pbMessage.setEventid(message.id ? message.id : Utils.uuid());
+              pbMessage.setClientid(
+                message.clientId ? message.clientId : clientIdFromOptions,
+              );
+              pbMessage.setChannel(message.channel);
+              pbMessage.setBody(message.body);
+              pbMessage.setMetadata(message.metadata);
+              if (message.tags != null) {
+                pbMessage.getTagsMap().set(message.tags);
+              }
+              pbMessage.setStore(false);
+              stream.write(pbMessage);
+              if (state !== StreamState.Ready) {
+                state = StreamState.Ready;
+                onStateChanged.emit(StreamState.Ready);
+              }
+              onResult.emit({
+                id: pbMessage.getEventid(),
+                sent: true,
+              });
+              resolve();
+            } catch (e) {
+              reject(e);
+            }
           });
         };
-
         resolve({
           onResult,
           onError: onError,

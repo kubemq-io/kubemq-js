@@ -5,21 +5,45 @@ const opts: Config = {
   clientId: Utils.uuid(),
 };
 const eventsClient = new EventsClient(opts);
-const subscriberA = eventsClient.subscribe({
-  channel: 'events.loadbalance',
-  group: 'g1',
-});
-subscriberA.onEvent.on((event) => console.log('SubscriberA', event));
-subscriberA.onError.on((error) => console.error('SubscriberA', error));
-subscriberA.onStateChanged.on((state) => console.log('SubscriberA', state));
+(async () => {
+  await eventsClient
+    .subscribe({
+      channel: 'events.loadbalance',
+      group: 'g1',
+    })
+    .then((subscriber) => {
+      subscriber.onEvent.on((event) => console.log('SubscriberA', event));
+      subscriber.onError.on((error) => {
+        console.error('SubscriberA', error);
+      });
+      subscriber.onStateChanged.on((state) =>
+        console.log('SubscriberA', state),
+      );
+    })
+    .catch((reason) => {
+      console.log(reason);
+    });
+})();
 
-const subscriberB = eventsClient.subscribe({
-  channel: 'events.loadbalance',
-  group: 'g1',
-});
-subscriberB.onEvent.on((event) => console.log('SubscriberB', event));
-subscriberB.onError.on((error) => console.error('SubscriberB', error));
-subscriberB.onStateChanged.on((state) => console.log('SubscriberB', state));
+(async () => {
+  await eventsClient
+    .subscribe({
+      channel: 'events.loadbalance',
+      group: 'g1',
+    })
+    .then((subscriber) => {
+      subscriber.onEvent.on((event) => console.log('SubscriberB', event));
+      subscriber.onError.on((error) => {
+        console.error('SubscriberB', error);
+      });
+      subscriber.onStateChanged.on((state) =>
+        console.log('SubscriberB', state),
+      );
+    })
+    .catch((reason) => {
+      console.log(reason);
+    });
+})();
 setTimeout(() => {
   for (let i = 0; i < 20; i++) {
     eventsClient
