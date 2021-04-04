@@ -3,7 +3,6 @@ import { Config } from './config';
 import * as pb from '../src/protos';
 import { Utils } from './utils';
 import { TypedEvent } from './common';
-import { Empty } from './protos';
 
 export interface CommandsMessage extends BaseMessage {
   timeout?: number;
@@ -80,7 +79,7 @@ export class CommandsClient extends Client {
     });
   }
 
-  public response(message: CommandsResponse): Promise<Empty> {
+  public response(message: CommandsResponse): Promise<void> {
     const pbMessage = new pb.Response();
     pbMessage.setRequestid(message.id);
     pbMessage.setClientid(
@@ -90,78 +89,80 @@ export class CommandsClient extends Client {
 
     pbMessage.setError(message.error);
     pbMessage.setExecuted(message.executed);
-    return new Promise<Empty>((resolve, reject) => {
-      this.grpcClient.sendResponse(
-        pbMessage,
-        this.metadata(),
-        (e, response) => {
-          if (e) {
-            reject(e);
-            return;
-          }
-          resolve(response);
-        },
-      );
+    return new Promise<void>((resolve, reject) => {
+      this.grpcClient.sendResponse(pbMessage, this.metadata(), (e) => {
+        if (e) {
+          reject(e);
+          return;
+        }
+        resolve();
+      });
     });
   }
 
   public subscribe(
     request: CommandsSubscriptionRequest,
-  ): CommandsSubscriptionResponse {
-    const pbSubRequest = new pb.Subscribe();
-    pbSubRequest.setClientid(
-      request.clientId ? request.clientId : this.clientOptions.clientId,
-    );
-    pbSubRequest.setGroup(request.group ? request.group : '');
-    pbSubRequest.setChannel(request.channel);
-    pbSubRequest.setSubscribetypedata(3);
+  ): Promise<CommandsSubscriptionResponse> {
+    return new Promise<CommandsSubscriptionResponse>((resolve, reject) => {
+      try {
+        const pbSubRequest = new pb.Subscribe();
+        pbSubRequest.setClientid(
+          request.clientId ? request.clientId : this.clientOptions.clientId,
+        );
+        pbSubRequest.setGroup(request.group ? request.group : '');
+        pbSubRequest.setChannel(request.channel);
+        pbSubRequest.setSubscribetypedata(3);
 
-    const stream = this.grpcClient.subscribeToRequests(
-      pbSubRequest,
-      this.metadata(),
-    );
+        const stream = this.grpcClient.subscribeToRequests(
+          pbSubRequest,
+          this.metadata(),
+        );
 
-    let state = StreamState.Initialized;
-    let onStateChanged = new TypedEvent<StreamState>();
-    let onCommand = new TypedEvent<CommandsReceiveMessage>();
-    let onError = new TypedEvent<Error>();
+        let state = StreamState.Initialized;
+        let onStateChanged = new TypedEvent<StreamState>();
+        let onCommand = new TypedEvent<CommandsReceiveMessage>();
+        let onError = new TypedEvent<Error>();
 
-    stream.on('data', function (data: pb.Request) {
-      onCommand.emit({
-        id: data.getRequestid(),
-        channel: data.getChannel(),
-        metadata: data.getMetadata(),
-        body: data.getBody(),
-        tags: data.getTagsMap(),
-        replyChannel: data.getReplychannel(),
-      });
-      if (state !== StreamState.Ready) {
-        state = StreamState.Ready;
-        onStateChanged.emit(StreamState.Ready);
+        stream.on('data', function (data: pb.Request) {
+          onCommand.emit({
+            id: data.getRequestid(),
+            channel: data.getChannel(),
+            metadata: data.getMetadata(),
+            body: data.getBody(),
+            tags: data.getTagsMap(),
+            replyChannel: data.getReplychannel(),
+          });
+          if (state !== StreamState.Ready) {
+            state = StreamState.Ready;
+            onStateChanged.emit(StreamState.Ready);
+          }
+        });
+        stream.on('error', function (e: Error) {
+          onError.emit(e);
+          if (state !== StreamState.Error) {
+            state = StreamState.Error;
+            onStateChanged.emit(StreamState.Error);
+          }
+        });
+
+        stream.on('close', function () {
+          if (state !== StreamState.Closed) {
+            state = StreamState.Closed;
+            onStateChanged.emit(StreamState.Closed);
+          }
+        });
+        resolve({
+          state: state,
+          onCommand: onCommand,
+          onStateChanged: onStateChanged,
+          onError: onError,
+          cancel() {
+            stream.cancel();
+          },
+        });
+      } catch (e) {
+        reject(e);
       }
     });
-    stream.on('error', function (e: Error) {
-      onError.emit(e);
-      if (state !== StreamState.Error) {
-        state = StreamState.Error;
-        onStateChanged.emit(StreamState.Error);
-      }
-    });
-
-    stream.on('close', function () {
-      if (state !== StreamState.Closed) {
-        state = StreamState.Closed;
-        onStateChanged.emit(StreamState.Closed);
-      }
-    });
-    return {
-      state: state,
-      onCommand: onCommand,
-      onStateChanged: onStateChanged,
-      onError: onError,
-      cancel() {
-        stream.cancel();
-      },
-    };
   }
 }
