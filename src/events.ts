@@ -74,119 +74,134 @@ export class EventsClient extends Client {
       );
     });
   }
-  public stream(): EventsStreamResponse {
-    const stream = this.grpcClient.sendEventsStream(this.metadata());
-    let state: StreamState = StreamState.Initialized;
-    const onStateChanged: TypedEvent<StreamState> = new TypedEvent<StreamState>();
-    const onError: TypedEvent<Error> = new TypedEvent<Error>();
-    const onResult: TypedEvent<EventsSendResult> = new TypedEvent<EventsSendResult>();
-    stream.on('error', function (e: Error) {
-      onError.emit(e);
-      if (state !== StreamState.Error) {
-        state = StreamState.Error;
-        onStateChanged.emit(StreamState.Error);
-      }
-    });
 
-    stream.on('close', function () {
-      if (state !== StreamState.Closed) {
-        state = StreamState.Closed;
-        onStateChanged.emit(StreamState.Closed);
+  public stream(): Promise<EventsStreamResponse> {
+    return new Promise<EventsStreamResponse>((resolve, reject) => {
+      try {
+        const stream = this.grpcClient.sendEventsStream(this.metadata());
+        let state: StreamState = StreamState.Initialized;
+        const onStateChanged: TypedEvent<StreamState> = new TypedEvent<StreamState>();
+        const onError: TypedEvent<Error> = new TypedEvent<Error>();
+        const onResult: TypedEvent<EventsSendResult> = new TypedEvent<EventsSendResult>();
+
+        stream.on('error', function (e: Error) {
+          onError.emit(e);
+          if (state !== StreamState.Error) {
+            state = StreamState.Error;
+            onStateChanged.emit(StreamState.Error);
+          }
+        });
+
+        stream.on('close', function () {
+          if (state !== StreamState.Closed) {
+            state = StreamState.Closed;
+            onStateChanged.emit(StreamState.Closed);
+          }
+        });
+        const clientIdFromOptions = this.clientOptions.clientId;
+        const writeFn = function (message: EventsMessage): void {
+          const pbMessage = new pb.Event();
+          pbMessage.setEventid(message.id ? message.id : Utils.uuid());
+          pbMessage.setClientid(
+            message.clientId ? message.clientId : clientIdFromOptions,
+          );
+          pbMessage.setChannel(message.channel);
+          pbMessage.setBody(message.body);
+          pbMessage.setMetadata(message.metadata);
+          if (message.tags != null) {
+            pbMessage.getTagsMap().set(message.tags);
+          }
+          pbMessage.setStore(false);
+          stream.write(pbMessage);
+          if (state !== StreamState.Ready) {
+            state = StreamState.Ready;
+            onStateChanged.emit(StreamState.Ready);
+          }
+          onResult.emit({
+            id: pbMessage.getEventid(),
+            sent: true,
+          });
+        };
+
+        resolve({
+          onResult,
+          onError: onError,
+          onStateChanged: onStateChanged,
+          state: state,
+          write: writeFn,
+          cancel() {
+            stream.cancel();
+          },
+          end(): void {
+            stream.end();
+          },
+        });
+      } catch (e) {
+        reject(e);
       }
     });
-    const clientIdFromOptions = this.clientOptions.clientId;
-    const writeFn = function (message: EventsMessage): void {
-      const pbMessage = new pb.Event();
-      pbMessage.setEventid(message.id ? message.id : Utils.uuid());
-      pbMessage.setClientid(
-        message.clientId ? message.clientId : clientIdFromOptions,
-      );
-      pbMessage.setChannel(message.channel);
-      pbMessage.setBody(message.body);
-      pbMessage.setMetadata(message.metadata);
-      if (message.tags != null) {
-        pbMessage.getTagsMap().set(message.tags);
-      }
-      pbMessage.setStore(false);
-      stream.write(pbMessage);
-      if (state !== StreamState.Ready) {
-        state = StreamState.Ready;
-        onStateChanged.emit(StreamState.Ready);
-      }
-      onResult.emit({
-        id: pbMessage.getEventid(),
-        sent: true,
-      });
-    };
-    return {
-      onResult,
-      onError: onError,
-      onStateChanged: onStateChanged,
-      state: state,
-      write: writeFn,
-      cancel() {
-        stream.cancel();
-      },
-      end(): void {
-        stream.end();
-      },
-    };
   }
   public subscribe(
     request: EventsSubscriptionRequest,
-  ): EventsSubscriptionResponse {
-    const pbSubRequest = new pb.Subscribe();
-    pbSubRequest.setClientid(
-      request.clientId ? request.clientId : this.clientOptions.clientId,
-    );
-    pbSubRequest.setGroup(request.group ? request.group : '');
-    pbSubRequest.setChannel(request.channel);
-    pbSubRequest.setSubscribetypedata(1);
-    const stream = this.grpcClient.subscribeToEvents(
-      pbSubRequest,
-      this.metadata(),
-    );
-    let state = StreamState.Initialized;
-    let onStateChanged = new TypedEvent<StreamState>();
-    let onEvent = new TypedEvent<EventsReceiveMessage>();
-    let onError = new TypedEvent<Error>();
+  ): Promise<EventsSubscriptionResponse> {
+    return new Promise<EventsSubscriptionResponse>((resolve, reject) => {
+      try {
+        const pbSubRequest = new pb.Subscribe();
+        pbSubRequest.setClientid(
+          request.clientId ? request.clientId : this.clientOptions.clientId,
+        );
+        pbSubRequest.setGroup(request.group ? request.group : '');
+        pbSubRequest.setChannel(request.channel);
+        pbSubRequest.setSubscribetypedata(1);
+        const stream = this.grpcClient.subscribeToEvents(
+          pbSubRequest,
+          this.metadata(),
+        );
+        let state = StreamState.Initialized;
+        let onStateChanged = new TypedEvent<StreamState>();
+        let onEvent = new TypedEvent<EventsReceiveMessage>();
+        let onError = new TypedEvent<Error>();
 
-    stream.on('data', function (data: pb.EventReceive) {
-      onEvent.emit({
-        id: data.getEventid(),
-        channel: data.getChannel(),
-        metadata: data.getMetadata(),
-        body: data.getBody(),
-        tags: data.getTagsMap(),
-      });
-      if (state !== StreamState.Ready) {
-        state = StreamState.Ready;
-        onStateChanged.emit(StreamState.Ready);
+        stream.on('data', function (data: pb.EventReceive) {
+          onEvent.emit({
+            id: data.getEventid(),
+            channel: data.getChannel(),
+            metadata: data.getMetadata(),
+            body: data.getBody(),
+            tags: data.getTagsMap(),
+          });
+          if (state !== StreamState.Ready) {
+            state = StreamState.Ready;
+            onStateChanged.emit(StreamState.Ready);
+          }
+        });
+
+        stream.on('error', function (e: Error) {
+          onError.emit(e);
+          if (state !== StreamState.Error) {
+            state = StreamState.Error;
+            onStateChanged.emit(StreamState.Error);
+          }
+        });
+
+        stream.on('close', function () {
+          if (state !== StreamState.Closed) {
+            state = StreamState.Closed;
+            onStateChanged.emit(StreamState.Closed);
+          }
+        });
+        resolve({
+          state: state,
+          onEvent: onEvent,
+          onStateChanged: onStateChanged,
+          onError: onError,
+          cancel() {
+            stream.cancel();
+          },
+        });
+      } catch (e) {
+        reject(e);
       }
     });
-
-    stream.on('error', function (e: Error) {
-      onError.emit(e);
-      if (state !== StreamState.Error) {
-        state = StreamState.Error;
-        onStateChanged.emit(StreamState.Error);
-      }
-    });
-
-    stream.on('close', function () {
-      if (state !== StreamState.Closed) {
-        state = StreamState.Closed;
-        onStateChanged.emit(StreamState.Closed);
-      }
-    });
-    return {
-      state: state,
-      onEvent: onEvent,
-      onStateChanged: onStateChanged,
-      onError: onError,
-      cancel() {
-        stream.cancel();
-      },
-    };
   }
 }
