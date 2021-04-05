@@ -161,6 +161,8 @@ export class EventsStoreClient extends Client {
       pbSubRequest.setGroup(request.group ? request.group : '');
       pbSubRequest.setChannel(request.channel);
       pbSubRequest.setSubscribetypedata(2);
+      pbSubRequest.setEventsstoretypedata(request.requestType);
+      pbSubRequest.setEventsstoretypevalue(request.requestTypeValue);
 
       const stream = this.grpcClient.subscribeToEvents(
         pbSubRequest,

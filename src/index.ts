@@ -5,3 +5,4 @@ export * from './events_store';
 export * from './utils';
 export * from './commands';
 export * from './queries';
+export * from './queues';
