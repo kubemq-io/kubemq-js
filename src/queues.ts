@@ -108,7 +108,7 @@ export class QueuesClient extends Client {
     return new Promise<QueueMessageSendResult>((resolve, reject) => {
       this.grpcClient.sendQueueMessage(
         pbMessage,
-        this.metadata(),
+        this.getMetadata(),
         this.callOptions(),
         (e, response) => {
           if (e) {
@@ -173,7 +173,7 @@ export class QueuesClient extends Client {
     return new Promise<QueueMessageSendResult[]>((resolve, reject) => {
       this.grpcClient.sendQueueMessagesBatch(
         pbBatchRequest,
-        this.metadata(),
+        this.getMetadata(),
         this.callOptions(),
         (e, responseBatch) => {
           if (e) {
@@ -229,7 +229,7 @@ export class QueuesClient extends Client {
     return new Promise<QueuesPullMessagesResponse>((resolve, reject) => {
       this.grpcClient.receiveQueueMessages(
         pbPullSubRequest,
-        this.metadata(),
+        this.getMetadata(),
         (e, response) => {
           if (e) {
             reject(e);
@@ -298,7 +298,7 @@ export class QueuesClient extends Client {
     return new Promise<QueuesAckAllMessagesResponse>((resolve, reject) =>
       this.grpcClient.ackAllQueueMessages(
         pbMessage,
-        this.metadata(),
+        this.getMetadata(),
         this.callOptions(),
         (err, response) => {
           if (err) {

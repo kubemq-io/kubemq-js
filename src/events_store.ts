@@ -75,7 +75,7 @@ export class EventsStoreClient extends Client {
     return new Promise<EventsStoreSendResult>((resolve, reject) => {
       this.grpcClient.sendEvent(
         pbMessage,
-        this.metadata(),
+        this.getMetadata(),
         this.callOptions(),
         (e, result) => {
           if (e) {
@@ -93,7 +93,7 @@ export class EventsStoreClient extends Client {
     });
   }
   public stream(): EventsStoreStreamResponse {
-    const stream = this.grpcClient.sendEventsStream(this.metadata());
+    const stream = this.grpcClient.sendEventsStream(this.getMetadata());
     let state: StreamState = StreamState.Initialized;
     const onStateChanged: TypedEvent<StreamState> = new TypedEvent<StreamState>();
     const onError: TypedEvent<Error> = new TypedEvent<Error>();
@@ -104,9 +104,9 @@ export class EventsStoreClient extends Client {
         sent: result.getSent(),
         error: result.getError(),
       });
-      if (state !== StreamState.Ready) {
-        state = StreamState.Ready;
-        onStateChanged.emit(StreamState.Ready);
+      if (state !== StreamState.Connected) {
+        state = StreamState.Connected;
+        onStateChanged.emit(StreamState.Connected);
       }
     });
 
@@ -173,7 +173,7 @@ export class EventsStoreClient extends Client {
     );
     const stream = this.grpcClient.subscribeToEvents(
       pbSubRequest,
-      this.metadata(),
+      this.getMetadata(),
     );
 
     let state = StreamState.Initialized;
@@ -190,9 +190,9 @@ export class EventsStoreClient extends Client {
         timestamp: data.getTimestamp(),
         sequence: data.getSequence(),
       });
-      if (state !== StreamState.Ready) {
-        state = StreamState.Ready;
-        onStateChanged.emit(StreamState.Ready);
+      if (state !== StreamState.Connected) {
+        state = StreamState.Connected;
+        onStateChanged.emit(StreamState.Connected);
       }
     });
 
