@@ -27,7 +27,7 @@ function main() {
         clientId: 'query-responseA',
         timestamp: Date.now(),
         id: query.id,
-        metadata: 'some metadata from response A',
+        metadata: 'some getMetadata from response A',
         body: Utils.stringToBytes('A says hi'),
       })
       .catch((reason) => console.log(reason));
@@ -45,7 +45,7 @@ function main() {
         clientId: 'query-responseB',
         timestamp: Date.now(),
         id: query.id,
-        metadata: 'some metadata from response B',
+        metadata: 'some getMetadata from response B',
         body: Utils.stringToBytes('B says, Im here too'),
       })
       .catch((reason) => console.log(reason));

@@ -4,9 +4,12 @@ import * as grpc from '@grpc/grpc-js';
 
 export enum StreamState {
   Initialized,
-  Ready = 1,
+  Connected = 1,
+  Disconnected,
+  ReConnect,
   Error,
   Closed,
+  Done,
 }
 const defaultOptions: Config = {
   address: 'localhost:50000',
@@ -30,8 +33,19 @@ export interface BaseMessage {
 }
 
 export class Client {
+  public getClientOption(): Config {
+    return this.clientOptions;
+  }
+  public getGrpcClient(): kubemq.kubemqClient {
+    return this.grpcClient;
+  }
+  public getMetadata(): grpc.Metadata {
+    return this.metadata;
+  }
+
   protected clientOptions: Config;
   protected grpcClient: kubemq.kubemqClient;
+  private metadata: grpc.Metadata;
   constructor(Options: Config) {
     this.clientOptions = { ...defaultOptions, ...Options };
     this.init();
@@ -41,14 +55,12 @@ export class Client {
       this.clientOptions.address,
       this.getChannelCredentials(),
     );
-  }
-  protected metadata(): grpc.Metadata {
-    const meta = new grpc.Metadata();
+    this.metadata = new grpc.Metadata();
     if (this.clientOptions.authToken != null) {
-      meta.add('authorization', this.clientOptions.authToken);
+      this.metadata.add('authorization', this.clientOptions.authToken);
     }
-    return meta;
   }
+
   protected callOptions(): grpc.CallOptions {
     return {
       deadline: new Date(Date.now() + this.clientOptions.dialTimeout),
@@ -70,15 +82,15 @@ export class Client {
       this.grpcClient.ping(new kubemq.Empty(), (e, res) => {
         if (e) {
           reject(e);
-          return;
+        } else {
+          const serverInfo = {
+            host: res.getHost(),
+            version: res.getVersion(),
+            serverStartTime: res.getServerstarttime(),
+            serverUpTimeSeconds: res.getServeruptimeseconds(),
+          };
+          resolve(serverInfo);
         }
-        const serverInfo = {
-          host: res.getHost(),
-          version: res.getVersion(),
-          serverStartTime: res.getServerstarttime(),
-          serverUpTimeSeconds: res.getServeruptimeseconds(),
-        };
-        resolve(serverInfo);
       });
     });
   }
