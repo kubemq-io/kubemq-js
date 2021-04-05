@@ -1,4 +1,4 @@
-import { BaseMessage, Client, StreamState } from './client';
+import { BaseMessage, Client } from './client';
 import { Config } from './config';
 import * as pb from '../src/protos';
 import { Utils } from './utils';
@@ -25,6 +25,9 @@ export interface CommandsResponse {
   error: string;
 }
 
+export interface CommandsReceiveMessageCallback {
+  (err: Error | null, msg: CommandsReceiveMessage): void;
+}
 export interface CommandsSubscriptionRequest {
   channel: string;
   group?: string;
@@ -32,11 +35,8 @@ export interface CommandsSubscriptionRequest {
 }
 
 export interface CommandsSubscriptionResponse {
-  state: StreamState;
-  onCommand: TypedEvent<CommandsReceiveMessage>;
-  onError: TypedEvent<Error>;
-  onStateChanged: TypedEvent<StreamState>;
-  cancel(): void;
+  onClose: TypedEvent<void>;
+  unsubscribe(): void;
 }
 
 export class CommandsClient extends Client {
@@ -44,21 +44,21 @@ export class CommandsClient extends Client {
     super(Options);
   }
 
-  public send(message: CommandsMessage): Promise<CommandsResponse> {
+  public send(msg: CommandsMessage): Promise<CommandsResponse> {
     const pbMessage = new pb.Request();
-    pbMessage.setRequestid(message.id ? message.id : Utils.uuid());
+    pbMessage.setRequestid(msg.id ? msg.id : Utils.uuid());
     pbMessage.setClientid(
-      message.clientId ? message.clientId : this.clientOptions.clientId,
+      msg.clientId ? msg.clientId : this.clientOptions.clientId,
     );
-    pbMessage.setChannel(message.channel);
-    pbMessage.setReplychannel(message.channel);
-    pbMessage.setBody(message.body);
-    pbMessage.setMetadata(message.metadata);
-    if (message.tags != null) {
-      pbMessage.getTagsMap().set(message.tags);
+    pbMessage.setChannel(msg.channel);
+    pbMessage.setReplychannel(msg.channel);
+    pbMessage.setBody(msg.body);
+    pbMessage.setMetadata(msg.metadata);
+    if (msg.tags != null) {
+      pbMessage.getTagsMap().set(msg.tags);
     }
     pbMessage.setTimeout(
-      message.timeout ? message.timeout : this.clientOptions.defaultRpcTimeout,
+      msg.timeout ? msg.timeout : this.clientOptions.defaultRpcTimeout,
     );
     pbMessage.setRequesttypedata(1);
 
@@ -83,16 +83,16 @@ export class CommandsClient extends Client {
     });
   }
 
-  public response(message: CommandsResponse): Promise<void> {
+  public response(msg: CommandsResponse): Promise<void> {
     const pbMessage = new pb.Response();
-    pbMessage.setRequestid(message.id);
+    pbMessage.setRequestid(msg.id);
     pbMessage.setClientid(
-      message.clientId ? message.clientId : this.clientOptions.clientId,
+      msg.clientId ? msg.clientId : this.clientOptions.clientId,
     );
-    pbMessage.setReplychannel(message.replyChannel);
+    pbMessage.setReplychannel(msg.replyChannel);
 
-    pbMessage.setError(message.error);
-    pbMessage.setExecuted(message.executed);
+    pbMessage.setError(msg.error);
+    pbMessage.setExecuted(msg.executed);
     return new Promise<void>((resolve, reject) => {
       this.grpcClient.sendResponse(pbMessage, this.getMetadata(), (e) => {
         if (e) {
@@ -106,67 +106,49 @@ export class CommandsClient extends Client {
 
   public subscribe(
     request: CommandsSubscriptionRequest,
+    cb: CommandsReceiveMessageCallback,
   ): Promise<CommandsSubscriptionResponse> {
     return new Promise<CommandsSubscriptionResponse>((resolve, reject) => {
-      try {
-        const pbSubRequest = new pb.Subscribe();
-        pbSubRequest.setClientid(
-          request.clientId ? request.clientId : this.clientOptions.clientId,
-        );
-        pbSubRequest.setGroup(request.group ? request.group : '');
-        pbSubRequest.setChannel(request.channel);
-        pbSubRequest.setSubscribetypedata(3);
-
-        const stream = this.grpcClient.subscribeToRequests(
-          pbSubRequest,
-          this.getMetadata(),
-        );
-
-        let state = StreamState.Initialized;
-        let onStateChanged = new TypedEvent<StreamState>();
-        let onCommand = new TypedEvent<CommandsReceiveMessage>();
-        let onError = new TypedEvent<Error>();
-
-        stream.on('data', function (data: pb.Request) {
-          onCommand.emit({
-            id: data.getRequestid(),
-            channel: data.getChannel(),
-            metadata: data.getMetadata(),
-            body: data.getBody(),
-            tags: data.getTagsMap(),
-            replyChannel: data.getReplychannel(),
-          });
-          if (state !== StreamState.Connected) {
-            state = StreamState.Connected;
-            onStateChanged.emit(StreamState.Connected);
-          }
-        });
-        stream.on('error', function (e: Error) {
-          onError.emit(e);
-          if (state !== StreamState.Error) {
-            state = StreamState.Error;
-            onStateChanged.emit(StreamState.Error);
-          }
-        });
-
-        stream.on('close', function () {
-          if (state !== StreamState.Closed) {
-            state = StreamState.Closed;
-            onStateChanged.emit(StreamState.Closed);
-          }
-        });
-        resolve({
-          state: state,
-          onCommand: onCommand,
-          onStateChanged: onStateChanged,
-          onError: onError,
-          cancel() {
-            stream.cancel();
-          },
-        });
-      } catch (e) {
-        reject(e);
+      if (!cb) {
+        reject(new Error('commands subscription requires a callback'));
+        return;
       }
+
+      const pbSubRequest = new pb.Subscribe();
+      pbSubRequest.setClientid(
+        request.clientId ? request.clientId : this.clientOptions.clientId,
+      );
+      pbSubRequest.setGroup(request.group ? request.group : '');
+      pbSubRequest.setChannel(request.channel);
+      pbSubRequest.setSubscribetypedata(3);
+
+      const stream = this.grpcClient.subscribeToRequests(
+        pbSubRequest,
+        this.getMetadata(),
+      );
+      stream.on('data', function (data: pb.Request) {
+        cb(null, {
+          id: data.getRequestid(),
+          channel: data.getChannel(),
+          metadata: data.getMetadata(),
+          body: data.getBody(),
+          tags: data.getTagsMap(),
+          replyChannel: data.getReplychannel(),
+        });
+      });
+      stream.on('error', (e: Error) => {
+        cb(e, null);
+      });
+      let onClose = new TypedEvent<void>();
+      stream.on('close', () => {
+        onClose.emit();
+      });
+      resolve({
+        onClose: onClose,
+        unsubscribe() {
+          stream.cancel();
+        },
+      });
     });
   }
 }
