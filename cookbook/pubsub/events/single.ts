@@ -23,7 +23,7 @@ function main() {
     })
     .then((response) => {
       console.log('started');
-      response.onStatus.on((status) => console.log('status', status));
+      response.onClose.on(() => console.log('closed'));
     })
     .catch((reason) => {
       console.log(reason);
