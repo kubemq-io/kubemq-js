@@ -39,7 +39,7 @@ export interface EventsSubscriptionResponse {
 
 export interface EventsStreamResponse {
   onClose: TypedEvent<void>;
-  write(message: EventsMessage): void;
+  write(msg: EventsMessage): void;
   end(): void;
 }
 
@@ -47,17 +47,17 @@ export class EventsClient extends Client {
   constructor(Options: Config) {
     super(Options);
   }
-  public send(message: EventsMessage): Promise<EventsSendResult> {
+  public send(msg: EventsMessage): Promise<EventsSendResult> {
     const pbMessage = new pb.Event();
-    pbMessage.setEventid(message.id ? message.id : Utils.uuid());
+    pbMessage.setEventid(msg.id ? msg.id : Utils.uuid());
     pbMessage.setClientid(
-      message.clientId ? message.clientId : this.clientOptions.clientId,
+      msg.clientId ? msg.clientId : this.clientOptions.clientId,
     );
-    pbMessage.setChannel(message.channel);
-    pbMessage.setBody(message.body);
-    pbMessage.setMetadata(message.metadata);
-    if (message.tags != null) {
-      pbMessage.getTagsMap().set(message.tags);
+    pbMessage.setChannel(msg.channel);
+    pbMessage.setBody(msg.body);
+    pbMessage.setMetadata(msg.metadata);
+    if (msg.tags != null) {
+      pbMessage.getTagsMap().set(msg.tags);
     }
     pbMessage.setStore(false);
     return new Promise<EventsSendResult>((resolve, reject) => {
@@ -79,7 +79,7 @@ export class EventsClient extends Client {
   public stream(cb: EventsStreamCallback): Promise<EventsStreamResponse> {
     return new Promise<EventsStreamResponse>((resolve, reject) => {
       if (!cb) {
-        reject(new Error('subscribe requires a callback'));
+        reject(new Error('stream call requires a callback'));
         return;
       }
       const stream = this.grpcClient.sendEventsStream(this.getMetadata());
@@ -91,17 +91,17 @@ export class EventsClient extends Client {
         onCloseEvent.emit();
       });
 
-      const writeFn = function (message: EventsMessage) {
+      const writeFn = function (msg: EventsMessage) {
         const pbMessage = new pb.Event();
-        pbMessage.setEventid(message.id ? message.id : Utils.uuid());
+        pbMessage.setEventid(msg.id ? msg.id : Utils.uuid());
         pbMessage.setClientid(
-          message.clientId ? message.clientId : this.clientOptions.clientId,
+          msg.clientId ? msg.clientId : this.clientOptions.clientId,
         );
-        pbMessage.setChannel(message.channel);
-        pbMessage.setBody(message.body);
-        pbMessage.setMetadata(message.metadata);
-        if (message.tags != null) {
-          pbMessage.getTagsMap().set(message.tags);
+        pbMessage.setChannel(msg.channel);
+        pbMessage.setBody(msg.body);
+        pbMessage.setMetadata(msg.metadata);
+        if (msg.tags != null) {
+          pbMessage.getTagsMap().set(msg.tags);
         }
         pbMessage.setStore(false);
         const sent = stream.write(pbMessage, (err: Error) => {
