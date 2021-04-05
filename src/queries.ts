@@ -1,8 +1,9 @@
-import { BaseMessage, Client, StreamState } from './client';
+import { BaseMessage, Client } from './client';
 import { Config } from './config';
 import * as pb from '../src/protos';
 import { Utils } from './utils';
 import { TypedEvent } from './common';
+
 export interface QueriesMessage extends BaseMessage {
   timeout?: number;
   cacheKey?: string;
@@ -34,13 +35,12 @@ export interface QueriesSubscriptionRequest {
   group?: string;
   clientId?: string;
 }
-
+export interface QueriesReceiveMessageCallback {
+  (err: Error | null, msg: QueriesReceiveMessage): void;
+}
 export interface QueriesSubscriptionResponse {
-  state: StreamState;
-  onQuery: TypedEvent<QueriesReceiveMessage>;
-  onError: TypedEvent<Error>;
-  onStateChanged: TypedEvent<StreamState>;
-  cancel(): void;
+  onClose: TypedEvent<void>;
+  unsubscribe(): void;
 }
 
 export class QueriesClient extends Client {
@@ -48,25 +48,25 @@ export class QueriesClient extends Client {
     super(Options);
   }
 
-  public send(message: QueriesMessage): Promise<QueriesResponse> {
+  public send(msg: QueriesMessage): Promise<QueriesResponse> {
     const pbMessage = new pb.Request();
-    pbMessage.setRequestid(message.id ? message.id : Utils.uuid());
+    pbMessage.setRequestid(msg.id ? msg.id : Utils.uuid());
     pbMessage.setClientid(
-      message.clientId ? message.clientId : this.clientOptions.clientId,
+      msg.clientId ? msg.clientId : this.clientOptions.clientId,
     );
-    pbMessage.setChannel(message.channel);
-    pbMessage.setReplychannel(message.channel);
-    pbMessage.setBody(message.body);
-    pbMessage.setMetadata(message.metadata);
-    if (message.tags != null) {
-      pbMessage.getTagsMap().set(message.tags);
+    pbMessage.setChannel(msg.channel);
+    pbMessage.setReplychannel(msg.channel);
+    pbMessage.setBody(msg.body);
+    pbMessage.setMetadata(msg.metadata);
+    if (msg.tags != null) {
+      pbMessage.getTagsMap().set(msg.tags);
     }
     pbMessage.setTimeout(
-      message.timeout ? message.timeout : this.clientOptions.defaultRpcTimeout,
+      msg.timeout ? msg.timeout : this.clientOptions.defaultRpcTimeout,
     );
     pbMessage.setRequesttypedata(2);
-    pbMessage.setCachekey(message.cacheKey ? message.cacheKey : '');
-    pbMessage.setCachettl(message.cacheTTL ? message.cacheTTL : 0);
+    pbMessage.setCachekey(msg.cacheKey ? msg.cacheKey : '');
+    pbMessage.setCachettl(msg.cacheTTL ? msg.cacheTTL : 0);
     return new Promise<QueriesResponse>((resolve, reject) => {
       this.grpcClient.sendRequest(
         pbMessage,
@@ -91,19 +91,19 @@ export class QueriesClient extends Client {
     });
   }
 
-  public response(message: QueriesResponse): Promise<void> {
+  public response(msg: QueriesResponse): Promise<void> {
     const pbMessage = new pb.Response();
-    pbMessage.setRequestid(message.id);
+    pbMessage.setRequestid(msg.id);
     pbMessage.setClientid(
-      message.clientId ? message.clientId : this.clientOptions.clientId,
+      msg.clientId ? msg.clientId : this.clientOptions.clientId,
     );
-    pbMessage.setReplychannel(message.replyChannel);
-    pbMessage.setError(message.error);
-    pbMessage.setExecuted(message.executed);
-    pbMessage.setBody(message.body);
-    pbMessage.setMetadata(message.metadata);
-    if (message.tags != null) {
-      pbMessage.getTagsMap().set(message.tags);
+    pbMessage.setReplychannel(msg.replyChannel);
+    pbMessage.setError(msg.error);
+    pbMessage.setExecuted(msg.executed);
+    pbMessage.setBody(msg.body);
+    pbMessage.setMetadata(msg.metadata);
+    if (msg.tags != null) {
+      pbMessage.getTagsMap().set(msg.tags);
     }
     return new Promise<void>((resolve, reject) => {
       this.grpcClient.sendResponse(pbMessage, this.getMetadata(), (e) => {
@@ -118,67 +118,51 @@ export class QueriesClient extends Client {
 
   public subscribe(
     request: QueriesSubscriptionRequest,
+    cb: QueriesReceiveMessageCallback,
   ): Promise<QueriesSubscriptionResponse> {
     return new Promise<QueriesSubscriptionResponse>((resolve, reject) => {
-      try {
-        const pbSubRequest = new pb.Subscribe();
-        pbSubRequest.setClientid(
-          request.clientId ? request.clientId : this.clientOptions.clientId,
-        );
-        pbSubRequest.setGroup(request.group ? request.group : '');
-        pbSubRequest.setChannel(request.channel);
-        pbSubRequest.setSubscribetypedata(4);
-
-        const stream = this.grpcClient.subscribeToRequests(
-          pbSubRequest,
-          this.getMetadata(),
-        );
-
-        let state = StreamState.Initialized;
-        let onStateChanged = new TypedEvent<StreamState>();
-        let onQuery = new TypedEvent<QueriesReceiveMessage>();
-        let onError = new TypedEvent<Error>();
-
-        stream.on('data', function (data: pb.Request) {
-          onQuery.emit({
-            id: data.getRequestid(),
-            channel: data.getChannel(),
-            metadata: data.getMetadata(),
-            body: data.getBody(),
-            tags: data.getTagsMap(),
-            replyChannel: data.getReplychannel(),
-          });
-          if (state !== StreamState.Connected) {
-            state = StreamState.Connected;
-            onStateChanged.emit(StreamState.Connected);
-          }
-        });
-        stream.on('error', function (e: Error) {
-          onError.emit(e);
-          if (state !== StreamState.Error) {
-            state = StreamState.Error;
-            onStateChanged.emit(StreamState.Error);
-          }
-        });
-
-        stream.on('close', function () {
-          if (state !== StreamState.Closed) {
-            state = StreamState.Closed;
-            onStateChanged.emit(StreamState.Closed);
-          }
-        });
-        resolve({
-          state: state,
-          onQuery: onQuery,
-          onStateChanged: onStateChanged,
-          onError: onError,
-          cancel() {
-            stream.cancel();
-          },
-        });
-      } catch (e) {
-        reject(e);
+      if (!cb) {
+        reject(new Error('queries subscription requires a callback'));
+        return;
       }
+
+      const pbSubRequest = new pb.Subscribe();
+      pbSubRequest.setClientid(
+        request.clientId ? request.clientId : this.clientOptions.clientId,
+      );
+      pbSubRequest.setGroup(request.group ? request.group : '');
+      pbSubRequest.setChannel(request.channel);
+      pbSubRequest.setSubscribetypedata(4);
+
+      const stream = this.grpcClient.subscribeToRequests(
+        pbSubRequest,
+        this.getMetadata(),
+      );
+
+      stream.on('data', function (data: pb.Request) {
+        cb(null, {
+          id: data.getRequestid(),
+          channel: data.getChannel(),
+          metadata: data.getMetadata(),
+          body: data.getBody(),
+          tags: data.getTagsMap(),
+          replyChannel: data.getReplychannel(),
+        });
+      });
+      stream.on('error', (e: Error) => {
+        cb(e, null);
+      });
+
+      let onClose = new TypedEvent<void>();
+      stream.on('close', () => {
+        onClose.emit();
+      });
+      resolve({
+        onClose: onClose,
+        unsubscribe() {
+          stream.cancel();
+        },
+      });
     });
   }
 }
