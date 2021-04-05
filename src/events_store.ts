@@ -97,7 +97,7 @@ export class EventsStoreClient extends Client {
   ): Promise<EventsStoreStreamResponse> {
     return new Promise<EventsStoreStreamResponse>((resolve, reject) => {
       if (!cb) {
-        reject(new Error('stream call requires a callback'));
+        reject(new Error('stream events store call requires a callback'));
         return;
       }
       const stream = this.grpcClient.sendEventsStream(this.getMetadata());
@@ -151,7 +151,7 @@ export class EventsStoreClient extends Client {
   ): Promise<EventsStoreSubscriptionResponse> {
     return new Promise<EventsStoreSubscriptionResponse>((resolve, reject) => {
       if (!cb) {
-        reject(new Error('subscribe requires a callback'));
+        reject(new Error('events store subscription requires a callback'));
         return;
       }
       const pbSubRequest = new pb.Subscribe();
