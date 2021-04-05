@@ -63,19 +63,23 @@ export class CommandsClient extends Client {
     pbMessage.setRequesttypedata(1);
 
     return new Promise<CommandsResponse>((resolve, reject) => {
-      this.grpcClient.sendRequest(pbMessage, this.metadata(), (e, response) => {
-        if (e) {
-          reject(e);
-          return;
-        }
-        resolve({
-          id: response.getRequestid(),
-          clientId: response.getClientid(),
-          error: response.getError(),
-          executed: response.getExecuted(),
-          timestamp: response.getTimestamp(),
-        });
-      });
+      this.grpcClient.sendRequest(
+        pbMessage,
+        this.getMetadata(),
+        (e, response) => {
+          if (e) {
+            reject(e);
+            return;
+          }
+          resolve({
+            id: response.getRequestid(),
+            clientId: response.getClientid(),
+            error: response.getError(),
+            executed: response.getExecuted(),
+            timestamp: response.getTimestamp(),
+          });
+        },
+      );
     });
   }
 
@@ -90,7 +94,7 @@ export class CommandsClient extends Client {
     pbMessage.setError(message.error);
     pbMessage.setExecuted(message.executed);
     return new Promise<void>((resolve, reject) => {
-      this.grpcClient.sendResponse(pbMessage, this.metadata(), (e) => {
+      this.grpcClient.sendResponse(pbMessage, this.getMetadata(), (e) => {
         if (e) {
           reject(e);
           return;
@@ -115,7 +119,7 @@ export class CommandsClient extends Client {
 
         const stream = this.grpcClient.subscribeToRequests(
           pbSubRequest,
-          this.metadata(),
+          this.getMetadata(),
         );
 
         let state = StreamState.Initialized;
@@ -132,9 +136,9 @@ export class CommandsClient extends Client {
             tags: data.getTagsMap(),
             replyChannel: data.getReplychannel(),
           });
-          if (state !== StreamState.Ready) {
-            state = StreamState.Ready;
-            onStateChanged.emit(StreamState.Ready);
+          if (state !== StreamState.Connected) {
+            state = StreamState.Connected;
+            onStateChanged.emit(StreamState.Connected);
           }
         });
         stream.on('error', function (e: Error) {

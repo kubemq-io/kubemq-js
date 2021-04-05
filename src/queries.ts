@@ -68,22 +68,26 @@ export class QueriesClient extends Client {
     pbMessage.setCachekey(message.cacheKey ? message.cacheKey : '');
     pbMessage.setCachettl(message.cacheTTL ? message.cacheTTL : 0);
     return new Promise<QueriesResponse>((resolve, reject) => {
-      this.grpcClient.sendRequest(pbMessage, this.metadata(), (e, response) => {
-        if (e) {
-          reject(e);
-          return;
-        }
-        resolve({
-          id: response.getRequestid(),
-          clientId: response.getClientid(),
-          error: response.getError(),
-          executed: response.getExecuted(),
-          timestamp: response.getTimestamp(),
-          body: response.getBody(),
-          metadata: response.getMetadata(),
-          tags: response.getTagsMap(),
-        });
-      });
+      this.grpcClient.sendRequest(
+        pbMessage,
+        this.getMetadata(),
+        (e, response) => {
+          if (e) {
+            reject(e);
+            return;
+          }
+          resolve({
+            id: response.getRequestid(),
+            clientId: response.getClientid(),
+            error: response.getError(),
+            executed: response.getExecuted(),
+            timestamp: response.getTimestamp(),
+            body: response.getBody(),
+            metadata: response.getMetadata(),
+            tags: response.getTagsMap(),
+          });
+        },
+      );
     });
   }
 
@@ -102,7 +106,7 @@ export class QueriesClient extends Client {
       pbMessage.getTagsMap().set(message.tags);
     }
     return new Promise<void>((resolve, reject) => {
-      this.grpcClient.sendResponse(pbMessage, this.metadata(), (e) => {
+      this.grpcClient.sendResponse(pbMessage, this.getMetadata(), (e) => {
         if (e) {
           reject(e);
           return;
@@ -127,7 +131,7 @@ export class QueriesClient extends Client {
 
         const stream = this.grpcClient.subscribeToRequests(
           pbSubRequest,
-          this.metadata(),
+          this.getMetadata(),
         );
 
         let state = StreamState.Initialized;
@@ -144,9 +148,9 @@ export class QueriesClient extends Client {
             tags: data.getTagsMap(),
             replyChannel: data.getReplychannel(),
           });
-          if (state !== StreamState.Ready) {
-            state = StreamState.Ready;
-            onStateChanged.emit(StreamState.Ready);
+          if (state !== StreamState.Connected) {
+            state = StreamState.Connected;
+            onStateChanged.emit(StreamState.Connected);
           }
         });
         stream.on('error', function (e: Error) {
