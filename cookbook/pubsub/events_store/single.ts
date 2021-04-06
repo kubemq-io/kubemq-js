@@ -1,33 +1,36 @@
 import { Config, EventsStoreClient, EventStoreType, Utils } from '../../../src';
 
-function main() {
+async function main() {
   const opts: Config = {
     address: 'localhost:50000',
     clientId: Utils.uuid(),
   };
   const eventsStoreClient = new EventsStoreClient(opts);
-  const subscriber = eventsStoreClient.subscribe({
+
+  await eventsStoreClient
+    .subscribe(
+      {
+        channel: 'events_store.single',
+        clientId: 'subscriber',
+        requestType: EventStoreType.StartFromFirst,
+      },
+      (err, msg) => {
+        if (err) {
+          console.error(err);
+          return;
+        }
+        if (msg) {
+          console.log(msg);
+        }
+      },
+    )
+    .catch((reason) => {
+      console.log(reason);
+    });
+  await new Promise((r) => setTimeout(r, 2000));
+  await eventsStoreClient.send({
     channel: 'events_store.single',
-    requestType: EventStoreType.StartFromFirst,
+    body: Utils.stringToBytes('event store message'),
   });
-  subscriber.onEvent.on((event) => console.log(event));
-  subscriber.onError.on((error) => console.error(error));
-  subscriber.onStateChanged.on((state) => console.log(state));
-
-  setTimeout(() => {
-    for (let i = 0; i < 20; i++) {
-      eventsStoreClient
-        .send({
-          channel: 'events_store.single',
-          body: Utils.stringToBytes('data'),
-        })
-        .catch((reason) => console.error(reason));
-    }
-  }, 2000);
-
-  setTimeout(() => {
-    eventsStoreClient.close();
-  }, 4000);
 }
-
 main();
