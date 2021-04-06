@@ -13,11 +13,10 @@ export class Utils {
     return Buffer.from(str);
   }
 
-  public static bytesToString(bytes: Uint8Array) {
-    const chars = [];
-    for (let i = 0, n = bytes.length; i < n; ) {
-      chars.push(((bytes[i++] & 0xff) << 8) | (bytes[i++] & 0xff));
+  public static bytesToString(bytes: Uint8Array | string) {
+    if (typeof bytes === 'string') {
+      return bytes;
     }
-    return String.fromCharCode.apply(null, chars);
+    return String.fromCharCode.apply(null, bytes);
   }
 }

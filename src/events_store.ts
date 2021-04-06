@@ -117,7 +117,7 @@ export class EventsStoreClient extends Client {
         onCloseEvent.emit();
       });
 
-      const writeFn = function (msg: EventsStoreMessage) {
+      const writeFn = (msg: EventsStoreMessage) => {
         const pbMessage = new pb.Event();
         pbMessage.setEventid(msg.id ? msg.id : Utils.uuid());
         pbMessage.setClientid(

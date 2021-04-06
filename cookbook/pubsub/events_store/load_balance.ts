@@ -1,47 +1,62 @@
 import { Config, EventsStoreClient, EventStoreType, Utils } from '../../../src';
 
-function main() {
+async function main() {
   const opts: Config = {
     address: 'localhost:50000',
-    clientId: 'clientA',
+    clientId: Utils.uuid(),
   };
   const eventsStoreClient = new EventsStoreClient(opts);
+  await eventsStoreClient
+    .subscribe(
+      {
+        channel: 'events_store.loadbalance',
+        group: 'g1',
+        clientId: 'SubscriberA',
+        requestType: EventStoreType.StartFromFirst,
+      },
+      (err, msg) => {
+        if (err) {
+          console.error('SubscriberA', err);
+          return;
+        }
+        if (msg) {
+          console.log('SubscriberA', msg);
+        }
+      },
+    )
+    .catch((reason) => {
+      console.log(reason);
+    });
 
-  const subscriberA = eventsStoreClient.subscribe({
-    channel: 'events_store.loadbalance',
-    group: 'g1',
-    clientId: 'clientA',
-    requestType: EventStoreType.StartFromFirst,
-  });
-  subscriberA.onEvent.on((event) => console.log('SubscriberA', event));
-  subscriberA.onError.on((error) => console.error('SubscriberA', error));
-  subscriberA.onStateChanged.on((state) => console.log('SubscriberA', state));
+  await eventsStoreClient
+    .subscribe(
+      {
+        channel: 'events_store.loadbalance',
+        group: 'g1',
+        clientId: 'SubscriberB',
+        requestType: EventStoreType.StartFromFirst,
+      },
+      (err, msg) => {
+        if (err) {
+          console.error('SubscriberB', err);
+          return;
+        }
+        if (msg) {
+          console.log('SubscriberB', msg);
+        }
+      },
+    )
+    .catch((reason) => {
+      console.log(reason);
+    });
 
-  const subscriberB = eventsStoreClient.subscribe({
-    channel: 'events_store.loadbalance',
-    group: 'g1',
-    clientId: 'clientB',
-    requestType: EventStoreType.StartFromFirst,
-  });
+  await new Promise((r) => setTimeout(r, 2000));
 
-  subscriberB.onEvent.on((event) => console.log('SubscriberB', event));
-  subscriberB.onError.on((error) => console.error('SubscriberB', error));
-  subscriberB.onStateChanged.on((state) => console.log('SubscriberB', state));
-
-  setTimeout(() => {
-    for (let i = 0; i < 20; i++) {
-      eventsStoreClient
-        .send({
-          channel: 'events_store.loadbalance',
-          body: Utils.stringToBytes('data'),
-        })
-        .catch((reason) => console.error(reason));
-    }
-  }, 2000);
-
-  setTimeout(() => {
-    eventsStoreClient.close();
-  }, 4000);
+  for (let i = 0; i < 10; i++) {
+    await eventsStoreClient.send({
+      channel: 'events_store.loadbalance',
+      body: Utils.stringToBytes('event message'),
+    });
+  }
 }
-
 main();

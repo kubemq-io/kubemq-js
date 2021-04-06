@@ -1,60 +1,60 @@
 import { EventsClient, Config, Utils } from '../../../src';
 
-const opts: Config = {
-  address: 'localhost:50000',
-  clientId: Utils.uuid(),
-};
-const eventsClient = new EventsClient(opts);
-(async () => {
+async function main() {
+  const opts: Config = {
+    address: 'localhost:50000',
+    clientId: Utils.uuid(),
+  };
+  const eventsClient = new EventsClient(opts);
   await eventsClient
-    .subscribe({
-      channel: 'events.loadbalance',
-      group: 'g1',
-    })
-    .then((subscriber) => {
-      subscriber.onEvent.on((event) => console.log('SubscriberA', event));
-      subscriber.onError.on((error) => {
-        console.error('SubscriberA', error);
-      });
-      subscriber.onStateChanged.on((state) =>
-        console.log('SubscriberA', state),
-      );
-    })
-    .catch((reason) => {
-      console.log(reason);
-    });
-})();
-
-(async () => {
-  await eventsClient
-    .subscribe({
-      channel: 'events.loadbalance',
-      group: 'g1',
-    })
-    .then((subscriber) => {
-      subscriber.onEvent.on((event) => console.log('SubscriberB', event));
-      subscriber.onError.on((error) => {
-        console.error('SubscriberB', error);
-      });
-      subscriber.onStateChanged.on((state) =>
-        console.log('SubscriberB', state),
-      );
-    })
-    .catch((reason) => {
-      console.log(reason);
-    });
-})();
-setTimeout(() => {
-  for (let i = 0; i < 20; i++) {
-    eventsClient
-      .send({
+    .subscribe(
+      {
         channel: 'events.loadbalance',
-        body: Utils.stringToBytes('data'),
-      })
-      .catch((reason) => console.error(reason));
-  }
-}, 2000);
+        group: 'g1',
+        clientId: 'SubscriberA',
+      },
+      (err, msg) => {
+        if (err) {
+          console.error('SubscriberA', err);
+          return;
+        }
+        if (msg) {
+          console.log('SubscriberA', msg);
+        }
+      },
+    )
+    .catch((reason) => {
+      console.log(reason);
+    });
 
-setTimeout(() => {
-  eventsClient.close();
-}, 4000);
+  await eventsClient
+    .subscribe(
+      {
+        channel: 'events.loadbalance',
+        group: 'g1',
+        clientId: 'SubscriberB',
+      },
+      (err, msg) => {
+        if (err) {
+          console.error('SubscriberB', err);
+          return;
+        }
+        if (msg) {
+          console.log('SubscriberB', msg);
+        }
+      },
+    )
+    .catch((reason) => {
+      console.log(reason);
+    });
+
+  await new Promise((r) => setTimeout(r, 2000));
+
+  for (let i = 0; i < 10; i++) {
+    await eventsClient.send({
+      channel: 'events.loadbalance',
+      body: Utils.stringToBytes('event message'),
+    });
+  }
+}
+main();
