@@ -1,35 +1,55 @@
 import { Config, EventsStoreClient, EventStoreType, Utils } from '../../../src';
 
-function main() {
+async function main() {
   const opts: Config = {
     address: 'localhost:50000',
     clientId: Utils.uuid(),
   };
   const eventsStoreClient = new EventsStoreClient(opts);
-  const subscriber = eventsStoreClient.subscribe({
-    channel: 'events_store.stream',
-    requestType: EventStoreType.StartFromFirst,
-  });
-  subscriber.onEvent.on((event) => console.log(event));
-  subscriber.onError.on((error) => console.error(error));
-  subscriber.onStateChanged.on((state) => console.log(state));
 
-  setTimeout(() => {
-    const streamer = eventsStoreClient.stream();
-    streamer.onResult.on((result) => console.log(result));
-    streamer.onError.on((error) => console.error(error));
-    streamer.onStateChanged.on((state) => console.log(state));
-    for (let i = 0; i < 20; i++) {
-      streamer.write({
+  await eventsStoreClient
+    .subscribe(
+      {
         channel: 'events_store.stream',
-        body: Utils.stringToBytes('data'),
-      });
+        clientId: 'subscriber',
+        requestType: EventStoreType.StartFromFirst,
+      },
+      (err, msg) => {
+        if (err) {
+          console.error(err);
+          return;
+        }
+        if (msg) {
+          console.log(msg);
+        }
+      },
+    )
+    .catch((reason) => {
+      console.log(reason);
+    });
+  const sender = eventsStoreClient
+    .stream((err, result) => {
+      if (err) {
+        console.error(err);
+        return;
+      }
+      if (result) {
+        console.log(result);
+      }
+    })
+    .catch((reason) => {
+      console.log(reason);
+    });
+
+  sender.then((res) => {
+    if (res) {
+      for (let i = 0; i < 10; i++) {
+        res.write({
+          channel: 'events_store.stream',
+          body: Utils.stringToBytes('event message'),
+        });
+      }
     }
-  }, 2000);
-
-  setTimeout(() => {
-    eventsStoreClient.close();
-  }, 4000);
+  });
 }
-
 main();

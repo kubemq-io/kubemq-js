@@ -1,17 +1,15 @@
 import { Utils, EventsClient, Config } from '../../../src';
 
-function main() {
+async function main() {
   const opts: Config = {
     address: 'localhost:50000',
     clientId: Utils.uuid(),
   };
   const eventsClient = new EventsClient(opts);
-
   const subRequest = {
     channel: 'events.single',
   };
-
-  eventsClient
+  await eventsClient
     .subscribe(subRequest, (err, msg) => {
       if (err) {
         console.error(err);
@@ -21,45 +19,13 @@ function main() {
         console.log(msg);
       }
     })
-    .then((response) => {
-      console.log('started');
-      response.onClose.on(() => console.log('closed'));
-    })
     .catch((reason) => {
       console.log(reason);
     });
-  // eventsClient
-  //   .subscribe(subRequest, (err, msg) => {
-  //     if (err) {
-  //       console.error(err);
-  //       return;
-  //     }
-  //     if (msg) {
-  //       console.log(msg);
-  //     }
-  //   })
-  //   .catch((reason) => {
-  //     console.log(reason);
-  //   });
+  await new Promise((r) => setTimeout(r, 2000));
+  await eventsClient.send({
+    channel: 'events.single',
+    body: Utils.stringToBytes('event message'),
+  });
 }
-
-//
-// setTimeout(async () => {
-//   let isError: boolean = false;
-//   for (let i = 0; i < 10; i++) {
-//     await eventsClient
-//       .send({ channel: 'events.single', body: Utils.stringToBytes('data') })
-//         isError = true;
-//       .catch((reason) => {
-//         console.error(reason);
-//       });
-//     if (isError) {
-//       break;
-//     }
-//   }
-// }, 2000);
-//
-// setTimeout(() => {
-//   eventsClient.close();
-// }, 4000);
 main();

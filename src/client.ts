@@ -2,15 +2,6 @@ import { Config } from './config';
 import * as kubemq from './protos';
 import * as grpc from '@grpc/grpc-js';
 
-export enum StreamState {
-  Initialized,
-  Connected = 1,
-  Disconnected,
-  ReConnect,
-  Error,
-  Closed,
-  Done,
-}
 const defaultOptions: Config = {
   address: 'localhost:50000',
   dialTimeout: 30000,
@@ -33,12 +24,6 @@ export interface BaseMessage {
 }
 
 export class Client {
-  public getClientOption(): Config {
-    return this.clientOptions;
-  }
-  public getGrpcClient(): kubemq.kubemqClient {
-    return this.grpcClient;
-  }
   public getMetadata(): grpc.Metadata {
     return this.metadata;
   }
@@ -54,6 +39,7 @@ export class Client {
     this.grpcClient = new kubemq.kubemqClient(
       this.clientOptions.address,
       this.getChannelCredentials(),
+      //  options,
     );
     this.metadata = new grpc.Metadata();
     if (this.clientOptions.authToken != null) {
@@ -69,9 +55,9 @@ export class Client {
   private getChannelCredentials(): grpc.ChannelCredentials {
     if (this.clientOptions.credentials != null) {
       return grpc.credentials.createSsl(
-        this.clientOptions.credentials.rootCertificate,
         null,
-        this.clientOptions.credentials.certChain,
+        this.clientOptions.credentials.key,
+        this.clientOptions.credentials.cert,
       );
     } else {
       return grpc.credentials.createInsecure();

@@ -1,52 +1,52 @@
 import { EventsClient, Utils, Config } from '../../../src';
 
-const opts: Config = {
-  address: 'localhost:50000',
-  clientId: Utils.uuid(),
-};
-const eventsClient = new EventsClient(opts);
-
-(async () => {
+async function main() {
+  const opts: Config = {
+    address: 'localhost:50000',
+    clientId: Utils.uuid(),
+  };
+  const eventsClient = new EventsClient(opts);
+  const subRequest = {
+    channel: 'events.stream',
+  };
   await eventsClient
-    .subscribe({
-      channel: 'events.stream',
+    .subscribe(subRequest, (err, msg) => {
+      if (err) {
+        console.error(err);
+        return;
+      }
+      if (msg) {
+        console.log(msg);
+      }
     })
-    .then((subscriber) => {
-      subscriber.onEvent.on((event) => console.log(event));
-      subscriber.onError.on((error) => {
-        console.error(error);
-      });
-      subscriber.onStateChanged.on((state) => console.log(state));
+    .catch((reason) => {
+      console.log(reason);
+    });
+  await new Promise((r) => setTimeout(r, 2000));
+
+  const sender = eventsClient
+    .stream((err, result) => {
+      if (err) {
+        console.error(err);
+        return;
+      }
+      if (result) {
+        console.log(result);
+      }
     })
     .catch((reason) => {
       console.log(reason);
     });
 
-  setTimeout(() => {
-    eventsClient
-      .stream()
-      .then((streamer) => {
-        streamer.onResult.on((result) => console.log(result));
-        streamer.onError.on((error) => console.error(error));
-        streamer.onStateChanged.on((state) => console.log(state));
-        for (let i = 0; i < 10; i++) {
-          streamer
-            .write({
-              channel: 'events.stream',
-              body: Utils.stringToBytes('data'),
-            })
-            .then((value) => {
-              console.log(value, 'sent');
-            })
-            .catch((reason) => console.log(reason));
-        }
-      })
-      .catch((reason) => {
-        console.log(reason);
-      });
-  }, 2000);
-})();
-
-setTimeout(() => {
-  eventsClient.close();
-}, 4000);
+  sender.then((res) => {
+    if (res) {
+      for (let i = 0; i < 10; i++) {
+        res.write({
+          channel: 'events.stream',
+          body: Utils.stringToBytes('event message'),
+        });
+      }
+    }
+  });
+}
+main();

@@ -1,12 +1,12 @@
-import { Client } from '../../../src/client';
-import { Config } from '../../../src/config';
+import { Client } from '../../src';
+import { Config } from '../../src';
 
-function main() {
+async function main() {
   const opts: Config = {
     address: 'localhost:50000',
   };
   const client = new Client(opts);
-  client
+  await client
     .ping()
     .then((value) => console.log(value))
     .catch((reason) => console.log(reason));

@@ -18,8 +18,9 @@ export interface Config {
    * Optional client cert credentials for talking to KubeMQ
    */
   credentials?: {
-    rootCertificate: Buffer;
-    certChain?: Buffer;
+    cert: Buffer;
+    key: Buffer;
+    caCert?: Buffer;
   };
 
   /**

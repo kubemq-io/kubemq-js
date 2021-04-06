@@ -5,7 +5,7 @@ import {
   EventsStoreClient,
   EventStoreType,
   QueuesClient,
-} from '../../src';
+} from '../../../src';
 
 async function main() {
   const opts: Config = {
@@ -70,8 +70,8 @@ async function main() {
       console.error(reason);
     });
   await new Promise((r) => setTimeout(r, 2000));
-  await queuesClient.send({
-    channel: 'q1;events:e1;events_store:es1',
+  await eventsStoreClient.send({
+    channel: 'es1;events:e1;queues:q1',
     body: Utils.stringToBytes('event store multicast message'),
   });
 }
