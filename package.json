@@ -1,6 +1,6 @@
 {
   "name": "kubemq-js",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "kubemq js/ts library for KubeMQ Message Broker ",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
