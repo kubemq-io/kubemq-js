@@ -1,13 +1,10 @@
 {
   "name": "kubemq-js",
-  "version": "0.1.0",
-  "description": "kubemq-js-sdk",
-  "main": "lib/index",
-  "types": "lib/index",
-  "engines": {
-    "node": ">= 14.16"
-  },
-  "devDependencies": {
+  "version": "1.0.0",
+  "description": "kubemq js/ts library for KubeMQ Message Broker ",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+   "devDependencies": {
     "@grpc/grpc-js": "^1.2.12",
     "@grpc/proto-loader": "^0.5.6",
     "@types/jest": "~26.0.20",
@@ -31,21 +28,26 @@
     "uuid": "^8.3.2"
   },
   "scripts": {
-    "start": "node build/src/main.js",
-    "clean": "rimraf coverage build tmp",
-    "build": "tsc -p tsconfig.release.json",
-    "build:watch": "tsc -w -p tsconfig.release.json",
+    "build": "tsc",
+    "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
     "lint": "eslint . --ext .ts,.tsx",
-    "test": "jest --coverage",
-    "test:watch": "jest --watch"
+    "prepare" : "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kubemq-io/kubemq-js"
   },
   "author": "Lior Nabat",
   "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/kubemq-io/kubemq-js/issues",
+    "email": "support@kuebmq.io"
+  },
   "dependencies": {
     "tslib": "~2.1.0",
     "uuid": "^8.3.2"
   },
-  "volta": {
-    "node": "14.16.0"
-  }
+  "files":  [
+  "lib/**/*"
+  ]
 }
