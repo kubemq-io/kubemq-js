@@ -59,7 +59,7 @@ async function main() {
       channel: 'q1',
       clientId: 'Queue-Subscriber',
       maxNumberOfMessages: 1,
-      waitTimeout: 10,
+      waitTimeoutSeconds: 10,
     })
     .then((response) => {
       response.messages.forEach((msg) => {

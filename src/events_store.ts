@@ -20,7 +20,7 @@ export enum EventStoreType {
 export interface EventsStoreMessage extends BaseMessage {}
 
 /**
- * events store received by commands subscriber
+ * events store received by events store subscriber
  */
 export interface EventsStoreReceiveMessage {
   /** send event request id */
@@ -101,6 +101,9 @@ export interface EventsStoreStreamResponse {
  * Events Store Client - KubeMQ events store client
  */
 export class EventsStoreClient extends Client {
+  /**
+   * @internal
+   */
   constructor(Options: Config) {
     super(Options);
   }

@@ -8,7 +8,7 @@ import { Utils } from './utils';
 export interface EventsMessage extends BaseMessage {}
 
 /**
- * events received by commands subscriber
+ * events received by events subscriber
  */
 export interface EventsReceiveMessage {
   /** send event request id */
