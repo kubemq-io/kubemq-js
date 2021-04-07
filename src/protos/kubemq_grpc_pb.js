@@ -6,24 +6,32 @@ var src_protos_grpc_kubemq_pb = require('./kubemq_pb.js');
 
 function serialize_kubemq_AckAllQueueMessagesRequest(arg) {
   if (!(arg instanceof src_protos_grpc_kubemq_pb.AckAllQueueMessagesRequest)) {
-    throw new Error('Expected argument of type kubemq.AckAllQueueMessagesRequest');
+    throw new Error(
+      'Expected argument of type kubemq.AckAllQueueMessagesRequest',
+    );
   }
   return Buffer.from(arg.serializeBinary());
 }
 
 function deserialize_kubemq_AckAllQueueMessagesRequest(buffer_arg) {
-  return src_protos_grpc_kubemq_pb.AckAllQueueMessagesRequest.deserializeBinary(new Uint8Array(buffer_arg));
+  return src_protos_grpc_kubemq_pb.AckAllQueueMessagesRequest.deserializeBinary(
+    new Uint8Array(buffer_arg),
+  );
 }
 
 function serialize_kubemq_AckAllQueueMessagesResponse(arg) {
   if (!(arg instanceof src_protos_grpc_kubemq_pb.AckAllQueueMessagesResponse)) {
-    throw new Error('Expected argument of type kubemq.AckAllQueueMessagesResponse');
+    throw new Error(
+      'Expected argument of type kubemq.AckAllQueueMessagesResponse',
+    );
   }
   return Buffer.from(arg.serializeBinary());
 }
 
 function deserialize_kubemq_AckAllQueueMessagesResponse(buffer_arg) {
-  return src_protos_grpc_kubemq_pb.AckAllQueueMessagesResponse.deserializeBinary(new Uint8Array(buffer_arg));
+  return src_protos_grpc_kubemq_pb.AckAllQueueMessagesResponse.deserializeBinary(
+    new Uint8Array(buffer_arg),
+  );
 }
 
 function serialize_kubemq_Empty(arg) {
@@ -34,7 +42,9 @@ function serialize_kubemq_Empty(arg) {
 }
 
 function deserialize_kubemq_Empty(buffer_arg) {
-  return src_protos_grpc_kubemq_pb.Empty.deserializeBinary(new Uint8Array(buffer_arg));
+  return src_protos_grpc_kubemq_pb.Empty.deserializeBinary(
+    new Uint8Array(buffer_arg),
+  );
 }
 
 function serialize_kubemq_Event(arg) {
@@ -45,7 +55,9 @@ function serialize_kubemq_Event(arg) {
 }
 
 function deserialize_kubemq_Event(buffer_arg) {
-  return src_protos_grpc_kubemq_pb.Event.deserializeBinary(new Uint8Array(buffer_arg));
+  return src_protos_grpc_kubemq_pb.Event.deserializeBinary(
+    new Uint8Array(buffer_arg),
+  );
 }
 
 function serialize_kubemq_EventReceive(arg) {
@@ -56,7 +68,9 @@ function serialize_kubemq_EventReceive(arg) {
 }
 
 function deserialize_kubemq_EventReceive(buffer_arg) {
-  return src_protos_grpc_kubemq_pb.EventReceive.deserializeBinary(new Uint8Array(buffer_arg));
+  return src_protos_grpc_kubemq_pb.EventReceive.deserializeBinary(
+    new Uint8Array(buffer_arg),
+  );
 }
 
 function serialize_kubemq_PingResult(arg) {
@@ -67,7 +81,9 @@ function serialize_kubemq_PingResult(arg) {
 }
 
 function deserialize_kubemq_PingResult(buffer_arg) {
-  return src_protos_grpc_kubemq_pb.PingResult.deserializeBinary(new Uint8Array(buffer_arg));
+  return src_protos_grpc_kubemq_pb.PingResult.deserializeBinary(
+    new Uint8Array(buffer_arg),
+  );
 }
 
 function serialize_kubemq_QueueMessage(arg) {
@@ -78,51 +94,71 @@ function serialize_kubemq_QueueMessage(arg) {
 }
 
 function deserialize_kubemq_QueueMessage(buffer_arg) {
-  return src_protos_grpc_kubemq_pb.QueueMessage.deserializeBinary(new Uint8Array(buffer_arg));
+  return src_protos_grpc_kubemq_pb.QueueMessage.deserializeBinary(
+    new Uint8Array(buffer_arg),
+  );
 }
 
 function serialize_kubemq_QueueMessagesBatchRequest(arg) {
   if (!(arg instanceof src_protos_grpc_kubemq_pb.QueueMessagesBatchRequest)) {
-    throw new Error('Expected argument of type kubemq.QueueMessagesBatchRequest');
+    throw new Error(
+      'Expected argument of type kubemq.QueueMessagesBatchRequest',
+    );
   }
   return Buffer.from(arg.serializeBinary());
 }
 
 function deserialize_kubemq_QueueMessagesBatchRequest(buffer_arg) {
-  return src_protos_grpc_kubemq_pb.QueueMessagesBatchRequest.deserializeBinary(new Uint8Array(buffer_arg));
+  return src_protos_grpc_kubemq_pb.QueueMessagesBatchRequest.deserializeBinary(
+    new Uint8Array(buffer_arg),
+  );
 }
 
 function serialize_kubemq_QueueMessagesBatchResponse(arg) {
   if (!(arg instanceof src_protos_grpc_kubemq_pb.QueueMessagesBatchResponse)) {
-    throw new Error('Expected argument of type kubemq.QueueMessagesBatchResponse');
+    throw new Error(
+      'Expected argument of type kubemq.QueueMessagesBatchResponse',
+    );
   }
   return Buffer.from(arg.serializeBinary());
 }
 
 function deserialize_kubemq_QueueMessagesBatchResponse(buffer_arg) {
-  return src_protos_grpc_kubemq_pb.QueueMessagesBatchResponse.deserializeBinary(new Uint8Array(buffer_arg));
+  return src_protos_grpc_kubemq_pb.QueueMessagesBatchResponse.deserializeBinary(
+    new Uint8Array(buffer_arg),
+  );
 }
 
 function serialize_kubemq_ReceiveQueueMessagesRequest(arg) {
   if (!(arg instanceof src_protos_grpc_kubemq_pb.ReceiveQueueMessagesRequest)) {
-    throw new Error('Expected argument of type kubemq.ReceiveQueueMessagesRequest');
+    throw new Error(
+      'Expected argument of type kubemq.ReceiveQueueMessagesRequest',
+    );
   }
   return Buffer.from(arg.serializeBinary());
 }
 
 function deserialize_kubemq_ReceiveQueueMessagesRequest(buffer_arg) {
-  return src_protos_grpc_kubemq_pb.ReceiveQueueMessagesRequest.deserializeBinary(new Uint8Array(buffer_arg));
+  return src_protos_grpc_kubemq_pb.ReceiveQueueMessagesRequest.deserializeBinary(
+    new Uint8Array(buffer_arg),
+  );
 }
 
 function serialize_kubemq_ReceiveQueueMessagesResponse(arg) {
-  if (!(arg instanceof src_protos_grpc_kubemq_pb.ReceiveQueueMessagesResponse)) {
-    throw new Error('Expected argument of type kubemq.ReceiveQueueMessagesResponse');
+  if (
+    !(arg instanceof src_protos_grpc_kubemq_pb.ReceiveQueueMessagesResponse)
+  ) {
+    throw new Error(
+      'Expected argument of type kubemq.ReceiveQueueMessagesResponse',
+    );
   }
   return Buffer.from(arg.serializeBinary());
 }
 
 function deserialize_kubemq_ReceiveQueueMessagesResponse(buffer_arg) {
-  return src_protos_grpc_kubemq_pb.ReceiveQueueMessagesResponse.deserializeBinary(new Uint8Array(buffer_arg));
+  return src_protos_grpc_kubemq_pb.ReceiveQueueMessagesResponse.deserializeBinary(
+    new Uint8Array(buffer_arg),
+  );
 }
 
 function serialize_kubemq_Request(arg) {
@@ -133,7 +169,9 @@ function serialize_kubemq_Request(arg) {
 }
 
 function deserialize_kubemq_Request(buffer_arg) {
-  return src_protos_grpc_kubemq_pb.Request.deserializeBinary(new Uint8Array(buffer_arg));
+  return src_protos_grpc_kubemq_pb.Request.deserializeBinary(
+    new Uint8Array(buffer_arg),
+  );
 }
 
 function serialize_kubemq_Response(arg) {
@@ -144,7 +182,9 @@ function serialize_kubemq_Response(arg) {
 }
 
 function deserialize_kubemq_Response(buffer_arg) {
-  return src_protos_grpc_kubemq_pb.Response.deserializeBinary(new Uint8Array(buffer_arg));
+  return src_protos_grpc_kubemq_pb.Response.deserializeBinary(
+    new Uint8Array(buffer_arg),
+  );
 }
 
 function serialize_kubemq_Result(arg) {
@@ -155,7 +195,9 @@ function serialize_kubemq_Result(arg) {
 }
 
 function deserialize_kubemq_Result(buffer_arg) {
-  return src_protos_grpc_kubemq_pb.Result.deserializeBinary(new Uint8Array(buffer_arg));
+  return src_protos_grpc_kubemq_pb.Result.deserializeBinary(
+    new Uint8Array(buffer_arg),
+  );
 }
 
 function serialize_kubemq_SendQueueMessageResult(arg) {
@@ -166,29 +208,39 @@ function serialize_kubemq_SendQueueMessageResult(arg) {
 }
 
 function deserialize_kubemq_SendQueueMessageResult(buffer_arg) {
-  return src_protos_grpc_kubemq_pb.SendQueueMessageResult.deserializeBinary(new Uint8Array(buffer_arg));
+  return src_protos_grpc_kubemq_pb.SendQueueMessageResult.deserializeBinary(
+    new Uint8Array(buffer_arg),
+  );
 }
 
 function serialize_kubemq_StreamQueueMessagesRequest(arg) {
   if (!(arg instanceof src_protos_grpc_kubemq_pb.StreamQueueMessagesRequest)) {
-    throw new Error('Expected argument of type kubemq.StreamQueueMessagesRequest');
+    throw new Error(
+      'Expected argument of type kubemq.StreamQueueMessagesRequest',
+    );
   }
   return Buffer.from(arg.serializeBinary());
 }
 
 function deserialize_kubemq_StreamQueueMessagesRequest(buffer_arg) {
-  return src_protos_grpc_kubemq_pb.StreamQueueMessagesRequest.deserializeBinary(new Uint8Array(buffer_arg));
+  return src_protos_grpc_kubemq_pb.StreamQueueMessagesRequest.deserializeBinary(
+    new Uint8Array(buffer_arg),
+  );
 }
 
 function serialize_kubemq_StreamQueueMessagesResponse(arg) {
   if (!(arg instanceof src_protos_grpc_kubemq_pb.StreamQueueMessagesResponse)) {
-    throw new Error('Expected argument of type kubemq.StreamQueueMessagesResponse');
+    throw new Error(
+      'Expected argument of type kubemq.StreamQueueMessagesResponse',
+    );
   }
   return Buffer.from(arg.serializeBinary());
 }
 
 function deserialize_kubemq_StreamQueueMessagesResponse(buffer_arg) {
-  return src_protos_grpc_kubemq_pb.StreamQueueMessagesResponse.deserializeBinary(new Uint8Array(buffer_arg));
+  return src_protos_grpc_kubemq_pb.StreamQueueMessagesResponse.deserializeBinary(
+    new Uint8Array(buffer_arg),
+  );
 }
 
 function serialize_kubemq_Subscribe(arg) {
@@ -199,11 +251,12 @@ function serialize_kubemq_Subscribe(arg) {
 }
 
 function deserialize_kubemq_Subscribe(buffer_arg) {
-  return src_protos_grpc_kubemq_pb.Subscribe.deserializeBinary(new Uint8Array(buffer_arg));
+  return src_protos_grpc_kubemq_pb.Subscribe.deserializeBinary(
+    new Uint8Array(buffer_arg),
+  );
 }
 
-
-var kubemqService = exports.kubemqService = {
+var kubemqService = (exports.kubemqService = {
   sendEvent: {
     path: '/kubemq.kubemq/SendEvent',
     requestStream: false,
@@ -336,6 +389,6 @@ var kubemqService = exports.kubemqService = {
     responseSerialize: serialize_kubemq_PingResult,
     responseDeserialize: deserialize_kubemq_PingResult,
   },
-};
+});
 
 exports.kubemqClient = grpc.makeGenericClientConstructor(kubemqService);
