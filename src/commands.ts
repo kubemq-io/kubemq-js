@@ -1,50 +1,105 @@
-import { BaseMessage, Client } from './client';
+import { BaseMessage, Client, TypedEvent } from './client';
 import { Config } from './config';
 import * as pb from '../src/protos';
 import { Utils } from './utils';
-import { TypedEvent } from './common';
 
+/**
+ * command request base message
+ */
 export interface CommandsMessage extends BaseMessage {
+  /** command request timeout in milliseconds */
   timeout?: number;
 }
+
+/**
+ * command request received by commands subscriber
+ */
 export interface CommandsReceiveMessage {
+  /** send command request id */
   id: string;
+
+  /** channel name */
   channel: string;
+
+  /** command request metadata */
   metadata: string;
+
+  /** command request payload */
   body: Uint8Array | string;
+
+  /** command request key/value tags */
   tags: Map<string, string>;
+
+  /** command request replay channel for response */
   replyChannel: string;
 }
 
+/**
+ * command response
+ */
 export interface CommandsResponse {
+  /** send command request id */
   id: string;
+
+  /** command response replay channel*/
   replyChannel?: string;
+
+  /** clientId name of the responder*/
   clientId: string;
+
+  /** response timestamp in Unix Epoch time*/
   timestamp: number;
+
+  /** indicates execution of the command request*/
   executed: boolean;
+
+  /** execution error if present*/
   error: string;
 }
 
+/** command requests subscription callback */
 export interface CommandsReceiveMessageCallback {
   (err: Error | null, msg: CommandsReceiveMessage): void;
 }
+
+/** commands requests subscription */
 export interface CommandsSubscriptionRequest {
+  /** command requests channel */
   channel: string;
+
+  /** command requests channel group*/
   group?: string;
+
+  /** command requests clientId */
   clientId?: string;
 }
 
+/** commands requests subscription response*/
 export interface CommandsSubscriptionResponse {
+  /** emit events on close subscription*/
   onClose: TypedEvent<void>;
+
+  /** call unsubscribe*/
   unsubscribe(): void;
 }
 
+/**
+ * Commands Client - KubeMQ commands client
+ */
 export class CommandsClient extends Client {
+  /**
+   * @internal
+   */
   constructor(Options: Config) {
     super(Options);
   }
 
-  public send(msg: CommandsMessage): Promise<CommandsResponse> {
+  /**
+   * Send command request to server and waits for response
+   * @param msg
+   * @return Promise<CommandsResponse>
+   */
+  send(msg: CommandsMessage): Promise<CommandsResponse> {
     const pbMessage = new pb.Request();
     pbMessage.setRequestid(msg.id ? msg.id : Utils.uuid());
     pbMessage.setClientid(
@@ -82,8 +137,12 @@ export class CommandsClient extends Client {
       );
     });
   }
-
-  public response(msg: CommandsResponse): Promise<void> {
+  /**
+   * Send response for a command request to the server
+   * @param msg
+   * @return Promise<void>
+   */
+  response(msg: CommandsResponse): Promise<void> {
     const pbMessage = new pb.Response();
     pbMessage.setRequestid(msg.id);
     pbMessage.setClientid(
@@ -103,8 +162,13 @@ export class CommandsClient extends Client {
       });
     });
   }
-
-  public subscribe(
+  /**
+   * Subscribe to commands requests
+   * @param request
+   * @param cb
+   * @return Promise<CommandsSubscriptionResponse>
+   */
+  subscribe(
     request: CommandsSubscriptionRequest,
     cb: CommandsReceiveMessageCallback,
   ): Promise<CommandsSubscriptionResponse> {

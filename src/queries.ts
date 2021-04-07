@@ -1,54 +1,112 @@
-import { BaseMessage, Client } from './client';
+import { BaseMessage, Client, TypedEvent } from './client';
 import { Config } from './config';
 import * as pb from '../src/protos';
 import { Utils } from './utils';
-import { TypedEvent } from './common';
 
+/**
+ * queries request base message
+ */
 export interface QueriesMessage extends BaseMessage {
   timeout?: number;
   cacheKey?: string;
   cacheTTL?: number;
 }
+
+/**
+ * query request received by commands subscriber
+ */
 export interface QueriesReceiveMessage {
+  /** send query request id */
   id: string;
+
+  /** channel name */
   channel: string;
+
+  /** query request metadata */
   metadata: string;
+
+  /** query request payload */
   body: Uint8Array | string;
+
+  /** query request key/value tags */
   tags: Map<string, string>;
+
+  /** query request replay channel for response */
   replyChannel: string;
 }
 
+/**
+ * query response
+ */
 export interface QueriesResponse {
+  /** send command request id */
   id: string;
+
+  /** query response replay channel*/
   replyChannel?: string;
+
+  /** clientId name of the responder*/
   clientId: string;
-  metadata?: string;
-  body?: Uint8Array | string;
-  tags?: Map<string, string>;
+
+  /** response timestamp in Unix Epoch time*/
   timestamp: number;
+
+  /** indicates execution of the query request*/
   executed: boolean;
+
+  /** execution error if present*/
   error: string;
+
+  /** response metadata*/
+  metadata?: string;
+
+  /** response payload*/
+  body?: Uint8Array | string;
+
+  /** response key/value tags*/
+  tags?: Map<string, string>;
 }
 
+/** query requests subscription */
 export interface QueriesSubscriptionRequest {
+  /** query requests channel */
   channel: string;
+
+  /** query requests channel group*/
   group?: string;
+
+  /** query requests clientId */
   clientId?: string;
 }
+
+/** queries requests subscription callback */
 export interface QueriesReceiveMessageCallback {
   (err: Error | null, msg: QueriesReceiveMessage): void;
 }
+/** queries requests subscription response*/
 export interface QueriesSubscriptionResponse {
+  /** emit events on close subscription*/
   onClose: TypedEvent<void>;
+
+  /** call unsubscribe*/
   unsubscribe(): void;
 }
-
+/**
+ * Queries Client - KubeMQ queries client
+ */
 export class QueriesClient extends Client {
+  /**
+   * @internal
+   */
   constructor(Options: Config) {
     super(Options);
   }
-
-  public send(msg: QueriesMessage): Promise<QueriesResponse> {
+  /**
+   * Send query request to server and waits for response
+   * @param msg
+   * @return Promise<QueriesResponse>
+   */
+  send(msg: QueriesMessage): Promise<QueriesResponse> {
     const pbMessage = new pb.Request();
     pbMessage.setRequestid(msg.id ? msg.id : Utils.uuid());
     pbMessage.setClientid(
@@ -90,8 +148,12 @@ export class QueriesClient extends Client {
       );
     });
   }
-
-  public response(msg: QueriesResponse): Promise<void> {
+  /**
+   * Send response for a query request to the server
+   * @param msg
+   * @return Promise<void>
+   */
+  response(msg: QueriesResponse): Promise<void> {
     const pbMessage = new pb.Response();
     pbMessage.setRequestid(msg.id);
     pbMessage.setClientid(
@@ -116,7 +178,13 @@ export class QueriesClient extends Client {
     });
   }
 
-  public subscribe(
+  /**
+   * Subscribe to commands requests
+   * @param request
+   * @param cb
+   * @return Promise<QueriesSubscriptionResponse>
+   */
+  subscribe(
     request: QueriesSubscriptionRequest,
     cb: QueriesReceiveMessageCallback,
   ): Promise<QueriesSubscriptionResponse> {
