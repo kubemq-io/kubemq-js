@@ -13,7 +13,7 @@ export interface QueriesMessage extends BaseMessage {
 }
 
 /**
- * query request received by commands subscriber
+ * query request received by queries subscriber
  */
 export interface QueriesReceiveMessage {
   /** send query request id */
