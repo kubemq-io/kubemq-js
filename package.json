@@ -1,6 +1,6 @@
 {
   "name": "kubemq-js",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "kubemq js/ts library for KubeMQ Message Broker ",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -44,6 +44,8 @@
     "email": "support@kuebmq.io"
   },
   "dependencies": {
+    "@grpc/grpc-js": "^1.2.12",
+    "@grpc/proto-loader": "^0.5.6",
     "tslib": "~2.1.0",
     "uuid": "^8.3.2"
   },
