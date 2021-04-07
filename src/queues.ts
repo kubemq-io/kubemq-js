@@ -1,6 +1,6 @@
 import { BaseMessage, Client } from './client';
 import { Config } from './config';
-import * as pb from '../src/protos';
+import * as pb from './protos';
 import { Utils } from './utils';
 import * as grpc from '@grpc/grpc-js';
 

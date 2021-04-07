@@ -1,6 +1,6 @@
 import { BaseMessage, Client, TypedEvent } from './client';
 import { Config } from './config';
-import * as pb from '../src/protos';
+import * as pb from './protos';
 import { Utils } from './utils';
 /**
  * events base message
