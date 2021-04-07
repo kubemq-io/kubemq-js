@@ -1,9 +1,11 @@
-import { BaseMessage, Client } from './client';
+import { BaseMessage, Client, TypedEvent } from './client';
 import { Config } from './config';
 import * as pb from '../src/protos';
 import { Utils } from './utils';
-import { TypedEvent } from './common';
 
+/**
+ * events store subscription types
+ */
 export enum EventStoreType {
   StartNewOnly = 1,
   StartFromFirst,
@@ -12,14 +14,34 @@ export enum EventStoreType {
   StartAtTime,
   StartAtTimeDelta,
 }
+/**
+ * events store base message
+ */
 export interface EventsStoreMessage extends BaseMessage {}
+
+/**
+ * events store received by commands subscriber
+ */
 export interface EventsStoreReceiveMessage {
+  /** send event request id */
   id: string;
+
+  /** channel name */
   channel: string;
+
+  /** event metadata */
   metadata: string;
+
+  /** event payload */
   body: Uint8Array | string;
+
+  /** event key/value tags */
   tags: Map<string, string>;
+
+  /** event timestamp */
   timestamp: number;
+
+  /** event sequence */
   sequence: number;
 }
 export interface EventsStoreSendResult {
