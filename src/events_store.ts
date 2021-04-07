@@ -44,44 +44,72 @@ export interface EventsStoreReceiveMessage {
   /** event sequence */
   sequence: number;
 }
+/** events store sending result */
 export interface EventsStoreSendResult {
   id: string;
   sent: boolean;
   error: string;
 }
+/** events store subscription callback */
 export interface EventsStoreReceiveMessageCallback {
   (err: Error | null, msg: EventsStoreReceiveMessage): void;
 }
-
+/** events store stream callback */
 export interface EventsStoreStreamCallback {
   (err: Error | null, result: EventsStoreSendResult): void;
 }
 
+/** events store requests subscription */
 export interface EventsStoreSubscriptionRequest {
+  /** event store subscription channel */
   channel: string;
+
+  /** event store subscription channel group*/
   group?: string;
+
+  /** event store subscription clientId */
   clientId?: string;
+
+  /** event store subscription type */
   requestType: EventStoreType;
+
+  /** event store subscription value - if valid */
   requestTypeValue?: number;
 }
 
+/** events subscription response*/
 export interface EventsStoreSubscriptionResponse {
+  /** emit events on close stream*/
   onClose: TypedEvent<void>;
+
+  /** call unsubscribe*/
   unsubscribe(): void;
 }
-
+/** events requests subscription response*/
 export interface EventsStoreStreamResponse {
+  /** emit events on close stream*/
   onClose: TypedEvent<void>;
+
+  /** write events store to stream*/
   write(msg: EventsStoreMessage): void;
+
+  /** end events store stream*/
   end(): void;
 }
 
+/**
+ * Events Store Client - KubeMQ events store client
+ */
 export class EventsStoreClient extends Client {
   constructor(Options: Config) {
     super(Options);
   }
-
-  public send(msg: EventsStoreMessage): Promise<EventsStoreSendResult> {
+  /**
+   * Send single event
+   * @param msg
+   * @return Promise<EventsStoreSendResult>
+   */
+  send(msg: EventsStoreMessage): Promise<EventsStoreSendResult> {
     const pbMessage = new pb.Event();
     pbMessage.setEventid(msg.id ? msg.id : Utils.uuid());
     pbMessage.setClientid(
@@ -114,6 +142,12 @@ export class EventsStoreClient extends Client {
       );
     });
   }
+
+  /**
+   * Send stream of events store
+   * @return Promise<EventsStoreStreamCallback>
+   * @param cb
+   */
   public stream(
     cb: EventsStoreStreamCallback,
   ): Promise<EventsStoreStreamResponse> {
@@ -167,6 +201,12 @@ export class EventsStoreClient extends Client {
     });
   }
 
+  /**
+   * Subscribe to events store messages
+   * @param request
+   * @param cb
+   * @return Promise<EventsStoreSubscriptionResponse>
+   */
   public subscribe(
     request: EventsStoreSubscriptionRequest,
     cb: EventsStoreReceiveMessageCallback,
