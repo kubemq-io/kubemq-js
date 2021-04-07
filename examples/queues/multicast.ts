@@ -15,7 +15,11 @@ async function main() {
     .catch((reason) => console.error(reason));
 
   await queuesClient
-    .pull({ channel: 'queues.A', maxNumberOfMessages: 1, waitTimeout: 5 })
+    .pull({
+      channel: 'queues.A',
+      maxNumberOfMessages: 1,
+      waitTimeoutSeconds: 5,
+    })
     .then((response) => {
       response.messages.forEach((msg) => {
         console.log(msg);
@@ -25,7 +29,11 @@ async function main() {
       console.error(reason);
     });
   await queuesClient
-    .pull({ channel: 'queues.B', maxNumberOfMessages: 1, waitTimeout: 5 })
+    .pull({
+      channel: 'queues.B',
+      maxNumberOfMessages: 1,
+      waitTimeoutSeconds: 5,
+    })
     .then((response) => {
       response.messages.forEach((msg) => {
         console.log(msg);

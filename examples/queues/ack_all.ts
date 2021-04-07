@@ -31,7 +31,7 @@ async function main() {
     .pull({
       channel: 'queues.ack_all',
       maxNumberOfMessages: 10,
-      waitTimeout: 5,
+      waitTimeoutSeconds: 5,
     })
     .then((response) => {
       response.messages.forEach((msg) => {

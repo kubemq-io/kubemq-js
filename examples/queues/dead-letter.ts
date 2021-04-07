@@ -47,7 +47,7 @@ async function main() {
     .pull({
       channel: 'queues.dead-letter',
       maxNumberOfMessages: 1,
-      waitTimeout: 5,
+      waitTimeoutSeconds: 5,
     })
     .then((response) => {
       response.messages.forEach((msg) => {

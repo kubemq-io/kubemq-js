@@ -25,11 +25,11 @@ async function main() {
     .pull({
       channel: 'queues.expiration',
       maxNumberOfMessages: 1,
-      waitTimeout: 1,
+      waitTimeoutSeconds: 1,
     })
     .then((response) => {
-      console.log('Messages received:', response.msgsReceived);
-      console.log('Messages expired:', response.msgsExpired);
+      console.log('Messages received:', response.messagesReceived);
+      console.log('Messages expired:', response.messagesExpired);
     })
     .catch((reason) => {
       console.error(reason);

@@ -20,7 +20,11 @@ async function main() {
 
   // peeking messages , the messages stays in queue
   await queuesClient
-    .peek({ channel: 'queues.peek', maxNumberOfMessages: 10, waitTimeout: 20 })
+    .peek({
+      channel: 'queues.peek',
+      maxNumberOfMessages: 10,
+      waitTimeoutSeconds: 20,
+    })
     .then((response) => {
       response.messages.forEach((msg) => {
         console.log(msg);
@@ -32,7 +36,11 @@ async function main() {
 
   //message pulling from queue
   await queuesClient
-    .pull({ channel: 'queues.peek', maxNumberOfMessages: 10, waitTimeout: 20 })
+    .pull({
+      channel: 'queues.peek',
+      maxNumberOfMessages: 10,
+      waitTimeoutSeconds: 20,
+    })
     .then((response) => {
       response.messages.forEach((msg) => {
         console.log(msg);
