@@ -22,19 +22,23 @@ async function main() {
     .pull({
       channel: 'queues.delayed',
       maxNumberOfMessages: 1,
-      waitTimeout: 5,
+      waitTimeoutSeconds: 5,
     })
     .then((response) => {
-      console.log('Messages received:', response.msgsReceived);
+      console.log('Messages received:', response.messagesReceived);
     })
     .catch((reason) => {
       console.error(reason);
     });
   // will pull after 5 seconds and we should get the message
   await queuesClient
-    .pull({ channel: 'queues.delayed', maxNumberOfMessages: 1, waitTimeout: 5 })
+    .pull({
+      channel: 'queues.delayed',
+      maxNumberOfMessages: 1,
+      waitTimeoutSeconds: 5,
+    })
     .then((response) => {
-      console.log('Messages received:', response.msgsReceived);
+      console.log('Messages received:', response.messagesReceived);
     })
     .catch((reason) => {
       console.error(reason);

@@ -4,77 +4,185 @@ import * as pb from '../src/protos';
 import { Utils } from './utils';
 import * as grpc from '@grpc/grpc-js';
 
+/**
+ * queue message attributes
+ */
 export interface QueuesMessageAttributes {
+  /** queue message timestamp */
   timestamp?: number;
+
+  /** queue message sequence */
   sequence?: number;
+
+  /** how many times the queue message consumed so far */
   receiveCount?: number;
+
+  /** indicate if the message was re-routed from another queue (dead-letter) */
   reRouted?: boolean;
+
+  /** indicate the re-routed message originate queue */
   reRoutedFromQueue?: string;
+
+  /** indicate when the message will expire */
   expirationAt?: number;
+
+  /** indicate to when the message was delayed */
   delayedTo?: number;
 }
+
+/**
+ * queue message policy
+ */
 export interface QueueMessagePolicy {
+  /** set message expiration in seconds from now */
   expirationSeconds?: number;
+
+  /** set message delay in seconds from now */
   delaySeconds?: number;
+
+  /** set how many times the message will be send back to the queue before re-routed to a dead-letter queue */
   maxReceiveCount?: number;
+
+  /** set dead-letter queue */
   maxReceiveQueue?: string;
 }
 
+/**
+ * queue base message
+ */
 export interface QueueMessage extends BaseMessage {
   attributes?: QueuesMessageAttributes;
   policy?: QueueMessagePolicy;
 }
 
+/**
+ * queue message sending result
+ */
 export interface QueueMessageSendResult {
+  /** message id */
   id: string;
+
+  /** message sending time */
   sentAt: number;
+
+  /** message expiration time*/
   expirationAt: number;
+
+  /** message delay time*/
   delayedTo: number;
+
+  /** indicate sending message error*/
   isError: boolean;
+
+  /** indicate sending message reason*/
   error: string;
 }
 
-export interface QueuesPullMessagesRequest {
+/**
+ * queue messages pull/peek requests
+ */
+export interface QueuesPullPeekMessagesRequest {
+  /** pull/peek request id*/
   id?: string;
+
+  /** pull/peek request channel */
   channel: string;
+
+  /** pull/peek request clientId */
   clientId?: string;
+
+  /** pull/peek request max messages in one call */
   maxNumberOfMessages: number;
-  waitTimeout: number;
-}
 
-export interface QueuesPullMessagesResponse {
-  id?: string;
-  messages: QueueMessage[];
-  msgsReceived: number;
-  msgsExpired: number;
-  isPeek: boolean;
-  isError: boolean;
-  error: string;
-}
-
-export interface QueuesAckAllMessagesRequest {
-  id?: string;
-  channel: string;
-  clientId?: string;
+  /** how long to wait for max number of messages */
   waitTimeoutSeconds: number;
 }
 
-export interface QueuesAckAllMessagesResponse {
+/**
+ * queue messages pull/peek response
+ */
+export interface QueuesPullPeekMessagesResponse {
+  /** pull/peek request id*/
   id?: string;
-  affectedMessages: number;
+
+  /** array of received queue messages */
+  messages: QueueMessage[];
+
+  /** number of valid messages received */
+  messagesReceived: number;
+
+  /** number of expired messages from the queue */
+  messagesExpired: number;
+
+  /** is peek or pull */
+  isPeek: boolean;
+
+  /** indicate pull/peek error */
   isError: boolean;
+
+  /** pull/peek error reason*/
   error: string;
 }
 
-export interface QueueTransactionRequest {
+/**
+ * Ack all queue messages request
+ */
+export interface QueuesAckAllMessagesRequest {
+  /** ack all request id*/
+  id?: string;
+
+  /** ack all channel*/
   channel: string;
+
+  /** ack all clientId*/
   clientId?: string;
+
+  /** how long to wait for ack all messages*/
+  waitTimeoutSeconds: number;
+}
+/**
+ * Ack all queue messages response
+ */
+export interface QueuesAckAllMessagesResponse {
+  /** ack all request id*/
+  id?: string;
+
+  /** how many messages where ack*/
+  affectedMessages: number;
+
+  /** indicate ack all error */
+  isError: boolean;
+
+  /** ack all error reason*/
+  error: string;
+}
+
+/**
+ * Queue stream transactional request
+ */
+export interface QueueTransactionRequest {
+  /** request channel*/
+  channel: string;
+
+  /** request clientId*/
+  clientId?: string;
+
+  /** set how long to hide the received message from other clients during processing*/
   visibilitySeconds: number;
+
+  /** set how long to wait for queue message*/
   waitTimoutSeconds: number;
 }
+
+/**
+ * Queue stream transactional callback
+ */
 export interface QueueTransactionCallback {
   (err: Error | null, msg: QueueTransactionMessage): void;
 }
+/**
+ * @internal
+ */
 const toQueueMessagePb = function (
   msg: QueueMessage,
   defClientId: string,
@@ -107,6 +215,9 @@ const toQueueMessagePb = function (
   return pbMessage;
 };
 
+/**
+ * @internal
+ */
 const fromPbQueueMessage = function (msg: pb.QueueMessage): QueueMessage {
   let msgAttributes: QueuesMessageAttributes = {};
   const receivedMessageAttr = msg.getAttributes();
@@ -130,12 +241,24 @@ const fromPbQueueMessage = function (msg: pb.QueueMessage): QueueMessage {
     attributes: msgAttributes,
   };
 };
+
+/**
+ * Queue Client - KubeMQ queues client
+ */
 export class QueuesClient extends Client {
+  /**
+   * @internal
+   */
   constructor(Options: Config) {
     super(Options);
   }
 
-  public send(msg: QueueMessage): Promise<QueueMessageSendResult> {
+  /**
+   * Send queue message
+   * @param msg
+   * @return Promise<QueueMessageSendResult>
+   */
+  send(msg: QueueMessage): Promise<QueueMessageSendResult> {
     return new Promise<QueueMessageSendResult>((resolve, reject) => {
       this.grpcClient.sendQueueMessage(
         toQueueMessagePb(msg, this.clientOptions.clientId),
@@ -158,7 +281,13 @@ export class QueuesClient extends Client {
       );
     });
   }
-  public batch(messages: QueueMessage[]): Promise<QueueMessageSendResult[]> {
+
+  /**
+   * Send batch of queue messages
+   * @param messages
+   * @return Promise<QueueMessageSendResult[]>
+   */
+  batch(messages: QueueMessage[]): Promise<QueueMessageSendResult[]> {
     const pbBatchRequest = new pb.QueueMessagesBatchRequest();
     pbBatchRequest.setBatchid(Utils.uuid());
     messages.forEach((msg) => {
@@ -193,20 +322,36 @@ export class QueuesClient extends Client {
       );
     });
   }
-  public pull(
-    request: QueuesPullMessagesRequest,
-  ): Promise<QueuesPullMessagesResponse> {
+
+  /**
+   * Pull batch of queue messages
+   * @param request
+   * @return Promise<QueuesPullPeekMessagesResponse>
+   */
+  pull(
+    request: QueuesPullPeekMessagesRequest,
+  ): Promise<QueuesPullPeekMessagesResponse> {
     return this.pullOrPeek(request, false);
   }
-  public peek(
-    request: QueuesPullMessagesRequest,
-  ): Promise<QueuesPullMessagesResponse> {
+
+  /**
+   * Peek batch of queue messages
+   * @param request
+   * @return Promise<QueuesPullPeekMessagesResponse>
+   */
+  peek(
+    request: QueuesPullPeekMessagesRequest,
+  ): Promise<QueuesPullPeekMessagesResponse> {
     return this.pullOrPeek(request, true);
   }
+
+  /**
+   * @internal
+   */
   private pullOrPeek(
-    request: QueuesPullMessagesRequest,
+    request: QueuesPullPeekMessagesRequest,
     isPeek: boolean,
-  ): Promise<QueuesPullMessagesResponse> {
+  ): Promise<QueuesPullPeekMessagesResponse> {
     const pbPullSubRequest = new pb.ReceiveQueueMessagesRequest();
     pbPullSubRequest.setClientid(
       request.clientId ? request.clientId : this.clientOptions.clientId,
@@ -219,10 +364,10 @@ export class QueuesClient extends Client {
       request.maxNumberOfMessages ? request.maxNumberOfMessages : 1,
     );
     pbPullSubRequest.setWaittimeseconds(
-      request.waitTimeout ? request.waitTimeout : 0,
+      request.waitTimeoutSeconds ? request.waitTimeoutSeconds : 0,
     );
     pbPullSubRequest.setIspeak(isPeek);
-    return new Promise<QueuesPullMessagesResponse>((resolve, reject) => {
+    return new Promise<QueuesPullPeekMessagesResponse>((resolve, reject) => {
       this.grpcClient.receiveQueueMessages(
         pbPullSubRequest,
         this.getMetadata(),
@@ -241,15 +386,19 @@ export class QueuesClient extends Client {
             error: response.getError(),
             isError: response.getIserror(),
             isPeek: isPeek,
-            msgsExpired: response.getMessagesexpired(),
-            msgsReceived: response.getMessagesreceived(),
+            messagesExpired: response.getMessagesexpired(),
+            messagesReceived: response.getMessagesreceived(),
           });
         },
       );
     });
   }
-
-  public ackAll(
+  /**
+   * Ack all messages in queue
+   * @param request
+   * @return Promise<QueuesAckAllMessagesResponse>
+   */
+  ackAll(
     request: QueuesAckAllMessagesRequest,
   ): Promise<QueuesAckAllMessagesResponse> {
     const pbMessage = new pb.AckAllQueueMessagesRequest();
@@ -281,7 +430,12 @@ export class QueuesClient extends Client {
       ),
     );
   }
-
+  /**
+   * Start pull queue message transaction
+   * @param request
+   * @param cb
+   * @return Promise<QueueTransactionRequest>
+   */
   public transaction(
     request: QueueTransactionRequest,
     cb: QueueTransactionCallback,
@@ -324,6 +478,9 @@ export class QueuesClient extends Client {
   }
 }
 
+/**
+ * @internal
+ */
 export class QueueTransactionMessage {
   constructor(
     private _stream: grpc.ClientDuplexStream<
@@ -333,7 +490,7 @@ export class QueueTransactionMessage {
     public message: QueueMessage,
   ) {}
 
-  public ack(): Promise<void> {
+  ack(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (!this.message.attributes) {
         reject(new Error('no active queue msg to ack'));
@@ -351,7 +508,7 @@ export class QueueTransactionMessage {
       resolve();
     });
   }
-  public reject(): Promise<void> {
+  reject(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (!this.message.attributes) {
         reject(new Error('no active queue msg to reject'));
@@ -369,7 +526,7 @@ export class QueueTransactionMessage {
     });
   }
 
-  public extendVisibility(newVisibilitySeconds: number): Promise<void> {
+  extendVisibility(newVisibilitySeconds: number): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (!this.message.attributes) {
         reject(new Error('no active queue msg to extend visibility'));
@@ -387,7 +544,7 @@ export class QueueTransactionMessage {
       resolve();
     });
   }
-  public resendNewMessage(msg: QueueMessage): Promise<void> {
+  resendNewMessage(msg: QueueMessage): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (!this.message.attributes) {
         reject(new Error('no active queue msg to extend visibility'));
@@ -407,7 +564,7 @@ export class QueueTransactionMessage {
       resolve();
     });
   }
-  public resendToChannel(channel: string): Promise<void> {
+  resendToChannel(channel: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (!this.message.attributes) {
         reject(new Error('no active queue msg to extend visibility'));

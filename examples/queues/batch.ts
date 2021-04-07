@@ -19,7 +19,11 @@ async function main() {
     .catch((reason) => console.error(reason));
 
   await queuesClient
-    .pull({ channel: 'queues.batch', maxNumberOfMessages: 10, waitTimeout: 20 })
+    .pull({
+      channel: 'queues.batch',
+      maxNumberOfMessages: 10,
+      waitTimeoutSeconds: 20,
+    })
     .then((response) => {
       response.messages.forEach((msg) => {
         console.log(msg);
