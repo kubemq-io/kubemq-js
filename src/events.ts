@@ -41,13 +41,13 @@ export interface EventsSendResult {
 }
 /** events requests subscription */
 export interface EventsSubscriptionRequest {
-  /** event requests channel */
+  /** event subscription channel */
   channel: string;
 
-  /** event requests channel group*/
+  /** event subscription channel group*/
   group?: string;
 
-  /** event requests clientId */
+  /** event subscription clientId */
   clientId?: string;
 }
 
@@ -165,7 +165,7 @@ export class EventsClient extends Client {
     });
   }
   /**
-   * Subscribe to events requests
+   * Subscribe to events messages
    * @param request
    * @param cb
    * @return Promise<EventsSubscriptionResponse>
