@@ -33,4 +33,6 @@ export interface Config {
    * Defaults to 60 seconds.
    */
   defaultRpcTimeout?: number;
+
+  reconnectInterval?: number;
 }
