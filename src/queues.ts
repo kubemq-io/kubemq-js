@@ -1,4 +1,4 @@
-import { BaseMessage, Client } from './client';
+import { BaseMessage, Client, TypedEvent } from './client';
 import { Config } from './config';
 import * as pb from './protos';
 import { Utils } from './utils';
@@ -97,6 +97,36 @@ export interface QueuesPullPeekMessagesRequest {
   /** how long to wait for max number of messages */
   waitTimeoutSeconds: number;
 }
+/** queue messages subscribe callback */
+export interface QueuesSubscribeMessagesCallback {
+  (err: Error | null, response: QueuesPullPeekMessagesResponse): void;
+}
+/** queue messages subscribe callback*/
+export interface QueuesSubscribeMessagesResponse {
+  /** emit error on subscription request error*/
+  onError: TypedEvent<Error>;
+  /** call unsubscribe*/
+  unsubscribe(): void;
+}
+/**
+ * queue messages subscribe requests
+ */
+export interface QueuesSubscribeMessagesRequest {
+  /** subscribe request id*/
+  id?: string;
+
+  /** subscribe request channel */
+  channel: string;
+
+  /** subscribe request clientId */
+  clientId?: string;
+
+  /** subscribe request max messages in one call */
+  maxNumberOfMessages: number;
+
+  /** how long to wait for max number of messages */
+  waitTimeoutSeconds: number;
+}
 
 /**
  * queue messages pull/peek response
@@ -171,7 +201,31 @@ export interface QueueTransactionRequest {
   visibilitySeconds: number;
 
   /** set how long to wait for queue message*/
+  waitTimeoutSeconds: number;
+}
+
+/**
+ * Queue stream transactional subscription request
+ */
+export interface QueueTransactionSubscriptionRequest {
+  /** request channel*/
+  channel: string;
+
+  /** request clientId*/
+  clientId?: string;
+
+  /** set how long to hide the received message from other clients during processing*/
+  visibilitySeconds: number;
+
+  /** set how long to wait for queue message*/
   waitTimoutSeconds: number;
+}
+/** Queue stream transactional subscription response*/
+export interface QueueTransactionSubscriptionResponse {
+  /** emit errors on transactions*/
+  onError: TypedEvent<Error>;
+  /** call unsubscribe*/
+  unsubscribe(): void;
 }
 
 /**
@@ -344,6 +398,51 @@ export class QueuesClient extends Client {
   ): Promise<QueuesPullPeekMessagesResponse> {
     return this.pullOrPeek(request, true);
   }
+  /**
+   * Subscribe is pulling messages in a loop batch of queue messages
+   * @param request
+   * @param cb
+   * @return Promise<QueuesSubscribeMessagesResponse>
+   */
+  async subscribe(
+    request: QueuesSubscribeMessagesRequest,
+    cb: QueuesSubscribeMessagesCallback,
+  ): Promise<QueuesSubscribeMessagesResponse> {
+    return new Promise<QueuesSubscribeMessagesResponse>(
+      async (resolve, reject) => {
+        if (!cb) {
+          reject(new Error('subscribe queue message call requires a callback'));
+          return;
+        }
+        let isCancelled = false;
+        let onErrorEvent = new TypedEvent<Error>();
+        const unsubscribe = () => {
+          isCancelled = true;
+        };
+        resolve({
+          onError: onErrorEvent,
+          unsubscribe: unsubscribe,
+        });
+        while (!isCancelled) {
+          await this.pull(request)
+            .then((response) => {
+              cb(null, response);
+            })
+            .catch(async (reason) => {
+              onErrorEvent.emit(reason);
+              await new Promise((r) =>
+                setTimeout(
+                  r,
+                  this.clientOptions.reconnectInterval
+                    ? this.clientOptions.reconnectInterval
+                    : 1000,
+                ),
+              );
+            });
+        }
+      },
+    );
+  }
 
   /**
    * @internal
@@ -431,6 +530,53 @@ export class QueuesClient extends Client {
     );
   }
   /**
+   * TransactionSubscribe is streaming transaction messages in a loop
+   * @param request
+   * @param cb
+   * @return Promise<QueuesSubscribeMessagesResponse>
+   */
+  async transactionSubscribe(
+    request: QueueTransactionRequest,
+    cb: QueueTransactionCallback,
+  ): Promise<QueueTransactionSubscriptionResponse> {
+    return new Promise<QueueTransactionSubscriptionResponse>(
+      async (resolve, reject) => {
+        if (!cb) {
+          reject(
+            new Error('transaction subscription call requires a callback'),
+          );
+          return;
+        }
+        let isCancelled = false;
+        let onErrorEvent = new TypedEvent<Error>();
+        const unsubscribe = () => {
+          isCancelled = true;
+        };
+        resolve({
+          onError: onErrorEvent,
+          unsubscribe: unsubscribe,
+        });
+
+        while (!isCancelled) {
+          await this.transaction(request, cb)
+            .then(() => {})
+            .catch(async (reason) => {
+              onErrorEvent.emit(reason);
+              await new Promise((r) =>
+                setTimeout(
+                  r,
+                  this.clientOptions.reconnectInterval
+                    ? this.clientOptions.reconnectInterval
+                    : 1000,
+                ),
+              );
+            });
+        }
+      },
+    );
+  }
+
+  /**
    * Start pull queue message transaction
    * @param request
    * @param cb
@@ -460,7 +606,7 @@ export class QueuesClient extends Client {
         }
       });
       stream.on('error', (e: Error) => {
-        cb(e, null);
+        reject(e);
       });
       const msgRequest = new pb.StreamQueueMessagesRequest();
       msgRequest.setStreamrequesttypedata(1);
@@ -468,12 +614,14 @@ export class QueuesClient extends Client {
       msgRequest.setClientid(
         request.clientId ? request.clientId : this.clientOptions.clientId,
       );
-      msgRequest.setWaittimeseconds(request.waitTimoutSeconds);
+      msgRequest.setWaittimeseconds(request.waitTimeoutSeconds);
       msgRequest.setVisibilityseconds(request.visibilitySeconds);
       stream.write(msgRequest, (err: Error) => {
         cb(err, null);
       });
-      resolve();
+      stream.on('end', () => {
+        resolve();
+      });
     });
   }
 }
