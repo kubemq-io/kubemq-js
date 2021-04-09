@@ -9,6 +9,7 @@ const defaultOptions: Config = {
   address: 'localhost:50000',
   dialTimeout: 30000,
   defaultRpcTimeout: 60000,
+  reconnectInterval: 1000,
 };
 
 /**
