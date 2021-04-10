@@ -13,7 +13,7 @@ const queuesClient = new QueuesClient(opts);
 const transactionRequest: QueueTransactionRequest = {
   channel: 'queues.stream',
   visibilitySeconds: 60,
-  waitTimoutSeconds: 60,
+  waitTimeoutSeconds: 60,
 };
 queuesClient
   .send({
