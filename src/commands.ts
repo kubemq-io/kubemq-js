@@ -76,7 +76,7 @@ export interface CommandsSubscriptionRequest {
 }
 
 /** commands requests subscription response*/
-export interface internalCommandsSubscriptionResponse {
+interface internalCommandsSubscriptionResponse {
   /** emit events on close subscription*/
   onClose: TypedEvent<void>;
 
@@ -175,14 +175,14 @@ export class CommandsClient extends Client {
    * @return Promise<CommandsSubscriptionResponse>
    */
 
-  async Subscribe(
+  async subscribe(
     request: CommandsSubscriptionRequest,
     cb: CommandsReceiveMessageCallback,
   ): Promise<CommandsSubscriptionResponse> {
     return new Promise<CommandsSubscriptionResponse>(
       async (resolve, reject) => {
         if (!request) {
-          reject(new Error('queries subscription requires a request object'));
+          reject(new Error('commands subscription requires a request object'));
           return;
         }
         if (request.channel === '') {
