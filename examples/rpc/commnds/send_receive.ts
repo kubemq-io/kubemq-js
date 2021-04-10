@@ -39,7 +39,7 @@ async function receiver() {
     }
   };
   commandsClient
-    .Subscribe(
+    .subscribe(
       {
         channel: 'commands',
       },

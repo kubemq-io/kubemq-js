@@ -2,6 +2,7 @@ import { BaseMessage, Client, TypedEvent } from './client';
 import { Config } from './config';
 import * as pb from './protos';
 import { Utils } from './utils';
+import * as grpc from '@grpc/grpc-js';
 
 /**
  * events store subscription types
@@ -78,12 +79,12 @@ export interface EventsStoreSubscriptionRequest {
 }
 
 /** events subscription response*/
-export interface EventsStoreSubscriptionResponse {
-  /** emit events on close stream*/
+interface internalEventsStoreSubscriptionResponse {
+  /** emit events on close subscription*/
   onClose: TypedEvent<void>;
 
-  /** call unsubscribe*/
-  unsubscribe(): void;
+  /** call stream*/
+  stream: grpc.ClientReadableStream<pb.EventReceive>;
 }
 /** events requests subscription response*/
 export interface EventsStoreStreamResponse {
@@ -96,7 +97,12 @@ export interface EventsStoreStreamResponse {
   /** end events store stream*/
   end(): void;
 }
-
+/** events store requests subscription response*/
+export interface EventsStoreSubscriptionResponse {
+  onState: TypedEvent<string>;
+  /** call unsubscribe*/
+  unsubscribe(): void;
+}
 /**
  * Events Store Client - KubeMQ events store client
  */
@@ -210,53 +216,112 @@ export class EventsStoreClient extends Client {
    * @param cb
    * @return Promise<EventsStoreSubscriptionResponse>
    */
-  public subscribe(
+  async subscribe(
     request: EventsStoreSubscriptionRequest,
     cb: EventsStoreReceiveMessageCallback,
   ): Promise<EventsStoreSubscriptionResponse> {
-    return new Promise<EventsStoreSubscriptionResponse>((resolve, reject) => {
-      if (!cb) {
-        reject(new Error('events store subscription requires a callback'));
-        return;
-      }
-      const pbSubRequest = new pb.Subscribe();
-      pbSubRequest.setClientid(
-        request.clientId ? request.clientId : this.clientOptions.clientId,
-      );
-      pbSubRequest.setGroup(request.group ? request.group : '');
-      pbSubRequest.setChannel(request.channel);
-      pbSubRequest.setSubscribetypedata(2);
-      pbSubRequest.setEventsstoretypedata(request.requestType);
-      pbSubRequest.setEventsstoretypevalue(request.requestTypeValue);
-
-      const stream = this.grpcClient.subscribeToEvents(
-        pbSubRequest,
-        this.getMetadata(),
-      );
-      stream.on('data', (data: pb.EventReceive) => {
-        cb(null, {
-          id: data.getEventid(),
-          channel: data.getChannel(),
-          metadata: data.getMetadata(),
-          body: data.getBody(),
-          tags: data.getTagsMap(),
-          timestamp: data.getTimestamp(),
-          sequence: data.getSequence(),
+    return new Promise<EventsStoreSubscriptionResponse>(
+      async (resolve, reject) => {
+        if (!request) {
+          reject(
+            new Error('events store subscription requires a request object'),
+          );
+          return;
+        }
+        if (request.channel === '') {
+          reject(
+            new Error(
+              'events store subscription requires a non empty request channel',
+            ),
+          );
+          return;
+        }
+        if (!cb) {
+          reject(new Error('events store subscription requires a callback'));
+          return;
+        }
+        let unsubscribe = false;
+        const onStateChange = new TypedEvent<string>();
+        resolve({
+          onState: onStateChange,
+          unsubscribe() {
+            unsubscribe = true;
+          },
         });
-      });
-      stream.on('error', (e: Error) => {
-        cb(e, null);
-      });
-      let onCloseEvent = new TypedEvent<void>();
-      stream.on('close', () => {
-        onCloseEvent.emit();
-      });
-      resolve({
-        onClose: onCloseEvent,
-        unsubscribe() {
-          stream.cancel();
-        },
-      });
-    });
+        let currentStream;
+        while (!unsubscribe) {
+          onStateChange.emit('connecting');
+          await this.subscribeFn(request, cb).then((value) => {
+            value.onClose.on(() => {
+              isClosed = true;
+              onStateChange.emit('disconnected');
+            });
+            currentStream = value.stream;
+          });
+          let isClosed = false;
+          onStateChange.emit('connected');
+          while (!isClosed && !unsubscribe) {
+            await new Promise((r) => setTimeout(r, 1000));
+          }
+          const reconnectionInterval = this.clientOptions.reconnectInterval;
+          if (reconnectionInterval === 0) {
+            unsubscribe = true;
+          } else {
+            await new Promise((r) => setTimeout(r, reconnectionInterval));
+          }
+        }
+        currentStream.cancel();
+      },
+    );
+  }
+
+  private subscribeFn(
+    request: EventsStoreSubscriptionRequest,
+    cb: EventsStoreReceiveMessageCallback,
+  ): Promise<internalEventsStoreSubscriptionResponse> {
+    return new Promise<internalEventsStoreSubscriptionResponse>(
+      (resolve, reject) => {
+        if (!cb) {
+          reject(new Error('events store subscription requires a callback'));
+          return;
+        }
+        const pbSubRequest = new pb.Subscribe();
+        pbSubRequest.setClientid(
+          request.clientId ? request.clientId : this.clientOptions.clientId,
+        );
+        pbSubRequest.setGroup(request.group ? request.group : '');
+        pbSubRequest.setChannel(request.channel);
+        pbSubRequest.setSubscribetypedata(2);
+        pbSubRequest.setEventsstoretypedata(request.requestType);
+        pbSubRequest.setEventsstoretypevalue(request.requestTypeValue);
+
+        const stream = this.grpcClient.subscribeToEvents(
+          pbSubRequest,
+          this.getMetadata(),
+        );
+        stream.on('data', (data: pb.EventReceive) => {
+          cb(null, {
+            id: data.getEventid(),
+            channel: data.getChannel(),
+            metadata: data.getMetadata(),
+            body: data.getBody(),
+            tags: data.getTagsMap(),
+            timestamp: data.getTimestamp(),
+            sequence: data.getSequence(),
+          });
+        });
+        stream.on('error', (e: Error) => {
+          cb(e, null);
+        });
+        let onClose = new TypedEvent<void>();
+        stream.on('close', () => {
+          onClose.emit();
+        });
+        resolve({
+          onClose: onClose,
+          stream: stream,
+        });
+      },
+    );
   }
 }

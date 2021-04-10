@@ -87,7 +87,7 @@ export interface QueriesReceiveMessageCallback {
 /**
  * @internal
  */
-export interface internalQueriesSubscriptionResponse {
+interface internalQueriesSubscriptionResponse {
   /** emit events on close subscription*/
   onClose: TypedEvent<void>;
 
@@ -195,7 +195,7 @@ export class QueriesClient extends Client {
    * @return Promise<QueriesSubscriptionResponse>
    */
 
-  async Subscribe(
+  async subscribe(
     request: QueriesSubscriptionRequest,
     cb: QueriesReceiveMessageCallback,
   ): Promise<QueriesSubscriptionResponse> {
