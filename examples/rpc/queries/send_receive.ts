@@ -41,7 +41,7 @@ async function receiver() {
     }
   };
   queriesClient
-    .Subscribe(
+    .subscribe(
       {
         channel: 'queries',
       },
