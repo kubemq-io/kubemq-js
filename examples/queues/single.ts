@@ -14,19 +14,26 @@ async function main() {
     .then((result) => console.log(result))
     .catch((reason) => console.error(reason));
 
-  await queuesClient
-    .pull({
-      channel: 'queues.single',
-      maxNumberOfMessages: 1,
-      waitTimeoutSeconds: 5,
-    })
-    .then((response) => {
-      response.messages.forEach((msg) => {
-        console.log(msg);
-      });
-    })
-    .catch((reason) => {
-      console.error(reason);
+  queuesClient
+    .subscribe(
+      {
+        channel: 'queues.single',
+        maxNumberOfMessages: 1,
+        waitTimeoutSeconds: 5,
+      },
+      (err, response) => {
+        if (err) {
+          console.log(err);
+          return;
+        }
+        response.messages.forEach((msg) => {
+          console.log(msg);
+        });
+      },
+    )
+    .then(async (resp) => {
+      await new Promise((r) => setTimeout(r, 500000));
+      resp.unsubscribe();
     });
 }
 
