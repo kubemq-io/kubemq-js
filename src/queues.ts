@@ -97,11 +97,11 @@ export interface QueuesPullPeekMessagesRequest {
   /** how long to wait for max number of messages */
   waitTimeoutSeconds: number;
 }
-/** queue messages subscribe callback */
+/** queue messages subscribeFn callback */
 export interface QueuesSubscribeMessagesCallback {
   (err: Error | null, response: QueuesPullPeekMessagesResponse): void;
 }
-/** queue messages subscribe callback*/
+/** queue messages subscribeFn callback*/
 export interface QueuesSubscribeMessagesResponse {
   /** emit error on subscription request error*/
   onError: TypedEvent<Error>;
@@ -109,19 +109,19 @@ export interface QueuesSubscribeMessagesResponse {
   unsubscribe(): void;
 }
 /**
- * queue messages subscribe requests
+ * queue messages subscribeFn requests
  */
 export interface QueuesSubscribeMessagesRequest {
-  /** subscribe request id*/
+  /** subscribeFn request id*/
   id?: string;
 
-  /** subscribe request channel */
+  /** subscribeFn request channel */
   channel: string;
 
-  /** subscribe request clientId */
+  /** subscribeFn request clientId */
   clientId?: string;
 
-  /** subscribe request max messages in one call */
+  /** subscribeFn request max messages in one call */
   maxNumberOfMessages: number;
 
   /** how long to wait for max number of messages */
@@ -411,7 +411,9 @@ export class QueuesClient extends Client {
     return new Promise<QueuesSubscribeMessagesResponse>(
       async (resolve, reject) => {
         if (!cb) {
-          reject(new Error('subscribe queue message call requires a callback'));
+          reject(
+            new Error('subscribeFn queue message call requires a callback'),
+          );
           return;
         }
         let isCancelled = false;
@@ -535,7 +537,7 @@ export class QueuesClient extends Client {
    * @param cb
    * @return Promise<QueuesSubscribeMessagesResponse>
    */
-  async transactionSubscribe(
+  async transactionStream(
     request: QueueTransactionRequest,
     cb: QueueTransactionCallback,
   ): Promise<QueueTransactionSubscriptionResponse> {
