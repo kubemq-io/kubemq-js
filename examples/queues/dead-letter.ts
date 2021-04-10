@@ -28,7 +28,7 @@ async function main() {
   const transactionRequest: QueueTransactionRequest = {
     channel: 'queues.some-queue',
     visibilitySeconds: 60,
-    waitTimoutSeconds: 60,
+    waitTimeoutSeconds: 60,
   };
   await queuesClient
     .transaction(transactionRequest, (err, msg) => {
