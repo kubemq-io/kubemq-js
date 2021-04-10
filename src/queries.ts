@@ -268,7 +268,6 @@ export class QueriesClient extends Client {
         pbSubRequest.setGroup(request.group ? request.group : '');
         pbSubRequest.setChannel(request.channel);
         pbSubRequest.setSubscribetypedata(4);
-
         const stream = this.grpcClient.subscribeToRequests(
           pbSubRequest,
           this.getMetadata(),

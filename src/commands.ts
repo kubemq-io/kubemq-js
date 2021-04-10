@@ -2,6 +2,7 @@ import { BaseMessage, Client, TypedEvent } from './client';
 import { Config } from './config';
 import * as pb from './protos';
 import { Utils } from './utils';
+import * as grpc from '@grpc/grpc-js';
 
 /**
  * command request base message
@@ -75,14 +76,19 @@ export interface CommandsSubscriptionRequest {
 }
 
 /** commands requests subscription response*/
-export interface CommandsSubscriptionResponse {
+export interface internalCommandsSubscriptionResponse {
   /** emit events on close subscription*/
   onClose: TypedEvent<void>;
 
+  /** call stream*/
+  stream: grpc.ClientReadableStream<pb.Request>;
+}
+/** commands requests subscription response*/
+export interface CommandsSubscriptionResponse {
+  onState: TypedEvent<string>;
   /** call unsubscribe*/
   unsubscribe(): void;
 }
-
 /**
  * Commands Client - KubeMQ commands client
  */
@@ -168,51 +174,110 @@ export class CommandsClient extends Client {
    * @param cb
    * @return Promise<CommandsSubscriptionResponse>
    */
-  subscribe(
+
+  async Subscribe(
     request: CommandsSubscriptionRequest,
     cb: CommandsReceiveMessageCallback,
   ): Promise<CommandsSubscriptionResponse> {
-    return new Promise<CommandsSubscriptionResponse>((resolve, reject) => {
-      if (!cb) {
-        reject(new Error('commands subscription requires a callback'));
-        return;
-      }
-
-      const pbSubRequest = new pb.Subscribe();
-      pbSubRequest.setClientid(
-        request.clientId ? request.clientId : this.clientOptions.clientId,
-      );
-      pbSubRequest.setGroup(request.group ? request.group : '');
-      pbSubRequest.setChannel(request.channel);
-      pbSubRequest.setSubscribetypedata(3);
-
-      const stream = this.grpcClient.subscribeToRequests(
-        pbSubRequest,
-        this.getMetadata(),
-      );
-      stream.on('data', function (data: pb.Request) {
-        cb(null, {
-          id: data.getRequestid(),
-          channel: data.getChannel(),
-          metadata: data.getMetadata(),
-          body: data.getBody(),
-          tags: data.getTagsMap(),
-          replyChannel: data.getReplychannel(),
+    return new Promise<CommandsSubscriptionResponse>(
+      async (resolve, reject) => {
+        if (!request) {
+          reject(new Error('queries subscription requires a request object'));
+          return;
+        }
+        if (request.channel === '') {
+          reject(
+            new Error(
+              'commands subscription requires a non empty request channel',
+            ),
+          );
+          return;
+        }
+        if (!cb) {
+          reject(new Error('commands subscription requires a callback'));
+          return;
+        }
+        let unsubscribe = false;
+        const onStateChange = new TypedEvent<string>();
+        resolve({
+          onState: onStateChange,
+          unsubscribe() {
+            unsubscribe = true;
+          },
         });
-      });
-      stream.on('error', (e: Error) => {
-        cb(e, null);
-      });
-      let onClose = new TypedEvent<void>();
-      stream.on('close', () => {
-        onClose.emit();
-      });
-      resolve({
-        onClose: onClose,
-        unsubscribe() {
-          stream.cancel();
-        },
-      });
-    });
+        let currentStream;
+        while (!unsubscribe) {
+          onStateChange.emit('connecting');
+          await this.subscribeFn(request, cb).then((value) => {
+            value.onClose.on(() => {
+              isClosed = true;
+              onStateChange.emit('disconnected');
+            });
+            currentStream = value.stream;
+          });
+          let isClosed = false;
+          onStateChange.emit('connected');
+          while (!isClosed && !unsubscribe) {
+            await new Promise((r) => setTimeout(r, 1000));
+          }
+          const reconnectionInterval = this.clientOptions.reconnectInterval;
+          if (reconnectionInterval === 0) {
+            unsubscribe = true;
+          } else {
+            await new Promise((r) => setTimeout(r, reconnectionInterval));
+          }
+        }
+        currentStream.cancel();
+      },
+    );
+  }
+
+  private subscribeFn(
+    request: CommandsSubscriptionRequest,
+    cb: CommandsReceiveMessageCallback,
+  ): Promise<internalCommandsSubscriptionResponse> {
+    return new Promise<internalCommandsSubscriptionResponse>(
+      (resolve, reject) => {
+        if (!cb) {
+          reject(new Error('commands subscription requires a callback'));
+          return;
+        }
+
+        const pbSubRequest = new pb.Subscribe();
+        pbSubRequest.setClientid(
+          request.clientId ? request.clientId : this.clientOptions.clientId,
+        );
+        pbSubRequest.setGroup(request.group ? request.group : '');
+        pbSubRequest.setChannel(request.channel);
+        pbSubRequest.setSubscribetypedata(3);
+        const stream = this.grpcClient.subscribeToRequests(
+          pbSubRequest,
+          this.getMetadata(),
+        );
+
+        stream.on('data', function (data: pb.Request) {
+          cb(null, {
+            id: data.getRequestid(),
+            channel: data.getChannel(),
+            metadata: data.getMetadata(),
+            body: data.getBody(),
+            tags: data.getTagsMap(),
+            replyChannel: data.getReplychannel(),
+          });
+        });
+        stream.on('error', (e: Error) => {
+          cb(e, null);
+        });
+
+        let onClose = new TypedEvent<void>();
+        stream.on('close', () => {
+          onClose.emit();
+        });
+        resolve({
+          onClose: onClose,
+          stream: stream,
+        });
+      },
+    );
   }
 }
