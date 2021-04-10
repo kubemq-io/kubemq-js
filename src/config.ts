@@ -34,5 +34,10 @@ export interface Config {
    */
   defaultRpcTimeout?: number;
 
+  /**
+   * Reconnect interval in milliseconds.
+   * Defaults to 1 seconds.
+   * 0 - no reconnections
+   */
   reconnectInterval?: number;
 }
