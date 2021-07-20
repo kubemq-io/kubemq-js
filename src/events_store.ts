@@ -240,8 +240,15 @@ export class EventsStoreClient extends Client {
           reject(new Error('events store subscription requires a callback'));
           return;
         }
+        let isClosed = false;
         let unsubscribe = false;
         const onStateChange = new TypedEvent<string>();
+        onStateChange.on((event) => {
+          if (event === 'close') {
+            isClosed = true;
+            onStateChange.emit('disconnected');
+          }
+        });
         resolve({
           onState: onStateChange,
           unsubscribe() {
@@ -252,13 +259,9 @@ export class EventsStoreClient extends Client {
         while (!unsubscribe) {
           onStateChange.emit('connecting');
           await this.subscribeFn(request, cb).then((value) => {
-            value.onClose.on(() => {
-              isClosed = true;
-              onStateChange.emit('disconnected');
-            });
             currentStream = value.stream;
           });
-          let isClosed = false;
+          isClosed = false;
           onStateChange.emit('connected');
           while (!isClosed && !unsubscribe) {
             await new Promise((r) => setTimeout(r, 1000));
