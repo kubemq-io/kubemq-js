@@ -70,4 +70,4 @@ Please visit our cookbook [repository](https://github.com/kubemq-io/node-sdk-coo
 if you encounter any issues, please open an issue here,
 In addition, you can reach us for support by:
 - [**Email**](mailto://support@kubemq.io)
-- [**Slack**](https://kubmq.slack.com)
+- [**Slack**](https://join.slack.com/t/kubemq/shared_invite/enQtNDk3NjE1Mjg1MDMwLThjMGFmYjU1NTVhZWRjZTRjYTIxM2E5MjA5ZDFkMWUyODI3YTlkOWY2MmYzNGIwZjY3OThlMzYxYjYwMTVmYWM)
