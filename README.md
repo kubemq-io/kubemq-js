@@ -3,6 +3,9 @@
 KubeMQ is an enterprise-grade message queue and broker for containers, designed for any workload and architecture running in Kubernetes.
 This library is the official node js implementation of KubeMQ client connection.
 
+## Install KubeMQ Community Edition
+Please visit [KubeMQ Community](https://github.com/kubemq-io/kubemq-community) for intallation steps.
+
 ## Install KubeMQ Node js SDK
 
 ```
