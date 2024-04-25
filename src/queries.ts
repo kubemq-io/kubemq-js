@@ -3,7 +3,7 @@ import { Config } from './config';
 import * as pb from './protos';
 import { Utils } from './utils';
 import * as grpc from '@grpc/grpc-js';
-import { createChannel } from './common';
+import { createChannel, deleteChannel } from './common';
 
 /**
  * queries request base message
@@ -312,6 +312,21 @@ export class QueriesClient extends Client {
    */
   create(channelName: string): Promise<void> {
     return createChannel(
+      this.grpcClient,
+      this.getMetadata(),
+      this.clientOptions.clientId,
+      channelName,
+      'queries',
+    );
+  }
+
+  /**
+   * Delete commands channel
+   * @param channelName
+   * @return Promise<void>
+   */
+  delete(channelName: string): Promise<void> {
+    return deleteChannel(
       this.grpcClient,
       this.getMetadata(),
       this.clientOptions.clientId,
