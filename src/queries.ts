@@ -3,6 +3,7 @@ import { Config } from './config';
 import * as pb from './protos';
 import { Utils } from './utils';
 import * as grpc from '@grpc/grpc-js';
+import { createChannel } from './common';
 
 /**
  * queries request base message
@@ -216,12 +217,12 @@ export class QueriesClient extends Client {
         reject(new Error('queries subscription requires a callback'));
         return;
       }
-      
+
       let isClosed = false;
       let unsubscribe = false;
       const onStateChange = new TypedEvent<string>();
-      onStateChange.on((event)=>{
-        if (event==='close'){
+      onStateChange.on((event) => {
+        if (event === 'close') {
           isClosed = true;
           onStateChange.emit('disconnected');
         }
@@ -301,6 +302,21 @@ export class QueriesClient extends Client {
           stream: stream,
         });
       },
+    );
+  }
+
+  /**
+   * Create a new query channel
+   * @param channelName
+   * @return Promise<void>
+   */
+  create(channelName: string): Promise<void> {
+    return createChannel(
+      this.grpcClient,
+      this.getMetadata(),
+      this.clientOptions.clientId,
+      channelName,
+      'queries',
     );
   }
 }

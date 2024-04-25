@@ -3,6 +3,7 @@ import { Config } from './config';
 import * as pb from './protos';
 import { Utils } from './utils';
 import * as grpc from '@grpc/grpc-js';
+import { createChannel } from './common';
 
 /**
  * events store subscription types
@@ -325,6 +326,21 @@ export class EventsStoreClient extends Client {
           stream: stream,
         });
       },
+    );
+  }
+
+  /**
+   * Create a new events store channel
+   * @param channelName
+   * @return Promise<void>
+   */
+  create(channelName: string): Promise<void> {
+    return createChannel(
+      this.grpcClient,
+      this.getMetadata(),
+      this.clientOptions.clientId,
+      channelName,
+      'events_store',
     );
   }
 }
