@@ -3,6 +3,7 @@ import { Config } from './config';
 import * as pb from './protos';
 import { Utils } from './utils';
 import * as grpc from '@grpc/grpc-js';
+import { createChannel } from './common';
 
 /**
  * queue message attributes
@@ -377,6 +378,20 @@ export class QueuesClient extends Client {
     });
   }
 
+  /**
+   * Create new queue channel
+   * @param channelName
+   * @return Promise<void>
+   */
+  create(channelName: string): Promise<void> {
+    return createChannel(
+      this.grpcClient,
+      this.getMetadata(),
+      this.clientOptions.clientId,
+      channelName,
+      'queues',
+    );
+  }
   /**
    * Pull batch of queue messages
    * @param request
