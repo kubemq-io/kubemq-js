@@ -3,7 +3,8 @@ import { Config } from './config';
 import * as pb from './protos';
 import { Utils } from './utils';
 import * as grpc from '@grpc/grpc-js';
-import { createChannel, deleteChannel } from './common';
+import { createChannel, deleteChannel, listPubSubChannels } from './common';
+import { PubSubChannel } from './channel_stats';
 
 /**
  * events base message
@@ -308,6 +309,21 @@ export class EventsClient extends Client {
       this.getMetadata(),
       this.clientOptions.clientId,
       channelName,
+      'events',
+    );
+  }
+
+  /**
+   * List events channels
+   * @param search
+   * @return Promise<PubSubChannel[]>
+   */
+  list(search: string): Promise<PubSubChannel[]> {
+    return listPubSubChannels(
+      this.grpcClient,
+      this.getMetadata(),
+      this.clientOptions.clientId,
+      search,
       'events',
     );
   }

@@ -3,7 +3,8 @@ import { Config } from './config';
 import * as pb from './protos';
 import { Utils } from './utils';
 import * as grpc from '@grpc/grpc-js';
-import { createChannel, deleteChannel } from './common';
+import { createChannel, deleteChannel, listPubSubChannels } from './common';
+import { PubSubChannel } from './channel_stats';
 
 /**
  * events store subscription types
@@ -355,6 +356,21 @@ export class EventsStoreClient extends Client {
       this.getMetadata(),
       this.clientOptions.clientId,
       channelName,
+      'events_store',
+    );
+  }
+
+  /**
+   * List events store channels
+   * @param search
+   * @return Promise<PubSubChannel[]>
+   */
+  list(search: string): Promise<PubSubChannel[]> {
+    return listPubSubChannels(
+      this.grpcClient,
+      this.getMetadata(),
+      this.clientOptions.clientId,
+      search,
       'events_store',
     );
   }
