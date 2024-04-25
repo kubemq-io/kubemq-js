@@ -3,7 +3,8 @@ import { Config } from './config';
 import * as pb from './protos';
 import { Utils } from './utils';
 import * as grpc from '@grpc/grpc-js';
-import { createChannel, deleteChannel } from './common';
+import { createChannel, deleteChannel, listQueuesChannels } from './common';
+import { QueuesChannel } from './channel_stats';
 
 /**
  * queue message attributes
@@ -403,6 +404,21 @@ export class QueuesClient extends Client {
       this.getMetadata(),
       this.clientOptions.clientId,
       channelName,
+      'queues',
+    );
+  }
+
+  /**
+   * List queues channels
+   * @param search
+   * @return Promise<QueuesChannel[]>
+   */
+  list(search: string): Promise<QueuesChannel[]> {
+    return listQueuesChannels(
+      this.grpcClient,
+      this.getMetadata(),
+      this.clientOptions.clientId,
+      search,
       'queues',
     );
   }

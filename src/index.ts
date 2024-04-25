@@ -6,3 +6,4 @@ export * from './utils';
 export * from './commands';
 export * from './queries';
 export * from './queues';
+export * from './channel_stats';
