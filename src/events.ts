@@ -3,6 +3,7 @@ import { Config } from './config';
 import * as pb from './protos';
 import { Utils } from './utils';
 import * as grpc from '@grpc/grpc-js';
+import { createChannel } from './common';
 
 /**
  * events base message
@@ -280,6 +281,20 @@ export class EventsClient extends Client {
           stream: stream,
         });
       },
+    );
+  }
+  /**
+   * Create channel
+   * @param channelName
+   * @return Promise<void>
+   */
+  create(channelName: string): Promise<void> {
+    return createChannel(
+      this.grpcClient,
+      this.getMetadata(),
+      this.clientOptions.clientId,
+      channelName,
+      'events',
     );
   }
 }
