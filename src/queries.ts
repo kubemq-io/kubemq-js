@@ -89,17 +89,19 @@ export interface QueriesReceiveMessageCallback {
 /**
  * @internal
  */
-interface internalQueriesSubscriptionResponse {
-  /** emit events on close subscription*/
-  onClose: TypedEvent<void>;
-
+interface InternalQueriesSubscriptionResponse {
   /** call stream*/
   stream: grpc.ClientReadableStream<pb.Request>;
 }
 
+/**
+ * Represents the state of a queries subscription.
+ */
+type QueriesSubscriptionState = 'connected' | 'connecting' | 'disconnected' | "close";
+
 /** queries requests subscription response*/
 export interface QueriesSubscriptionResponse {
-  onState: TypedEvent<string>;
+  onState: TypedEvent<QueriesSubscriptionState>;
   /** call unsubscribe*/
   unsubscribe(): void;
 }
@@ -201,12 +203,12 @@ export class QueriesClient extends Client {
     request: QueriesSubscriptionRequest,
     cb: QueriesReceiveMessageCallback,
   ): Promise<QueriesSubscriptionResponse> {
-    return new Promise<QueriesSubscriptionResponse>(async (resolve, reject) => {
+    return new Promise<QueriesSubscriptionResponse>((resolve, reject) => {
       if (!request) {
         reject(new Error('queries subscription requires a request object'));
         return;
       }
-      if (request.channel === '') {
+      if (!request.channel) {
         reject(
           new Error(
             'queries subscription requires a non empty request channel',
@@ -219,49 +221,55 @@ export class QueriesClient extends Client {
         return;
       }
 
-      let isClosed = false;
-      let unsubscribe = false;
-      const onStateChange = new TypedEvent<string>();
-      onStateChange.on((event) => {
-        if (event === 'close') {
-          isClosed = true;
-          onStateChange.emit('disconnected');
-        }
-      });
+      let currentStream: InternalQueriesSubscriptionResponse['stream'];
+      let unsubscribed = false;
 
+      const onStateChange = new TypedEvent<QueriesSubscriptionState>();
+      const handleExternalCloseEvent = (event) => {
+        if (event === 'close') {
+          onStateChange.emit('disconnected');
+          if (currentStream && !unsubscribed && !currentStream.destroyed) {
+            currentStream.cancel();
+          }
+        }
+      };
+      onStateChange.on(handleExternalCloseEvent);
+
+      const createConnection = async () => {
+        if (unsubscribed) return;
+        onStateChange.emit('connecting');
+        const value = await this.subscribeFn(request, cb);
+        currentStream = value.stream;
+        onStateChange.emit('connected');
+        currentStream.once('close', () => {
+          const reconnectionInterval = this.clientOptions.reconnectInterval;
+          if (!reconnectionInterval) {
+            unsubscribed = true;
+            currentStream.cancel();
+            onStateChange.emit('disconnected');
+          } else {
+            // TODO: Add reconnection attempts limit
+            setTimeout(() => createConnection(), reconnectionInterval);
+          }
+        });
+      };
+      createConnection();
       resolve({
         onState: onStateChange,
         unsubscribe() {
-          unsubscribe = true;
+          unsubscribed = true;
+          if (currentStream) currentStream.cancel();
+          onStateChange.off(handleExternalCloseEvent);
         },
       });
-      let currentStream;
-      while (!unsubscribe) {
-        onStateChange.emit('connecting');
-        await this.subscribeFn(request, cb).then((value) => {
-          currentStream = value.stream;
-        });
-        isClosed = false;
-        onStateChange.emit('connected');
-        while (!isClosed && !unsubscribe) {
-          await new Promise((r) => setTimeout(r, 1000));
-        }
-        const reconnectionInterval = this.clientOptions.reconnectInterval;
-        if (reconnectionInterval === 0) {
-          unsubscribe = true;
-        } else {
-          await new Promise((r) => setTimeout(r, reconnectionInterval));
-        }
-      }
-      currentStream.cancel();
     });
   }
 
   private subscribeFn(
     request: QueriesSubscriptionRequest,
     cb: QueriesReceiveMessageCallback,
-  ): Promise<internalQueriesSubscriptionResponse> {
-    return new Promise<internalQueriesSubscriptionResponse>(
+  ): Promise<InternalQueriesSubscriptionResponse> {
+    return new Promise<InternalQueriesSubscriptionResponse>(
       (resolve, reject) => {
         if (!cb) {
           reject(new Error('queries subscription requires a callback'));
@@ -294,14 +302,7 @@ export class QueriesClient extends Client {
           cb(e, null);
         });
 
-        let onClose = new TypedEvent<void>();
-        stream.on('close', () => {
-          onClose.emit();
-        });
-        resolve({
-          onClose: onClose,
-          stream: stream,
-        });
+        resolve({ stream: stream });
       },
     );
   }
