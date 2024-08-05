@@ -1,6 +1,6 @@
 {
   "name": "kubemq-js",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "kubemq js/ts library for KubeMQ Message Broker ",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -21,13 +21,15 @@
     "ts-jest": "~26.5.2",
     "ts-node": "^9.1.1",
     "tsutils": "~3.20.0",
-    "typescript": "~4.2.2"
+    "typescript": "~4.6.0",
+    "typedoc": "^0.26.5"
   },
   "scripts": {
     "build": "tsc",
     "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
     "lint": "eslint . --ext .ts,.tsx",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "docs": "typedoc src/"
   },
   "repository": {
     "type": "git",
