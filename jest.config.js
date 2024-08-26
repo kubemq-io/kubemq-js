@@ -9,12 +9,14 @@ module.exports = {
     "js",
     "jsx",
     "json",
-    "node",
+    "node"
   ],
-  testRegex: '(/__tests__/.*|(\\.|/)(test|spec))\\.(ts|js)x?$',
+  testRegex: '(/tests/.*|(\\.|/)(test|spec))\\.(ts|js)x?$',
   coverageDirectory: 'coverage',
   collectCoverageFrom: [
     'src/**/*.{ts,tsx,js,jsx}',
     '!src/**/*.d.ts',
+    '!src/**/__tests__/*',
+    '!src/**/tests/*'
   ],
 };
