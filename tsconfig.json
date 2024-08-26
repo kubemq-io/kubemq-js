@@ -17,11 +17,15 @@
     "noImplicitAny": false,
     "noImplicitThis": false,
     "strictNullChecks": false,
-    "outDir": "lib",
+    "outDir": "dist",              // Change output directory to 'dist'
     "declaration": true,
-    "declarationMap" : true
+    "declarationMap": true
   },
   "include": [
-    "src/**/*",
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",              // Optionally exclude node_modules
+    "dist"                       // Exclude 'dist' to prevent potential conflicts
   ]
 }
