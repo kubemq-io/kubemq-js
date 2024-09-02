@@ -3,6 +3,7 @@ import { Config } from '../../src/client/config';
 import * as grpc from '@grpc/grpc-js';
 import * as pb from '../../src/protos';
 import { QueueMessage, QueueMessageSendResult, QueuesAckAllMessagesRequest, QueuesAckAllMessagesResponse, QueuesPullPeekMessagesRequest } from '../../src/queues/queuesTypes';
+import { UnaryCallback } from '@grpc/grpc-js/build/src/client';
 
 
 describe('QueuesClient Integration Test', () => {
@@ -17,16 +18,16 @@ describe('QueuesClient Integration Test', () => {
   });
 
   it('should send a queue message', async () => {
-    const mockSendQueueMessage = jest.spyOn(client.grpcClient, 'sendQueueMessage').mockImplementation(
+    const mockSendQueueMessage = jest.spyOn(client.grpcClient as any, 'sendQueueMessage').mockImplementation(
       (
-        request: pb.QueueMessage,
-        metadata: grpc.Metadata | null,
-        options: grpc.CallOptions | null,
-        callback: grpc.requestCallback<pb.SendQueueMessageResult>
+        request: any,
+        metadata: any,
+        options: any,
+        callback: any
       ) => {
-        const response = new pb.SendQueueMessageResult
-        response.setMessageid(request.getMessageid());
-        response.setIserror(false);
+        const response = new pb.kubemq.SendQueueMessageResult
+        response.MessageID=(request.getMessageid());
+        response.IsError=(false);
 
         callback(null, response);
 
@@ -55,9 +56,9 @@ describe('QueuesClient Integration Test', () => {
   it('should delete a queue channel', async () => {
     const mockDeleteChannel = jest.spyOn(client['grpcClient'] as any, 'deleteChannel').mockImplementation(
       (request: any, metadata: any, callback: any) => {
-        const response = new pb.Response;
-        response.setExecuted(true);
-        response.setError('');
+        const response = new pb.kubemq.Response;
+        response.Executed=(true);
+        response.Error=('');
         callback(null, response);
       }
     );
@@ -71,11 +72,11 @@ describe('QueuesClient Integration Test', () => {
   it('should list queue channels', async () => {
     const mockListChannels = jest.spyOn(client.grpcClient as any, 'listQueuesChannels').mockImplementation(
       (request: any, metadata: any, callback: any) => {
-        const response = new pb.Response();
-        response.setExecuted(true);
+        const response = new pb.kubemq.Response();
+        response.Executed=(true);
         // Simulate the response body containing a list of channel objects
         const channelList = [{ name: 'test-channel' }];
-        response.setBody(JSON.stringify(channelList));
+        response.Body= new TextEncoder().encode(JSON.stringify(channelList));
         callback(null, response);
       }
     );
@@ -91,12 +92,12 @@ describe('QueuesClient Integration Test', () => {
   it('should peek queue messages', async () => {
     const mockPeekMessages = jest.spyOn(client.grpcClient as any, 'receiveQueueMessages').mockImplementation(
       (request: any, metadata: any, callback: any) => {
-        const response = new pb.ReceiveQueueMessagesResponse();
-        const message = new pb.QueueMessage();
-        message.setMessageid('test-message-id');
-        message.setChannel(request.getChannel());
-        response.addMessages(message);
-        response.setIspeak(true);
+        const response = new pb.kubemq.ReceiveQueueMessagesResponse();
+        const message = new pb.kubemq.QueueMessage();
+        message.MessageID=('test-message-id');
+        message.Channel=(request.getChannel());
+        response.Messages.push(message);
+        response.IsPeak=(true);
         callback(null, response);
       }
     );
@@ -119,8 +120,8 @@ describe('QueuesClient Integration Test', () => {
   it('should acknowledge all queue messages', async () => {
     const mockAckAllMessages = jest.spyOn(client.grpcClient as any, 'ackAllQueueMessages').mockImplementation(
       (request: any, metadata:any, callback: any) => {
-        const response = new pb.Response();
-        response.setExecuted(true);
+        const response = new pb.kubemq.Response();
+        response.Executed=(true);
         callback(null, response);
       }
     );
@@ -137,12 +138,12 @@ describe('QueuesClient Integration Test', () => {
   it('should receive queue messages', async () => {
     const mockReceiveMessages = jest.spyOn(client.grpcClient as any, 'receiveQueueMessages').mockImplementation(
       (request: any, metadata: any, callback: any) => {
-        const response = new pb.ReceiveQueueMessagesResponse();
-        const message = new pb.QueueMessage();
-        message.setMessageid('test-message-id');
-        message.setChannel(request.getChannel());
-        response.addMessages(message);
-        response.setIserror(false);
+        const response = new pb.kubemq.ReceiveQueueMessagesResponse();
+        const message = new pb.kubemq.QueueMessage();
+        message.MessageID=('test-message-id');
+        message.Channel=(request.getChannel());
+        response.Messages.push(message);
+        response.IsError=(false);
         callback(null, response);
       }
     );
