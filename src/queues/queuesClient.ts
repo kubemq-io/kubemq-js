@@ -5,7 +5,9 @@ import { KubeMQClient,TypedEvent } from '../client/KubeMQClient';
 import { createChannel, deleteChannel, listQueuesChannels } from '../common/common';
 import { QueuesChannel } from '../common/channel_stats';
 import { Utils } from '../common/utils';
-import { QueueMessage, QueueMessageSendResult, QueuesAckAllMessagesRequest, QueuesAckAllMessagesResponse, QueuesMessageAttributes, QueuesPullPeekMessagesRequest, QueuesPullPeekMessagesResponse, QueuesSubscribeMessagesCallback, QueuesSubscribeMessagesRequest, QueuesSubscribeMessagesResponse, QueueTransactionRequest, QueueTransactionSubscriptionResponse } from './queuesTypes';
+import { QueueMessage, QueueMessageReceived, QueueMessageSendResult, QueuesAckAllMessagesRequest, QueuesAckAllMessagesResponse, QueuesMessageAttributes, QueuesMessagesPulledResponse, QueuesPullPeekMessagesRequest, QueuesPullPeekMessagesResponse, QueuesSubscribeMessagesCallback, QueuesSubscribeMessagesRequest, QueuesSubscribeMessagesResponse, QueueTransactionRequest, QueueTransactionSubscriptionResponse } from './queuesTypes';
+import { QueueStreamHelper } from './QueueStreamHelper';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * @internal
@@ -13,58 +15,52 @@ import { QueueMessage, QueueMessageSendResult, QueuesAckAllMessagesRequest, Queu
 const toQueueMessagePb = function (
     msg: QueueMessage,
     defClientId: string,
-  ): pb.QueueMessage {
-    const pbMessage = new pb.QueueMessage();
-    pbMessage.setMessageid(msg.id ? msg.id : Utils.uuid());
-    pbMessage.setClientid(msg.clientId ? msg.clientId : defClientId);
-    pbMessage.setChannel(msg.channel);
-    pbMessage.setBody(msg.body);
-    pbMessage.setMetadata(msg.metadata);
-    if (msg.tags != null) {
-      pbMessage.getTagsMap().set(msg.tags);
-    }
-    if (msg.policy != null) {
-      const pbMessagePolicy = new pb.QueueMessagePolicy();
-      pbMessagePolicy.setDelayseconds(
-        msg.policy.delaySeconds ? msg.policy.delaySeconds : 0,
-      );
-      pbMessagePolicy.setExpirationseconds(
-        msg.policy.expirationSeconds ? msg.policy.expirationSeconds : 0,
-      );
-      pbMessagePolicy.setMaxreceivecount(
-        msg.policy.maxReceiveCount ? msg.policy.maxReceiveCount : 0,
-      );
-      pbMessagePolicy.setMaxreceivequeue(
-        msg.policy.maxReceiveQueue ? msg.policy.maxReceiveQueue : '',
-      );
-      pbMessage.setPolicy(pbMessagePolicy);
-    }
-    return pbMessage;
+  ): pb.kubemq.QueueMessage {
+    const pbMessage = new pb.kubemq.QueueMessage();
+pbMessage.MessageID = msg.id ? msg.id : Utils.uuid();
+pbMessage.ClientID = msg.clientId ? msg.clientId : defClientId;
+pbMessage.Channel = msg.channel;
+// Convert the string to Uint8Array
+pbMessage.Body = typeof msg.body === 'string' ? new TextEncoder().encode(msg.body) : msg.body;
+
+pbMessage.Metadata = msg.metadata;
+if (msg.tags != null) {
+  pbMessage.Tags = msg.tags;
+}
+if (msg.policy != null) {
+  const pbMessagePolicy = new pb.kubemq.QueueMessagePolicy();
+  pbMessagePolicy.DelaySeconds = msg.policy.delaySeconds ? msg.policy.delaySeconds : 0;
+  pbMessagePolicy.ExpirationSeconds = msg.policy.expirationSeconds ? msg.policy.expirationSeconds : 0;
+  pbMessagePolicy.MaxReceiveCount = msg.policy.maxReceiveCount ? msg.policy.maxReceiveCount : 0;
+  pbMessagePolicy.MaxReceiveQueue = msg.policy.maxReceiveQueue ? msg.policy.maxReceiveQueue : '';
+  pbMessage.Policy = pbMessagePolicy;
+}
+return pbMessage;
   };
   
   /**
    * @internal
    */
-  const fromPbQueueMessage = function (msg: pb.QueueMessage): QueueMessage {
+  const fromPbQueueMessage = function (msg: pb.kubemq.QueueMessage): QueueMessage {
     let msgAttributes: QueuesMessageAttributes = {};
-    const receivedMessageAttr = msg.getAttributes();
+    const receivedMessageAttr = msg.Attributes;
     if (receivedMessageAttr) {
-      msgAttributes.delayedTo = receivedMessageAttr.getDelayedto();
-      msgAttributes.expirationAt = receivedMessageAttr.getExpirationat();
-      msgAttributes.receiveCount = receivedMessageAttr.getReceivecount();
-      msgAttributes.reRouted = receivedMessageAttr.getRerouted();
-      msgAttributes.reRoutedFromQueue = receivedMessageAttr.getReroutedfromqueue();
-      msgAttributes.sequence = msg.getAttributes().getSequence();
-      msgAttributes.timestamp = msg.getAttributes().getTimestamp();
+      msgAttributes.delayedTo = receivedMessageAttr.DelayedTo;
+      msgAttributes.expirationAt = receivedMessageAttr.ExpirationAt;
+      msgAttributes.receiveCount = receivedMessageAttr.ReceiveCount;
+      msgAttributes.reRouted = receivedMessageAttr.ReRouted;
+      msgAttributes.reRoutedFromQueue = receivedMessageAttr.ReRoutedFromQueue;
+      msgAttributes.sequence = msg.Attributes.Sequence;
+      msgAttributes.timestamp = msg.Attributes.Timestamp;
     }
   
     return {
-      id: msg.getMessageid(),
-      channel: msg.getChannel(),
-      clientId: msg.getClientid(),
-      metadata: msg.getMetadata(),
-      body: msg.getBody(),
-      tags: msg.getTagsMap(),
+      id: msg.MessageID,
+      channel: msg.Channel,
+      clientId: msg.ClientID,
+      metadata: msg.Metadata,
+      body: msg.Body,
+      tags: msg.Tags,
       attributes: msgAttributes,
     };
   };
@@ -73,41 +69,115 @@ const toQueueMessagePb = function (
    * Queue Client - KubeMQ queues client
    */
   export class QueuesClient extends KubeMQClient {
+
+    queueStreamHelper = new QueueStreamHelper();
+
     /**
      * @internal
      */
     constructor(Options: Config) {
       super(Options);
     }
+
+
+   /**
+     * Send queue message
+     * @param msg
+     * @return Promise<QueueMessageSendResult>
+     */
+   send(msg: QueueMessage): Promise<QueueMessageSendResult> {
+    return new Promise<QueueMessageSendResult>((resolve, reject) => {
+        // Generate a unique RequestID for the request
+        const requestId = uuidv4();
+
+        // Create an instance of QueuesUpstreamRequest with the generated RequestID and the message
+        const qur = new pb.kubemq.QueuesUpstreamRequest({
+            RequestID: requestId,
+            Messages: [toQueueMessagePb(msg, this.clientId)], // Wrap the message in an array
+        });
+
+        // Use the queueStreamHelper to send the message
+        this.queueStreamHelper.sendMessage(this, qur)
+            .then(response => {
+                resolve({
+                    id: response.id,
+                    sentAt: response.sentAt,
+                    delayedTo: response.delayedTo,
+                    error: response.error,
+                    expirationAt: response.expirationAt,
+                    isError: response.isError,
+                });
+            })
+            .catch(error => {
+                reject(error);
+            });
+    });
+}
+
+    /**
+     * Send queue message
+     * @param msg
+     * @return Promise<QueueMessageSendResult>
+     */
+    receive(msg: QueuesPullPeekMessagesRequest): Promise<QueuesMessagesPulledResponse> {
+      return new Promise<QueuesMessagesPulledResponse>((resolve, reject) => {
+          // Generate a unique RequestID for the request
+          const requestId = uuidv4();
+  
+          // Create an instance of QueuesDownstreamRequest with the generated RequestID and the message
+          const qur = new pb.kubemq.QueuesDownstreamRequest({
+              RequestID: requestId,
+              ClientID: this.clientId,
+              Channel: msg.channel,
+              MaxItems: msg.maxNumberOfMessages,
+              WaitTimeout: msg.waitTimeoutSeconds
+          });
+  
+          // Use the queueStreamHelper to receive the message
+          this.queueStreamHelper.receiveMessage(this, qur)
+              .then(response => {
+                  // Resolve the promise with the constructed response
+                  resolve(response);
+              })
+              .catch(error => {
+                  // Reject the promise with the error
+                  reject(error);
+              });
+      });
+  }
+  
+  
+      
+      
   
     /**
      * Send queue message
      * @param msg
      * @return Promise<QueueMessageSendResult>
      */
-    send(msg: QueueMessage): Promise<QueueMessageSendResult> {
-      return new Promise<QueueMessageSendResult>((resolve, reject) => {
-        this.grpcClient.sendQueueMessage(
-          toQueueMessagePb(msg, this.clientId),
-          this.getMetadata(),
-          this.callOptions(),
-          (e, response) => {
-            if (e) {
-              reject(e);
-              return;
-            }
-            resolve({
-              id: response.getMessageid(),
-              sentAt: response.getSentat(),
-              delayedTo: response.getDelayedto(),
-              error: response.getError(),
-              expirationAt: response.getExpirationat(),
-              isError: response.getIserror(),
-            });
-          },
-        );
-      });
-    }
+    // send(msg: QueueMessage): Promise<QueueMessageSendResult> {
+    //   return new Promise<QueueMessageSendResult>((resolve, reject) => {
+    //     this.grpcClient.sendQueueMessage(
+    //       toQueueMessagePb(msg, this.clientId),
+    //       this.getMetadata(),
+    //       this.callOptions(),
+    //       (e, response) => {
+    //         if (e) {
+    //           reject(e);
+    //           return;
+    //         }
+    //         resolve({
+    //           id: response.getMessageid(),
+    //           sentAt: response.getSentat(),
+    //           delayedTo: response.getDelayedto(),
+    //           error: response.getError(),
+    //           expirationAt: response.getExpirationat(),
+    //           isError: response.getIserror(),
+    //         });
+    //       },
+    //     );
+    //   });
+    // }
   
     /**
      * Send batch of queue messages
@@ -115,11 +185,11 @@ const toQueueMessagePb = function (
      * @return Promise<QueueMessageSendResult[]>
      */
     batch(messages: QueueMessage[]): Promise<QueueMessageSendResult[]> {
-      const pbBatchRequest = new pb.QueueMessagesBatchRequest();
-      pbBatchRequest.setBatchid(Utils.uuid());
+      const pbBatchRequest = new pb.kubemq.QueueMessagesBatchRequest();
+      pbBatchRequest.BatchID=(Utils.uuid());
       messages.forEach((msg) => {
         pbBatchRequest
-          .getMessagesList()
+          .Messages
           .push(toQueueMessagePb(msg, this.clientId));
       });
       return new Promise<QueueMessageSendResult[]>((resolve, reject) => {
@@ -269,21 +339,14 @@ const toQueueMessagePb = function (
       request: QueuesPullPeekMessagesRequest,
       isPeek: boolean,
     ): Promise<QueuesPullPeekMessagesResponse> {
-      const pbPullSubRequest = new pb.ReceiveQueueMessagesRequest();
-      pbPullSubRequest.setClientid(
-        request.clientId ? request.clientId : this.clientId,
-      );
-  
-      pbPullSubRequest.setChannel(request.channel);
-      pbPullSubRequest.setIspeak(false);
-      pbPullSubRequest.setRequestid(request.id ? request.id : Utils.uuid());
-      pbPullSubRequest.setMaxnumberofmessages(
-        request.maxNumberOfMessages ? request.maxNumberOfMessages : 1,
-      );
-      pbPullSubRequest.setWaittimeseconds(
-        request.waitTimeoutSeconds ? request.waitTimeoutSeconds : 0,
-      );
-      pbPullSubRequest.setIspeak(isPeek);
+      const pbPullSubRequest = new pb.kubemq.ReceiveQueueMessagesRequest();
+      pbPullSubRequest.ClientID=(request.clientId ? request.clientId : this.clientId);
+      pbPullSubRequest.Channel=(request.channel);
+      pbPullSubRequest.IsPeak=(false);
+      pbPullSubRequest.RequestID=(request.id ? request.id : Utils.uuid());
+      pbPullSubRequest.MaxNumberOfMessages=(request.maxNumberOfMessages ? request.maxNumberOfMessages : 1);
+      pbPullSubRequest.WaitTimeSeconds=(request.waitTimeoutSeconds ? request.waitTimeoutSeconds : 0);
+      pbPullSubRequest.IsPeak=(isPeek);
       return new Promise<QueuesPullPeekMessagesResponse>((resolve, reject) => {
         this.grpcClient.receiveQueueMessages(
           pbPullSubRequest,
@@ -318,15 +381,11 @@ const toQueueMessagePb = function (
     ackAll(
       request: QueuesAckAllMessagesRequest,
     ): Promise<QueuesAckAllMessagesResponse> {
-      const pbMessage = new pb.AckAllQueueMessagesRequest();
-      pbMessage.setRequestid(request.id ? request.id : Utils.uuid());
-      pbMessage.setClientid(
-        request.clientId ? request.clientId : this.clientId,
-      );
-      pbMessage.setChannel(request.channel);
-      pbMessage.setWaittimeseconds(
-        request.waitTimeoutSeconds ? request.waitTimeoutSeconds : 0,
-      );
+      const pbMessage = new pb.kubemq.AckAllQueueMessagesRequest();
+      pbMessage.RequestID=(request.id ? request.id : Utils.uuid());
+      pbMessage.ClientID=(request.clientId ? request.clientId : this.clientId);
+      pbMessage.Channel=(request.channel);
+      pbMessage.WaitTimeSeconds=(request.waitTimeoutSeconds ? request.waitTimeoutSeconds : 0);
       return new Promise<QueuesAckAllMessagesResponse>((resolve, reject) =>
         this.grpcClient.ackAllQueueMessages(
           pbMessage,
@@ -410,11 +469,11 @@ const toQueueMessagePb = function (
           return;
         }
         const stream = this.grpcClient.streamQueueMessage(this.getMetadata());
-        stream.on('data', (result: pb.StreamQueueMessagesResponse) => {
-          if (result.getIserror()) {
-            cb(new Error(result.getError()), null);
+        stream.on('data', (result: pb.kubemq.StreamQueueMessagesResponse) => {
+          if (result.IsError) {
+            cb(new Error(result.Error), null);
           } else {
-            const msg = result.getMessage();
+            const msg = result.Message;
             if (msg) {
               cb(
                 null,
@@ -426,14 +485,12 @@ const toQueueMessagePb = function (
         stream.on('error', (e: Error) => {
           reject(e);
         });
-        const msgRequest = new pb.StreamQueueMessagesRequest();
-        msgRequest.setStreamrequesttypedata(1);
-        msgRequest.setChannel(request.channel);
-        msgRequest.setClientid(
-          request.clientId ? request.clientId : this.clientId,
-        );
-        msgRequest.setWaittimeseconds(request.waitTimeoutSeconds);
-        msgRequest.setVisibilityseconds(request.visibilitySeconds);
+        const msgRequest = new pb.kubemq.StreamQueueMessagesRequest();
+        msgRequest.StreamRequestTypeData=(1);
+        msgRequest.Channel=(request.channel);
+        msgRequest.ClientID=( request.clientId ? request.clientId : this.clientId);
+        msgRequest.WaitTimeSeconds=(request.waitTimeoutSeconds);
+        msgRequest.VisibilitySeconds=(request.visibilitySeconds);
         stream.write(msgRequest, (err: Error) => {
           cb(err, null);
         });
@@ -450,8 +507,8 @@ const toQueueMessagePb = function (
   export class QueueTransactionMessage {
     constructor(
       private _stream: grpc.ClientDuplexStream<
-        pb.StreamQueueMessagesRequest,
-        pb.StreamQueueMessagesResponse
+        pb.kubemq.StreamQueueMessagesRequest,
+        pb.kubemq.StreamQueueMessagesResponse
       >,
       public message: QueueMessage,
     ) {}
@@ -462,10 +519,10 @@ const toQueueMessagePb = function (
           reject(new Error('no active queue msg to ack'));
           return;
         }
-        const ackMessage = new pb.StreamQueueMessagesRequest();
-        ackMessage.setStreamrequesttypedata(2);
-        ackMessage.setRefsequence(this.message.attributes.sequence);
-        ackMessage.setClientid(this.message.clientId);
+        const ackMessage = new pb.kubemq.StreamQueueMessagesRequest();
+        ackMessage.StreamRequestTypeData=(2);
+        ackMessage.RefSequence=(this.message.attributes.sequence);
+        ackMessage.ClientID=(this.message.clientId);
         this._stream.write(ackMessage, (err: Error) => {
           reject(err);
           return;
@@ -480,10 +537,10 @@ const toQueueMessagePb = function (
           reject(new Error('no active queue msg to reject'));
           return;
         }
-        const rejectMessage = new pb.StreamQueueMessagesRequest();
-        rejectMessage.setStreamrequesttypedata(3);
-        rejectMessage.setRefsequence(this.message.attributes.sequence);
-        rejectMessage.setClientid(this.message.clientId);
+        const rejectMessage = new pb.kubemq.StreamQueueMessagesRequest();
+        rejectMessage.StreamRequestTypeData=(3);
+        rejectMessage.RefSequence=(this.message.attributes.sequence);
+        rejectMessage.ClientID=(this.message.clientId);
         this._stream.write(rejectMessage, (err: Error) => {
           reject(err);
           return;
@@ -498,11 +555,11 @@ const toQueueMessagePb = function (
           reject(new Error('no active queue msg to extend visibility'));
           return;
         }
-        const visibilityMessage = new pb.StreamQueueMessagesRequest();
-        visibilityMessage.setStreamrequesttypedata(4);
-        visibilityMessage.setRefsequence(this.message.attributes.sequence);
-        visibilityMessage.setVisibilityseconds(newVisibilitySeconds);
-        visibilityMessage.setClientid(this.message.clientId);
+        const visibilityMessage = new pb.kubemq.StreamQueueMessagesRequest();
+        visibilityMessage.StreamRequestTypeData=(4);
+        visibilityMessage.RefSequence=(this.message.attributes.sequence);
+        visibilityMessage.VisibilitySeconds=(newVisibilitySeconds);
+        visibilityMessage.ClientID=(this.message.clientId);
         this._stream.write(visibilityMessage, (err: Error) => {
           reject(err);
           return;
@@ -517,12 +574,10 @@ const toQueueMessagePb = function (
           return;
         }
   
-        const resendMessage = new pb.StreamQueueMessagesRequest();
-        resendMessage.setStreamrequesttypedata(6);
-        resendMessage.setModifiedmessage(
-          toQueueMessagePb(msg, this.message.clientId),
-        );
-        resendMessage.setClientid(this.message.clientId);
+        const resendMessage = new pb.kubemq.StreamQueueMessagesRequest();
+        resendMessage.StreamRequestTypeData=(6);
+        resendMessage.ModifiedMessage=(toQueueMessagePb(msg, this.message.clientId));
+        resendMessage.ClientID=(this.message.clientId);
         this._stream.write(resendMessage, (err: Error) => {
           reject(err);
           return;
@@ -537,10 +592,10 @@ const toQueueMessagePb = function (
           return;
         }
   
-        const resendMessage = new pb.StreamQueueMessagesRequest();
-        resendMessage.setStreamrequesttypedata(5);
-        resendMessage.setChannel(channel);
-        resendMessage.setClientid(this.message.clientId);
+        const resendMessage = new pb.kubemq.StreamQueueMessagesRequest();
+        resendMessage.StreamRequestTypeData=(5);
+        resendMessage.Channel=(channel);
+        resendMessage.ClientID=(this.message.clientId);
         this._stream.write(resendMessage, (err: Error) => {
           reject(err);
           return;

@@ -20,6 +20,7 @@ import {
     EventsStoreSubscriptionRequest,
     EventsStoreStreamResponse,
     EventsStoreSubscriptionResponse,
+    EventStoreType,
 } from './eventTypes';
 
 /** events subscription response*/
@@ -28,7 +29,7 @@ interface internalEventsSubscriptionResponse {
     onClose: TypedEvent<void>;
   
     /** call stream*/
-    stream: grpc.ClientReadableStream<pb.EventReceive>;
+    stream: grpc.ClientReadableStream<pb.kubemq.EventReceive>;
 }
 
   /** events subscription response*/
@@ -37,7 +38,7 @@ interface internalEventsStoreSubscriptionResponse {
     onClose: TypedEvent<void>;
   
     /** call stream*/
-    stream: grpc.ClientReadableStream<pb.EventReceive>;
+    stream: grpc.ClientReadableStream<pb.kubemq.EventReceive>;
   }
 
 /**
@@ -57,18 +58,18 @@ export class EventsClient extends KubeMQClient {
      * @return Promise<EventsSendResult>
      */
     send(msg: EventsMessage): Promise<EventsSendResult> {
-        const pbMessage = new pb.Event();
-        pbMessage.setEventid(msg.id ? msg.id : Utils.uuid());
-        pbMessage.setClientid(
-            msg.clientId ? msg.clientId : this.clientId,
-        );
-        pbMessage.setChannel(msg.channel);
-        pbMessage.setBody(msg.body);
-        pbMessage.setMetadata(msg.metadata);
+        const pbMessage = new pb.kubemq.Event();
+        pbMessage.EventID=(msg.id ? msg.id : Utils.uuid());
+        pbMessage.ClientID=(msg.clientId ? msg.clientId : this.clientId);
+        pbMessage.Channel=(msg.channel);
+        //pbMessage.setBody(msg.body);
+        // Convert the string to Uint8Array
+        pbMessage.Body = typeof msg.body === 'string' ? new TextEncoder().encode(msg.body) : msg.body;
+        pbMessage.Metadata=(msg.metadata);
         if (msg.tags != null) {
-            pbMessage.getTagsMap().set(msg.tags);
+            pbMessage.Tags = msg.tags;
         }
-        pbMessage.setStore(false);
+        pbMessage.Store=(false);
         return new Promise<EventsSendResult>((resolve, reject) => {
             this.grpcClient.sendEvent(
                 pbMessage,
@@ -79,7 +80,7 @@ export class EventsClient extends KubeMQClient {
                         reject(e);
                         return;
                     }
-                    resolve({ id: pbMessage.getEventid(), sent: true });
+                    resolve({ id: pbMessage.EventID, sent: true });
                 },
             );
         });
@@ -106,23 +107,23 @@ export class EventsClient extends KubeMQClient {
             });
 
             const writeFn = (msg: EventsMessage) => {
-                const pbMessage = new pb.Event();
-                pbMessage.setEventid(msg.id ? msg.id : Utils.uuid());
-                pbMessage.setClientid(
-                    msg.clientId ? msg.clientId : this.clientId,
-                );
-                pbMessage.setChannel(msg.channel);
-                pbMessage.setBody(msg.body);
-                pbMessage.setMetadata(msg.metadata);
+                const pbMessage = new pb.kubemq.Event();
+                pbMessage.EventID=(msg.id ? msg.id : Utils.uuid());
+                pbMessage.ClientID=( msg.clientId ? msg.clientId : this.clientId);
+                pbMessage.Channel=(msg.channel);
+                //pbMessage.setBody(msg.body);
+                pbMessage.Body = typeof msg.body === 'string' ? new TextEncoder().encode(msg.body) : msg.body;
+                pbMessage.Metadata = msg.metadata;
+               // pbMessage.setMetadata(msg.metadata);
                 if (msg.tags != null) {
-                    pbMessage.getTagsMap().set(msg.tags);
+                    pbMessage.Tags = msg.tags;
                 }
-                pbMessage.setStore(false);
+                pbMessage.Store=(false);
                 const sent = stream.write(pbMessage, (err: Error) => {
                     cb(err, null);
                 });
                 cb(null, {
-                    id: pbMessage.getEventid(),
+                    id: pbMessage.EventID,
                     sent: sent,
                 });
             };
@@ -208,26 +209,24 @@ export class EventsClient extends KubeMQClient {
                     reject(new Error('events subscription requires a callback'));
                     return;
                 }
-                const pbSubRequest = new pb.Subscribe();
-                pbSubRequest.setClientid(
-                    request.clientId ? request.clientId : this.clientId,
-                );
-                pbSubRequest.setGroup(request.group ? request.group : '');
-                pbSubRequest.setChannel(request.channel);
-                pbSubRequest.setSubscribetypedata(1);
+                const pbSubRequest = new pb.kubemq.Subscribe();
+                pbSubRequest.ClientID=(request.clientId ? request.clientId : this.clientId);
+                pbSubRequest.Group=(request.group ? request.group : '');
+                pbSubRequest.Channel=(request.channel);
+                pbSubRequest.SubscribeTypeData=(1);
 
                 const stream = this.grpcClient.subscribeToEvents(
                     pbSubRequest,
                     this.getMetadata(),
                 );
 
-                stream.on('data', (data: pb.EventReceive) => {
+                stream.on('data', (data: pb.kubemq.EventReceive) => {
                     cb(null, {
-                        id: data.getEventid(),
-                        channel: data.getChannel(),
-                        metadata: data.getMetadata(),
-                        body: data.getBody(),
-                        tags: data.getTagsMap(),
+                        id: data.EventID,
+                        channel: data.Channel,
+                        metadata: data.Metadata,
+                        body: data.Body,
+                        tags: data.Tags,
                     });
                 });
 
@@ -309,18 +308,17 @@ export class EventsStoreClient extends KubeMQClient {
      * @return Promise<EventsStoreSendResult>
      */
     send(msg: EventsStoreMessage): Promise<EventsStoreSendResult> {
-        const pbMessage = new pb.Event();
-        pbMessage.setEventid(msg.id ? msg.id : Utils.uuid());
-        pbMessage.setClientid(
-            msg.clientId ? msg.clientId : this.clientId,
-        );
-        pbMessage.setChannel(msg.channel);
-        pbMessage.setBody(msg.body);
-        pbMessage.setMetadata(msg.metadata);
+        const pbMessage = new pb.kubemq.Event();
+        pbMessage.EventID=(msg.id ? msg.id : Utils.uuid());
+        pbMessage.ClientID=(msg.clientId ? msg.clientId : this.clientId);
+        pbMessage.Channel=(msg.channel);
+        //pbMessage.setBody(msg.body);
+        pbMessage.Body = typeof msg.body === 'string' ? new TextEncoder().encode(msg.body) : msg.body;
+        pbMessage.Metadata=(msg.metadata);
         if (msg.tags != null) {
-            pbMessage.getTagsMap().set(msg.tags);
+            pbMessage.Tags=(msg.tags);
         }
-        pbMessage.setStore(true);
+        pbMessage.Store=(true);
         return new Promise<EventsStoreSendResult>((resolve, reject) => {
             this.grpcClient.sendEvent(
                 pbMessage,
@@ -365,23 +363,22 @@ export class EventsStoreClient extends KubeMQClient {
             });
 
             const writeFn = (msg: EventsStoreMessage) => {
-                const pbMessage = new pb.Event();
-                pbMessage.setEventid(msg.id ? msg.id : Utils.uuid());
-                pbMessage.setClientid(
-                    msg.clientId ? msg.clientId : this.clientId,
-                );
-                pbMessage.setChannel(msg.channel);
-                pbMessage.setBody(msg.body);
-                pbMessage.setMetadata(msg.metadata);
+                const pbMessage = new pb.kubemq.Event();
+                pbMessage.EventID=(msg.id ? msg.id : Utils.uuid());
+                pbMessage.ClientID=(msg.clientId ? msg.clientId : this.clientId);
+                pbMessage.Channel=(msg.channel);
+                //pbMessage.setBody(msg.body);
+                pbMessage.Body = typeof msg.body === 'string' ? new TextEncoder().encode(msg.body) : msg.body;
+                pbMessage.Metadata=(msg.metadata);
                 if (msg.tags != null) {
-                    pbMessage.getTagsMap().set(msg.tags);
+                    pbMessage.Tags=(msg.tags);
                 }
-                pbMessage.setStore(true);
+                pbMessage.Store=(true);
                 const sent = stream.write(pbMessage, (err: Error) => {
                     cb(err, null);
                 });
                 cb(null, {
-                    id: pbMessage.getEventid(),
+                    id: pbMessage.EventID,
                     sent: sent,
                     error: null
                 });
@@ -474,30 +471,31 @@ export class EventsStoreClient extends KubeMQClient {
                     reject(new Error('events store subscription requires a callback'));
                     return;
                 }
-                const pbSubRequest = new pb.Subscribe();
-                pbSubRequest.setClientid(
-                    request.clientId ? request.clientId : this.clientId,
-                );
-                pbSubRequest.setGroup(request.group ? request.group : '');
-                pbSubRequest.setChannel(request.channel);
-                pbSubRequest.setSubscribetypedata(2);
-                pbSubRequest.setEventsstoretypedata(request.requestType);
-                pbSubRequest.setEventsstoretypevalue(request.requestTypeValue);
+                const pbSubRequest = new pb.kubemq.Subscribe();
+                pbSubRequest.ClientID=(request.clientId ? request.clientId : this.clientId);
+                pbSubRequest.Group=(request.group ? request.group : '');
+                pbSubRequest.Channel=(request.channel);
+                pbSubRequest.SubscribeTypeData=(2);
+                //pbSubRequest.EventsStoreTypeData = request.requestType;
+                pbSubRequest.EventsStoreTypeData = pb.kubemq.Subscribe.EventsStoreType[
+                    request.requestType as unknown as keyof typeof EventStoreType as keyof typeof pb.kubemq.Subscribe.EventsStoreType
+                ];
+                pbSubRequest.EventsStoreTypeValue=(request.requestTypeValue);
 
                 const stream = this.grpcClient.subscribeToEvents(
                     pbSubRequest,
                     this.getMetadata(),
                 );
 
-                stream.on('data', (data: pb.EventReceive) => {
+                stream.on('data', (data: pb.kubemq.EventReceive) => {
                     cb(null, {
-                        id: data.getEventid(),
-                        channel: data.getChannel(),
-                        metadata: data.getMetadata(),
-                        body: data.getBody(),
-                        tags: data.getTagsMap(),
-                        timestamp: data.getTimestamp(),
-                        sequence: data.getSequence()
+                        id: data.EventID,
+                        channel: data.Channel,
+                        metadata: data.Metadata,
+                        body: data.Body,
+                        tags: data.Tags,
+                        timestamp: data.Timestamp,
+                        sequence: data.Sequence
                     });
                 });
 
@@ -561,3 +559,5 @@ export class EventsStoreClient extends KubeMQClient {
         );
     }
 }
+
+

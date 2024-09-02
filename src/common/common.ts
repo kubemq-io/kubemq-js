@@ -12,23 +12,23 @@ import {
 } from './channel_stats';
 
 export function createChannel(
-  client: kubemq.kubemqClient,
+  client: kubemq.kubemq.kubemqClient,
   md: grpc.Metadata,
   clientId: string,
   channelName: string,
   channelType: string,
 ): Promise<void> {
-  const pbMessage = new pb.Request();
-  pbMessage.setRequestid(Utils.uuid());
-  pbMessage.setClientid(clientId);
-  pbMessage.setRequesttypedata(2);
-  pbMessage.setChannel('kubemq.cluster.internal.requests');
-  pbMessage.setMetadata('create-channel');
-  const pbtags = pbMessage.getTagsMap();
+  const pbMessage = new pb.kubemq.Request();
+  pbMessage.RequestID=(Utils.uuid());
+  pbMessage.ClientID=(clientId);
+  pbMessage.RequestTypeData=(2);
+  pbMessage.Channel=('kubemq.cluster.internal.requests');
+  pbMessage.Metadata=('create-channel');
+  const pbtags = pbMessage.Tags;
   pbtags.set('channel_type', channelType);
   pbtags.set('channel', channelName);
   pbtags.set('client_id', clientId);
-  pbMessage.setTimeout(10000);
+  pbMessage.Timeout=(10000);
   return new Promise<void>((resolve, reject) => {
     client.sendRequest(pbMessage, md, (e) => {
       if (e) {
@@ -41,23 +41,23 @@ export function createChannel(
 }
 
 export function deleteChannel(
-  client: kubemq.kubemqClient,
+  client: kubemq.kubemq.kubemqClient,
   md: grpc.Metadata,
   clientId: string,
   channelName: string,
   channelType: string,
 ): Promise<void> {
-  const pbMessage = new pb.Request();
-  pbMessage.setRequestid(Utils.uuid());
-  pbMessage.setClientid(clientId);
-  pbMessage.setRequesttypedata(2);
-  pbMessage.setChannel('kubemq.cluster.internal.requests');
-  pbMessage.setMetadata('delete-channel');
-  const pbtags = pbMessage.getTagsMap();
+  const pbMessage = new pb.kubemq.Request();
+  pbMessage.RequestID=(Utils.uuid());
+  pbMessage.ClientID=(clientId);
+  pbMessage.RequestTypeData=(2);
+  pbMessage.Channel=('kubemq.cluster.internal.requests');
+  pbMessage.Metadata=('delete-channel');
+  const pbtags = pbMessage.Tags;
   pbtags.set('channel_type', channelType);
   pbtags.set('channel', channelName);
   pbtags.set('client_id', clientId);
-  pbMessage.setTimeout(10000);
+  pbMessage.Timeout=(10000);
   return new Promise<void>((resolve, reject) => {
     client.sendRequest(pbMessage, md, (e) => {
       if (e) {
@@ -70,23 +70,23 @@ export function deleteChannel(
 }
 
 export function listPubSubChannels(
-  client: kubemq.kubemqClient,
+  client: kubemq.kubemq.kubemqClient,
   md: grpc.Metadata,
   clientId: string,
   search: string,
   channelType: string,
 ): Promise<PubSubChannel[]> {
-  const pbMessage = new pb.Request();
-  pbMessage.setRequestid(Utils.uuid());
-  pbMessage.setClientid(clientId);
-  pbMessage.setRequesttypedata(2);
-  pbMessage.setChannel('kubemq.cluster.internal.requests');
-  pbMessage.setMetadata('list-channels');
-  const pbtags = pbMessage.getTagsMap();
+  const pbMessage = new pb.kubemq.Request();
+  pbMessage.RequestID=(Utils.uuid());
+  pbMessage.ClientID=(clientId);
+  pbMessage.RequestTypeData=(2);
+  pbMessage.Channel=('kubemq.cluster.internal.requests');
+  pbMessage.Metadata=('list-channels');
+  const pbtags = pbMessage.Tags;
   pbtags.set('client_id', clientId);
   pbtags.set('channel_type', channelType);
   pbtags.set('channel_search', search);
-  pbMessage.setTimeout(10000);
+  pbMessage.Timeout=(10000);
   return new Promise<PubSubChannel[]>((resolve, reject) => {
     client.sendRequest(pbMessage, md, (e, data) => {
       if (e) {
@@ -108,23 +108,23 @@ export function listPubSubChannels(
 }
 
 export function listQueuesChannels(
-  client: kubemq.kubemqClient,
+  client: kubemq.kubemq.kubemqClient,
   md: grpc.Metadata,
   clientId: string,
   search: string,
   channelType: string,
 ): Promise<QueuesChannel[]> {
-  const pbMessage = new pb.Request();
-  pbMessage.setRequestid(Utils.uuid());
-  pbMessage.setClientid(clientId);
-  pbMessage.setRequesttypedata(2);
-  pbMessage.setChannel('kubemq.cluster.internal.requests');
-  pbMessage.setMetadata('list-channels');
-  const pbtags = pbMessage.getTagsMap();
+  const pbMessage = new pb.kubemq.Request();
+  pbMessage.RequestID=(Utils.uuid());
+  pbMessage.ClientID=(clientId);
+  pbMessage.RequestTypeData=(2);
+  pbMessage.Channel=('kubemq.cluster.internal.requests');
+  pbMessage.Metadata=('list-channels');
+  const pbtags = pbMessage.Tags;
   pbtags.set('client_id', clientId);
   pbtags.set('channel_type', channelType);
   pbtags.set('channel_search', search);
-  pbMessage.setTimeout(10000);
+  pbMessage.Timeout=(10000);
   return new Promise<QueuesChannel[]>((resolve, reject) => {
     client.sendRequest(pbMessage, md, (e, data) => {
       if (e) {
@@ -146,23 +146,23 @@ export function listQueuesChannels(
 }
 
 export function listCQChannels(
-  client: kubemq.kubemqClient,
+  client: kubemq.kubemq.kubemqClient,
   md: grpc.Metadata,
   clientId: string,
   search: string,
   channelType: string,
 ): Promise<CQChannel[]> {
-  const pbMessage = new pb.Request();
-  pbMessage.setRequestid(Utils.uuid());
-  pbMessage.setClientid(clientId);
-  pbMessage.setRequesttypedata(2);
-  pbMessage.setChannel('kubemq.cluster.internal.requests');
-  pbMessage.setMetadata('list-channels');
-  const pbtags = pbMessage.getTagsMap();
+  const pbMessage = new pb.kubemq.Request();
+  pbMessage.RequestID=(Utils.uuid());
+  pbMessage.ClientID=(clientId);
+  pbMessage.RequestTypeData=(2);
+  pbMessage.Channel=('kubemq.cluster.internal.requests');
+  pbMessage.Metadata=('list-channels');
+  const pbtags = pbMessage.Tags;
   pbtags.set('client_id', clientId);
   pbtags.set('channel_type', channelType);
   pbtags.set('channel_search', search);
-  pbMessage.setTimeout(10000);
+  pbMessage.Timeout=(10000);
   return new Promise<CQChannel[]>((resolve, reject) => {
     client.sendRequest(pbMessage, md, (e, data) => {
       if (e) {

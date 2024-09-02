@@ -1,4 +1,170 @@
 import { BaseMessage, TypedEvent } from "../client/KubeMQClient";
+import * as pb from '../protos';
+import * as grpc from '@grpc/grpc-js';
+import { v4 as uuidv4 } from 'uuid';
+
+
+export class QueueMessageReceived {
+  id: string;
+  channel: string;
+  metadata: string;
+  body: Uint8Array;
+  fromClientId: string;
+  tags: Map<string, string> = new Map<string, string>();
+  timestamp: Date;
+  sequence: number;
+  receiveCount: number;
+  isReRouted: boolean;
+  reRouteFromQueue?: string;
+  expiredAt?: Date;
+  delayedTo?: Date;
+  transactionId: string;
+  isTransactionCompleted: boolean;
+  responseHandler: grpc.ClientWritableStream<pb.kubemq.QueuesDownstreamRequest>;
+  receiverClientId: string;
+
+  constructor(
+    id: string,
+    channel: string,
+    metadata: string,
+    body: Uint8Array,
+    fromClientId: string,
+    tags: Map<string, string>,
+    timestamp: Date,
+    sequence: number,
+    receiveCount: number,
+    isReRouted: boolean,
+    reRouteFromQueue: string | undefined,
+    expiredAt: Date | undefined,
+    delayedTo: Date | undefined,
+    transactionId: string,
+    isTransactionCompleted: boolean,
+    responseHandler:  grpc.ClientWritableStream<pb.kubemq.QueuesDownstreamRequest>,
+    receiverClientId: string
+  ) {
+    this.id = id;
+    this.channel = channel;
+    this.metadata = metadata;
+    this.body = body;
+    this.fromClientId = fromClientId;
+    this.tags = tags;
+    this.timestamp = timestamp;
+    this.sequence = sequence;
+    this.receiveCount = receiveCount;
+    this.isReRouted = isReRouted;
+    this.reRouteFromQueue = reRouteFromQueue;
+    this.expiredAt = expiredAt;
+    this.delayedTo = delayedTo;
+    this.transactionId = transactionId;
+    this.isTransactionCompleted = isTransactionCompleted;
+    this.responseHandler = responseHandler;
+    this.receiverClientId = receiverClientId;
+  }
+
+  ack(): void {
+    if (this.isTransactionCompleted) {
+      throw new Error('Transaction is already completed');
+    }
+
+    const request = new pb.kubemq.QueuesDownstreamRequest({
+      RequestID: uuidv4(),
+      ClientID: this.receiverClientId,
+      Channel: this.channel,
+      RequestTypeData: pb.kubemq.QueuesDownstreamRequestType.AckRange,
+      RefTransactionId: this.transactionId,
+      SequenceRange: [this.sequence],
+      MaxItems: 0, // Set default value if not needed
+      WaitTimeout: 0, // Set default value if not needed
+      AutoAck: false, // Set default value if not needed
+      Metadata: new Map(), // Initialize with an empty map if not needed
+    });
+
+    this.responseHandler.write(request);
+  }
+
+  reject(): void {
+    if (this.isTransactionCompleted) {
+      throw new Error('Transaction is already completed');
+    }
+
+    const request = new pb.kubemq.QueuesDownstreamRequest({
+      RequestID: uuidv4(),
+      ClientID: this.receiverClientId,
+      Channel: this.channel,
+      RequestTypeData: pb.kubemq.QueuesDownstreamRequestType.NAckRange,
+      RefTransactionId: this.transactionId,
+      SequenceRange: [this.sequence],
+      MaxItems: 0, // Set default value if not needed
+      WaitTimeout: 0, // Set default value if not needed
+      AutoAck: false, // Set default value if not needed
+      Metadata: new Map(), // Initialize with an empty map if not needed
+    });    
+
+    this.responseHandler.write(request);
+  }
+
+  reQueue(channel: string): void {
+    if (!channel || channel.length === 0) {
+      throw new Error('Re-queue channel cannot be empty');
+    }
+
+    const request = new pb.kubemq.QueuesDownstreamRequest({
+      RequestID: uuidv4(),
+      ClientID: this.receiverClientId,
+      Channel: this.channel,
+      RequestTypeData: pb.kubemq.QueuesDownstreamRequestType.ReQueueRange,
+      RefTransactionId: this.transactionId,
+      SequenceRange: [this.sequence],
+      MaxItems: 0, // Set default value if not needed
+      WaitTimeout: 0, // Set default value if not needed
+      AutoAck: false, // Set default value if not needed
+      Metadata: new Map(), // Initialize with an empty map if not needed
+    });
+
+    this.responseHandler.write(request);
+  }
+
+  static decode(
+    message: pb.kubemq.QueueMessage,
+    transactionId: string,
+    transactionIsCompleted: boolean,
+    receiverClientId: string,
+    responseHandler:  grpc.ClientWritableStream<pb.kubemq.QueuesDownstreamRequest>
+  ): QueueMessageReceived {
+    return new QueueMessageReceived(
+      message.MessageID,
+      message.Channel,
+      message.Metadata,
+      typeof message.Body === 'string' ? new TextEncoder().encode(message.Body) : message.Body,
+      message.ClientID,
+      new Map(Object.entries(message.Tags)),
+      new Date(message.Attributes.Timestamp / 1_000_000_000),
+      message.Attributes.Sequence,
+      message.Attributes.ReceiveCount,
+      message.Attributes.ReRouted,
+      message.Attributes.ReRoutedFromQueue,
+      message.Attributes.ExpirationAt ? new Date(message.Attributes.ExpirationAt / 1_000_000) : undefined,
+      message.Attributes.DelayedTo ? new Date(message.Attributes.DelayedTo / 1_000_000) : undefined,
+      transactionId,
+      transactionIsCompleted,
+      responseHandler,
+      receiverClientId
+    );
+  }
+
+  toString(): string {
+    return `QueueMessageReceived: id=${this.id}, channel=${this.channel}, metadata=${this.metadata}, body=${Buffer.from(
+      this.body
+    ).toString()}, fromClientId=${this.fromClientId}, timestamp=${this.timestamp.toISOString()}, sequence=${
+      this.sequence
+    }, receiveCount=${this.receiveCount}, isReRouted=${this.isReRouted}, reRouteFromQueue=${this.reRouteFromQueue}, expiredAt=${
+      this.expiredAt?.toISOString() || 'N/A'
+    }, delayedTo=${this.delayedTo?.toISOString() || 'N/A'}, transactionId=${
+      this.transactionId
+    }, isTransactionCompleted=${this.isTransactionCompleted}, tags=${JSON.stringify(Array.from(this.tags.entries()))}`;
+  }
+}
+
 
 /**
  * queue message attributes
@@ -50,6 +216,7 @@ export interface QueueMessage extends BaseMessage {
   attributes?: QueuesMessageAttributes;
   policy?: QueueMessagePolicy;
 }
+
 
 /**
  * queue message sending result
@@ -133,6 +300,32 @@ export interface QueuesPullPeekMessagesResponse {
 
   /** array of received queue messages */
   messages: QueueMessage[];
+
+  /** number of valid messages received */
+  messagesReceived: number;
+
+  /** number of expired messages from the queue */
+  messagesExpired: number;
+
+  /** is peek or pull */
+  isPeek: boolean;
+
+  /** indicate pull/peek error */
+  isError: boolean;
+
+  /** pull/peek error reason*/
+  error: string;
+}
+
+/**
+ * queue messages pull/peek response
+ */
+export interface QueuesMessagesPulledResponse {
+  /** pull/peek request id*/
+  id?: string;
+
+  /** array of received queue messages */
+  messages: QueueMessageReceived[];
 
   /** number of valid messages received */
   messagesReceived: number;

@@ -17,7 +17,7 @@ import {
 
 interface InternalCommandsSubscriptionResponse {
     onClose: TypedEvent<void>;
-    stream: grpc.ClientReadableStream<pb.Request>;
+    stream: grpc.ClientReadableStream<pb.kubemq.Request>;
   }
 
 export class CommandsClient extends KubeMQClient {
@@ -26,15 +26,15 @@ export class CommandsClient extends KubeMQClient {
   }
 
   send(msg: CommandsMessage): Promise<CommandsResponse> {
-    const pbMessage = new pb.Request();
-    pbMessage.setRequestid(msg.id ? msg.id : Utils.uuid());
-    pbMessage.setClientid(msg.clientId ? msg.clientId : this.clientId);
+    const pbMessage = new pb.kubemq.Request();
+    pbMessage.RequestID=(msg.id ? msg.id : Utils.uuid());
+    pbMessage.ClientID=(msg.clientId ? msg.clientId : this.clientId);
 
     if (!msg.channel || msg.channel.trim().length === 0) {
       throw new Error('Command message must have a channel.');
     }
-    pbMessage.setChannel(msg.channel);
-    pbMessage.setReplychannel(msg.channel);
+    pbMessage.Channel=(msg.channel);
+    pbMessage.ReplyChannel=(msg.channel);
 
     if (
       (!msg.metadata || msg.metadata.trim().length === 0) &&
@@ -43,19 +43,18 @@ export class CommandsClient extends KubeMQClient {
     ) {
       throw new Error('Command message must have at least one of the following: metadata, body, or tags.');
     }
-
-    pbMessage.setBody(msg.body);
-    pbMessage.setMetadata(msg.metadata);
+    //pbMessage.setBody(msg.body);
+    pbMessage.Body = typeof msg.body === 'string' ? new TextEncoder().encode(msg.body) : msg.body;
+    pbMessage.Metadata=(msg.metadata);
     if (msg.tags != null) {
-      pbMessage.getTagsMap().set(msg.tags);
+      pbMessage.Tags=(msg.tags);
     }
 
     if (msg.timeout <= 0) {
       throw new Error('Command message timeout must be a positive integer.');
     }
-    pbMessage.setTimeout(msg.timeout);
-
-    pbMessage.setRequesttypedata(1);
+    pbMessage.Timeout=(msg.timeout);
+    pbMessage.RequestTypeData= pb.kubemq.Request.RequestType.Command;
 
     return new Promise<CommandsResponse>((resolve, reject) => {
       this.grpcClient.sendRequest(
@@ -79,12 +78,12 @@ export class CommandsClient extends KubeMQClient {
   }
 
   response(msg: CommandsResponse): Promise<void> {
-    const pbMessage = new pb.Response();
-    pbMessage.setRequestid(msg.id);
-    pbMessage.setClientid(msg.clientId ? msg.clientId : this.clientId);
-    pbMessage.setReplychannel(msg.replyChannel);
-    pbMessage.setError(msg.error);
-    pbMessage.setExecuted(msg.executed);
+    const pbMessage = new pb.kubemq.Response();
+    pbMessage.RequestID=(msg.id);
+    pbMessage.ClientID=(msg.clientId ? msg.clientId : this.clientId);
+    pbMessage.ReplyChannel=(msg.replyChannel);
+    pbMessage.Error=(msg.error);
+    pbMessage.Executed=(msg.executed);
     return new Promise<void>((resolve, reject) => {
       this.grpcClient.sendResponse(pbMessage, this.getMetadata(), (e) => {
         if (e) {
@@ -163,21 +162,21 @@ export class CommandsClient extends KubeMQClient {
           return;
         }
 
-        const pbSubRequest = new pb.Subscribe();
-        pbSubRequest.setClientid(request.clientId ? request.clientId : this.clientId);
-        pbSubRequest.setGroup(request.group ? request.group : '');
-        pbSubRequest.setChannel(request.channel);
-        pbSubRequest.setSubscribetypedata(3);
+        const pbSubRequest = new pb.kubemq.Subscribe();
+        pbSubRequest.ClientID=(request.clientId ? request.clientId : this.clientId);
+        pbSubRequest.Group=(request.group ? request.group : '');
+        pbSubRequest.Channel=(request.channel);
+        pbSubRequest.SubscribeTypeData=(3);
         const stream = this.grpcClient.subscribeToRequests(pbSubRequest, this.getMetadata());
 
-        stream.on('data', function (data: pb.Request) {
+        stream.on('data', function (data: pb.kubemq.Request) {
           cb(null, {
-            id: data.getRequestid(),
-            channel: data.getChannel(),
-            metadata: data.getMetadata(),
-            body: data.getBody(),
-            tags: data.getTagsMap(),
-            replyChannel: data.getReplychannel(),
+            id: data.RequestID,
+            channel: data.Channel,
+            metadata: data.Metadata,
+            body: data.Body,
+            tags: data.Tags,
+            replyChannel: data.ReplyChannel,
           });
         });
         stream.on('error', (e: Error) => {
@@ -226,3 +225,8 @@ export class CommandsClient extends KubeMQClient {
     );
   }
 }
+
+export function getBody(): string | Uint8Array {
+  throw new Error('Function not implemented.');
+}
+

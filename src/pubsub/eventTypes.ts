@@ -2,12 +2,13 @@ import { BaseMessage } from '../client/KubeMQClient';
 import { TypedEvent } from '../client/KubeMQClient';
 
 export enum EventStoreType {
+    EventsStoreTypeUndefined = 0,
     StartNewOnly = 1,
-    StartFromFirst,
-    StartFromLast,
-    StartAtSequence,
-    StartAtTime,
-    StartAtTimeDelta,
+    StartFromFirst = 2,
+    StartFromLast = 3,
+    StartAtSequence = 4,
+    StartAtTime = 5,
+    StartAtTimeDelta = 6
 }
 
 export interface EventsReceiveMessageCallback {

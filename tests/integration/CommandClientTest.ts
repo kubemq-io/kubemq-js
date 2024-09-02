@@ -8,7 +8,7 @@ import { ServerInterceptingCallInterface } from '@grpc/grpc-js';
 import { EventEmitter } from 'events';
 import { InterceptingCallInterface } from '@grpc/grpc-js/build/src/client-interceptors';
 
-class MockClientReadableStream extends EventEmitter implements grpc.ClientReadableStream<pb.Request> {
+class MockClientReadableStream extends EventEmitter implements grpc.ClientReadableStream<pb.kubemq.Request> {
   call?: InterceptingCallInterface | undefined;
   readable: boolean;
   readableEncoding: BufferEncoding | null;
@@ -63,16 +63,16 @@ class MockClientReadableStream extends EventEmitter implements grpc.ClientReadab
     return 'mock-peer';
   }
 
-  deserialize(chunk: Buffer): pb.Request {
-    const request = new pb.Request();
+  deserialize(chunk: Buffer): pb.kubemq.Request {
+    const request = new pb.kubemq.Request();
     // Mock deserialization logic
     return request;
   }
 
-  read(size?: number): pb.Request {
+  read(size?: number): pb.kubemq.Request {
     // Mock implementation of read method
     // Return a mock request object or null if no more data
-    const request = new pb.Request();
+    const request = new pb.kubemq.Request();
     return request; // Return null if you want to simulate end of stream
   }
 }
@@ -90,17 +90,17 @@ describe('CommandsClient Integration Test', () => {
   });
 
   it('should send a command message and receive a response', async () => {
-    const mockSendRequest = jest.spyOn(client.grpcClient, 'sendRequest').mockImplementation(
+    const mockSendRequest = jest.spyOn(client.grpcClient as any, 'sendRequest').mockImplementation(
       (
-        message: pb.Request,
-        metadata: grpc.Metadata | null,
-        options: grpc.CallOptions | null,
-        callback: grpc.requestCallback<pb.Response>
+        message: any,
+        metadata: any,
+        options: any,
+        callback: any
       ) => {
-        const response = new pb.Response();
-        response.setRequestid(message.getRequestid());
-        response.setClientid(message.getClientid());
-        response.setExecuted(true);
+        const response = new pb.kubemq.Response();
+        response.RequestID=(message.RequestID);
+        response.ClientID=(message.ClientID);
+        response.Executed=(true);
   
         callback(null, response);
   
@@ -133,14 +133,14 @@ describe('CommandsClient Integration Test', () => {
 
   it('should subscribe to a command channel and receive messages', async () => {
 
-    const mockSubscribeToRequests = jest.spyOn(client['grpcClient'], 'subscribeToRequests').mockImplementation(
-      (request: pb.Subscribe, metadata: grpc.Metadata | null = null, options: grpc.CallOptions | null = null) => {
-        const stream = new MockClientReadableStream() as grpc.ClientReadableStream<pb.Request>;
+    const mockSubscribeToRequests = jest.spyOn(client['grpcClient'] as any, 'subscribeToRequests').mockImplementation(
+      (request: any, metadata: any, options: any) => {
+        const stream = new MockClientReadableStream() as grpc.ClientReadableStream<pb.kubemq.Request>;
   
         setTimeout(() => {
-          const requestData = new pb.Request();
-          requestData.setRequestid('test-request-id');
-          requestData.setChannel(request.getChannel());
+          const requestData = new pb.kubemq.Request();
+          requestData.RequestID=('test-request-id');
+          requestData.Channel=(request.getChannel());
           stream.emit('data', requestData);
         }, 100);
   
@@ -178,8 +178,8 @@ describe('CommandsClient Integration Test', () => {
   it('should create a command channel', async () => {
     const mockCreateChannel = jest.spyOn(client['grpcClient'] as any, 'createChannel').mockImplementation(
       (request: any, metadata: any, callback: any) => {
-        const response = new pb.Response;
-        response.setError('');
+        const response = new pb.kubemq.Response;
+        response.Error=('');
         callback(null, response);
       }
     );
@@ -192,8 +192,8 @@ describe('CommandsClient Integration Test', () => {
   it('should delete a command channel', async () => {
     const mockDeleteChannel = jest.spyOn(client['grpcClient'] as any, 'deleteChannel').mockImplementation(
       (request: any, metadata: any, callback: any) => {
-        const response = new pb.Response;
-        response.setError('');
+        const response = new pb.kubemq.Response;
+        response.Error=('');
         callback(null, response);
       }
     );
@@ -206,11 +206,11 @@ describe('CommandsClient Integration Test', () => {
   it('should list command channels', async () => {
     const mockListChannels = jest.spyOn(client['grpcClient'] as any, 'listChannels').mockImplementation(
       (request: any, metadata: any, callback: any) => {
-        const response = new pb.Response();
-        response.setExecuted(true);
+        const response = new pb.kubemq.Response();
+        response.Executed=(true);
         // Simulate the response body containing a list of channel objects
         const channelList = [{ name: 'test-channel' }];
-        response.setBody(JSON.stringify(channelList));
+        response.Body=(new TextEncoder().encode(JSON.stringify(channelList)));
   
         callback(null, response);
       }

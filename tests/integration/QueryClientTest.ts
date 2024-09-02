@@ -44,15 +44,15 @@ describe('QueriesClient Integration Tests', () => {
   });
 
   test('send() should send a message and return a response', async () => {
-    const response = new pb.Response();
-    response.setRequestid('123');
-    response.setClientid('test-client');
-    response.setError('');
-    response.setExecuted(true);
-    response.setTimestamp(Date.now());
-    response.setBody('response-body');
-    response.setMetadata('');
-    response.getTagsMap().set('key', 'value');
+    const response = new pb.kubemq.Response();
+    response.RequestID=('123');
+    response.ClientID=('test-client');
+    response.Error=('');
+    response.Executed=(true);
+    response.Timestamp=(Date.now());
+    response.Body= new TextEncoder().encode('response-body');
+    response.Metadata=('');
+    response.Tags.set('key', 'value');
 
     mockSendRequest.mockImplementation((_, __, callback) => callback(null, response));
 
@@ -103,14 +103,14 @@ describe('QueriesClient Integration Tests', () => {
     const mockStream = {
       on: jest.fn().mockImplementation((event, callback) => {
         if (event === 'data') {
-          callback(new pb.Request());
+          callback(new pb.kubemq.Request());
         }
         if (event === 'close') {
           callback();
         }
       }),
       cancel: jest.fn(),
-    } as unknown as grpc.ClientReadableStream<pb.Request>;
+    } as unknown as grpc.ClientReadableStream<pb.kubemq.Request>;
 
     mockSubscribeToRequests.mockResolvedValue({
       onClose: new TypedEvent<void>(),
