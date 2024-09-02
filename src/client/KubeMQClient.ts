@@ -54,7 +54,7 @@ export class KubeMQClient {
   protected pingIntervalInSeconds: number;
   protected pingTimeoutInSeconds: number;
   protected logLevel: string;
-  public grpcClient: kubemq.kubemqClient;
+  public grpcClient: kubemq.kubemq.kubemqClient;
   protected channel: grpc.Channel;
   private metadata: grpc.Metadata;
 
@@ -96,7 +96,7 @@ export class KubeMQClient {
     };
 
     this.channel = new grpc.Channel(this.address, channelCredentials, channelOptions);
-    this.grpcClient = new kubemq.kubemqClient(this.address,channelCredentials,channelOptions);
+    this.grpcClient = new kubemq.kubemq.kubemqClient(this.address,channelCredentials,channelOptions);
     this.metadata = new grpc.Metadata();
     if (this.authToken != null) {
       this.metadata.add('authorization', this.authToken);
@@ -112,7 +112,7 @@ export class KubeMQClient {
 
   public async ping(): Promise<ServerInfo> {
     return new Promise<ServerInfo>((resolve, reject) => {
-      this.grpcClient.ping(new kubemq.Empty(), (error, response) => {
+      this.grpcClient.ping(new kubemq.kubemq.Empty(), (error, response) => {
         if (error) {
           reject(error);
         } else {

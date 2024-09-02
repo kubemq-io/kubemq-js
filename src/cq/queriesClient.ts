@@ -17,7 +17,7 @@ interface internalQueriesSubscriptionResponse {
   onClose: TypedEvent<void>;
 
   /** call stream*/
-  stream: grpc.ClientReadableStream<pb.Request>;
+  stream: grpc.ClientReadableStream<pb.kubemq.Request>;
 }
 
 
@@ -27,20 +27,21 @@ export class QueriesClient extends KubeMQClient {
   }
 
   send(msg: QueriesMessage): Promise<QueriesResponse> {
-    const pbMessage = new pb.Request();
-    pbMessage.setRequestid(msg.id ? msg.id : Utils.uuid());
-    pbMessage.setClientid(msg.clientId ? msg.clientId : this.clientId);
-    pbMessage.setChannel(msg.channel);
-    pbMessage.setReplychannel(msg.channel);
-    pbMessage.setBody(msg.body);
-    pbMessage.setMetadata(msg.metadata);
+    const pbMessage = new pb.kubemq.Request();
+    pbMessage.RequestID=(msg.id ? msg.id : Utils.uuid());
+    pbMessage.ClientID=(msg.clientId ? msg.clientId : this.clientId);
+    pbMessage.Channel=(msg.channel);
+    pbMessage.ReplyChannel=(msg.channel);
+    //pbMessage.setBody(msg.body);
+    pbMessage.Body = typeof msg.body === 'string' ? new TextEncoder().encode(msg.body) : msg.body;
+    pbMessage.Metadata=(msg.metadata);
     if (msg.tags != null) {
-      pbMessage.getTagsMap().set(msg.tags);
+      pbMessage.Tags=(msg.tags);
     }
-    pbMessage.setTimeout(msg.timeout);
-    pbMessage.setRequesttypedata(2);
-    pbMessage.setCachekey(msg.cacheKey ? msg.cacheKey : '');
-    pbMessage.setCachettl(msg.cacheTTL ? msg.cacheTTL : 0);
+    pbMessage.Timeout=(msg.timeout);
+    pbMessage.RequestTypeData=(2);
+    pbMessage.CacheKey=(msg.cacheKey ? msg.cacheKey : '');
+    pbMessage.CacheTTL=(msg.cacheTTL ? msg.cacheTTL : 0);
 
     return new Promise<QueriesResponse>((resolve, reject) => {
       this.grpcClient.sendRequest(
@@ -67,16 +68,17 @@ export class QueriesClient extends KubeMQClient {
   }
 
   response(msg: QueriesResponse): Promise<void> {
-    const pbMessage = new pb.Response();
-    pbMessage.setRequestid(msg.id);
-    pbMessage.setClientid(msg.clientId ? msg.clientId : this.clientId);
-    pbMessage.setReplychannel(msg.replyChannel);
-    pbMessage.setError(msg.error);
-    pbMessage.setExecuted(msg.executed);
-    pbMessage.setBody(msg.body);
-    pbMessage.setMetadata(msg.metadata);
+    const pbMessage = new pb.kubemq.Response();
+    pbMessage.RequestID=(msg.id);
+    pbMessage.ClientID=(msg.clientId ? msg.clientId : this.clientId);
+    pbMessage.ReplyChannel=(msg.replyChannel);
+    pbMessage.Error=(msg.error);
+    pbMessage.Executed=(msg.executed);
+    pbMessage.Body = typeof msg.body === 'string' ? new TextEncoder().encode(msg.body) : msg.body;
+    //pbMessage.setBody(msg.body);
+    pbMessage.Metadata=(msg.metadata);
     if (msg.tags != null) {
-      pbMessage.getTagsMap().set(msg.tags);
+      pbMessage.Tags=(msg.tags);
     }
 
     return new Promise<void>((resolve, reject) => {
@@ -151,22 +153,22 @@ export class QueriesClient extends KubeMQClient {
         return;
       }
 
-      const pbSubRequest = new pb.Subscribe();
-      pbSubRequest.setClientid(request.clientId ? request.clientId : this.clientId);
-      pbSubRequest.setGroup(request.group ? request.group : '');
-      pbSubRequest.setChannel(request.channel);
-      pbSubRequest.setSubscribetypedata(4);
+      const pbSubRequest = new pb.kubemq.Subscribe();
+      pbSubRequest.ClientID=(request.clientId ? request.clientId : this.clientId);
+      pbSubRequest.Group=(request.group ? request.group : '');
+      pbSubRequest.Channel=(request.channel);
+      pbSubRequest.SubscribeTypeData= pb.kubemq.Subscribe.SubscribeType.Queries;
 
       const stream = this.grpcClient.subscribeToRequests(pbSubRequest, this.getMetadata());
 
-      stream.on('data', function (data: pb.Request) {
+      stream.on('data', function (data: pb.kubemq.Request) {
         cb(null, {
-          id: data.getRequestid(),
-          channel: data.getChannel(),
-          metadata: data.getMetadata(),
-          body: data.getBody(),
-          tags: data.getTagsMap(),
-          replyChannel: data.getReplychannel(),
+          id: data.RequestID,
+          channel: data.Channel,
+          metadata: data.Metadata,
+          body: data.Body,
+          tags: data.Tags,
+          replyChannel: data.ReplyChannel,
         });
       });
 
