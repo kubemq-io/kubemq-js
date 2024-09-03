@@ -1,13 +1,13 @@
-import { Config, Utils, CommandsClient } from '../../../src';
+import { Config, Utils, CQClient } from '../../../src';
 
 const opts: Config = {
   address: 'localhost:50000',
   clientId: Utils.uuid(),
   reconnectInterval: 1000,
 };
-const commandsClient = new CommandsClient(opts);
+const cqClient = new CQClient(opts);
 async function deleteChannel(channel: string) {
-  return commandsClient.delete(channel);
+  return cqClient.deleteCommandsChannel(channel);
 }
 
 async function main() {

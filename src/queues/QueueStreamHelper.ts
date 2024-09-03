@@ -1,6 +1,6 @@
 
 import * as pb from '../protos';
-import {QueueMessageSendResult, QueuesPullPeekMessagesResponse, QueueMessage, QueuesMessagesPulledResponse, QueueMessageReceived} from './queuesTypes'
+import {QueueMessageSendResult, QueuesPullWaitingMessagesResponse, QueueMessage, QueuesMessagesPulledResponse, QueueMessageReceived} from './queuesTypes'
 import { KubeMQClient} from '../client/KubeMQClient';
 import * as grpc from '@grpc/grpc-js';
 
@@ -107,7 +107,7 @@ export class QueueStreamHelper {
 
                 request.on('error', (err: grpc.ServiceError) => {
                     console.error('Error in QueuesDownstreamResponse:', err);
-                    const qpResp: QueuesPullPeekMessagesResponse = {
+                    const qpResp: QueuesPullWaitingMessagesResponse = {
                         id: '',
                         messages: [],
                         messagesReceived: 0,

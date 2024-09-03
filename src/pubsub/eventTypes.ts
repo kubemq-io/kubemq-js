@@ -34,6 +34,8 @@ export interface EventsStreamResponse {
 
 export interface EventsMessage extends BaseMessage {}
 
+export interface EventsStoreMessage extends BaseMessage {}
+
 export interface EventsReceiveMessage {
     id: string;
     channel: string;
@@ -57,8 +59,6 @@ export interface EventsSubscriptionResponse {
   onState: TypedEvent<string>;
   unsubscribe(): void;
 }
-
-export interface EventsStoreMessage extends BaseMessage {}
 
 export interface EventsStoreReceiveMessage {
     id: string;

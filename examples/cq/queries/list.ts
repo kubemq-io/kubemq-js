@@ -1,13 +1,13 @@
-import { Config, Utils, QueriesClient } from '../../../src';
+import { Config, Utils, CQClient } from '../../../src';
 
 const opts: Config = {
   address: 'localhost:50000',
   clientId: Utils.uuid(),
   reconnectInterval: 1000,
 };
-const queriesClient = new QueriesClient(opts);
+const cqClient = new CQClient(opts);
 async function list(search: string) {
-  const channels = await queriesClient.list(search);
+  const channels = await cqClient.listQueriesChannels(search);
   console.log(channels);
 }
 

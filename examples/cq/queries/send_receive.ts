@@ -1,16 +1,16 @@
-import { Config, Utils, QueriesClient } from '../../../src';
+import { Config, Utils, CQClient } from '../../../src';
 
 const opts: Config = {
   address: 'localhost:50000',
   clientId: Utils.uuid(),
   reconnectInterval: 1000,
 };
-const queriesClient = new QueriesClient(opts);
+const cqClient = new CQClient(opts);
 
 async function sender() {
   for (let i = 0; i < 10; i++) {
-    queriesClient
-      .send({
+    cqClient
+      .sendQueryRequest({
         channel: 'queries',
         body: Utils.stringToBytes('data'),
         timeout: 10000,
@@ -28,8 +28,8 @@ async function receiver() {
     }
     if (msg) {
       console.log(msg);
-      queriesClient
-        .response({
+      cqClient
+        .sendQueryResponseMessage({
           executed: true,
           error: '',
           replyChannel: msg.replyChannel,
@@ -42,8 +42,8 @@ async function receiver() {
         .catch((reason) => console.log(reason));
     }
   };
-  queriesClient
-    .subscribe(
+  cqClient
+    .subscribeToQueries(
       {
         channel: 'queries',
       },

@@ -44,7 +44,7 @@ interface internalEventsStoreSubscriptionResponse {
 /**
  * Events Client - KubeMQ events client
  */
-export class EventsClient extends KubeMQClient {
+export class PubsubClient extends KubeMQClient {
     /**
      * @internal
      */
@@ -57,7 +57,7 @@ export class EventsClient extends KubeMQClient {
      * @param msg
      * @return Promise<EventsSendResult>
      */
-    send(msg: EventsMessage): Promise<EventsSendResult> {
+    sendEventsMessage(msg: EventsMessage): Promise<EventsSendResult> {
         const pbMessage = new pb.kubemq.Event();
         pbMessage.EventID=(msg.id ? msg.id : Utils.uuid());
         pbMessage.ClientID=(msg.clientId ? msg.clientId : this.clientId);
@@ -87,55 +87,43 @@ export class EventsClient extends KubeMQClient {
     }
 
     /**
-     * Send stream of events
-     * @return Promise<EventsStreamResponse>
-     * @param cb
+     * Send single event
+     * @param msg
+     * @return Promise<EventsStoreSendResult>
      */
-    public stream(cb: EventsStreamCallback): Promise<EventsStreamResponse> {
-        return new Promise<EventsStreamResponse>((resolve, reject) => {
-            if (!cb) {
-                reject(new Error('stream events call requires a callback'));
-                return;
-            }
-            const stream = this.grpcClient.sendEventsStream(this.getMetadata());
-            stream.on('error', (e: Error) => {
-                cb(e, null);
-            });
-            let onCloseEvent = new TypedEvent<void>();
-            stream.on('close', () => {
-                onCloseEvent.emit();
-            });
-
-            const writeFn = (msg: EventsMessage) => {
-                const pbMessage = new pb.kubemq.Event();
-                pbMessage.EventID=(msg.id ? msg.id : Utils.uuid());
-                pbMessage.ClientID=( msg.clientId ? msg.clientId : this.clientId);
-                pbMessage.Channel=(msg.channel);
-                //pbMessage.setBody(msg.body);
-                pbMessage.Body = typeof msg.body === 'string' ? new TextEncoder().encode(msg.body) : msg.body;
-                pbMessage.Metadata = msg.metadata;
-               // pbMessage.setMetadata(msg.metadata);
-                if (msg.tags != null) {
-                    pbMessage.Tags = msg.tags;
-                }
-                pbMessage.Store=(false);
-                const sent = stream.write(pbMessage, (err: Error) => {
-                    cb(err, null);
-                });
-                cb(null, {
-                    id: pbMessage.EventID,
-                    sent: sent,
-                });
-            };
-            resolve({
-                onClose: onCloseEvent,
-                write: writeFn,
-                end(): void {
-                    stream.end();
+    sendEventStoreMessage(msg: EventsStoreMessage): Promise<EventsStoreSendResult> {
+        const pbMessage = new pb.kubemq.Event();
+        pbMessage.EventID=(msg.id ? msg.id : Utils.uuid());
+        pbMessage.ClientID=(msg.clientId ? msg.clientId : this.clientId);
+        pbMessage.Channel=(msg.channel);
+        //pbMessage.setBody(msg.body);
+        pbMessage.Body = typeof msg.body === 'string' ? new TextEncoder().encode(msg.body) : msg.body;
+        pbMessage.Metadata=(msg.metadata);
+        if (msg.tags != null) {
+            pbMessage.Tags=(msg.tags);
+        }
+        pbMessage.Store=(true);
+        return new Promise<EventsStoreSendResult>((resolve, reject) => {
+            this.grpcClient.sendEvent(
+                pbMessage,
+                this.getMetadata(),
+                this.callOptions(),
+                (e, result) => {
+                    if (e) {
+                        reject(e);
+                        return;
+                    }
+                    if (result != null)
+                        resolve({
+                            id: result.getEventid(),
+                            sent: result.getSent(),
+                            error: result.getError(),
+                        });
                 },
-            });
+            );
         });
     }
+
 
     /**
      * Subscribe to events messages
@@ -143,7 +131,7 @@ export class EventsClient extends KubeMQClient {
      * @param cb
      * @return Promise<EventsSubscriptionResponse>
      */
-    async subscribe(
+    async subscribeToEvents(
         request: EventsSubscriptionRequest,
         cb: EventsReceiveMessageCallback,
     ): Promise<EventsSubscriptionResponse> {
@@ -180,7 +168,7 @@ export class EventsClient extends KubeMQClient {
             let currentStream;
             while (!unsubscribe) {
                 onStateChange.emit('connecting');
-                await this.subscribeFn(request, cb).then((value) => {
+                await this.subscribeFnEvent(request, cb).then((value) => {
                     currentStream = value.stream;
                 });
                 isClosed = false;
@@ -199,7 +187,7 @@ export class EventsClient extends KubeMQClient {
         });
     }
 
-    private subscribeFn(
+    private subscribeFnEvent(
         request: EventsSubscriptionRequest,
         cb: EventsReceiveMessageCallback,
     ): Promise<internalEventsSubscriptionResponse> {
@@ -246,160 +234,12 @@ export class EventsClient extends KubeMQClient {
     }
 
     /**
-     * Create channel
-     * @param channelName
-     * @return Promise<void>
-     */
-    create(channelName: string): Promise<void> {
-        return createChannel(
-            this.grpcClient,
-            this.getMetadata(),
-            this.clientId,
-            channelName,
-            'events',
-        );
-    }
-
-    /**
-     * Delete commands channel
-     * @param channelName
-     * @return Promise<void>
-     */
-    delete(channelName: string): Promise<void> {
-        return deleteChannel(
-            this.grpcClient,
-            this.getMetadata(),
-            this.clientId,
-            channelName,
-            'events',
-        );
-    }
-
-    /**
-     * List events channels
-     * @param search
-     * @return Promise<PubSubChannel[]>
-     */
-    list(search: string): Promise<PubSubChannel[]> {
-        return listPubSubChannels(
-            this.grpcClient,
-            this.getMetadata(),
-            this.clientId,
-            search,
-            'events',
-        );
-    }
-}
-
-/**
- * Events Store Client - KubeMQ events store client
- */
-export class EventsStoreClient extends KubeMQClient {
-    /**
-     * @internal
-     */
-    constructor(Options: Config) {
-        super(Options);
-    }
-
-    /**
-     * Send single event
-     * @param msg
-     * @return Promise<EventsStoreSendResult>
-     */
-    send(msg: EventsStoreMessage): Promise<EventsStoreSendResult> {
-        const pbMessage = new pb.kubemq.Event();
-        pbMessage.EventID=(msg.id ? msg.id : Utils.uuid());
-        pbMessage.ClientID=(msg.clientId ? msg.clientId : this.clientId);
-        pbMessage.Channel=(msg.channel);
-        //pbMessage.setBody(msg.body);
-        pbMessage.Body = typeof msg.body === 'string' ? new TextEncoder().encode(msg.body) : msg.body;
-        pbMessage.Metadata=(msg.metadata);
-        if (msg.tags != null) {
-            pbMessage.Tags=(msg.tags);
-        }
-        pbMessage.Store=(true);
-        return new Promise<EventsStoreSendResult>((resolve, reject) => {
-            this.grpcClient.sendEvent(
-                pbMessage,
-                this.getMetadata(),
-                this.callOptions(),
-                (e, result) => {
-                    if (e) {
-                        reject(e);
-                        return;
-                    }
-                    if (result != null)
-                        resolve({
-                            id: result.getEventid(),
-                            sent: result.getSent(),
-                            error: result.getError(),
-                        });
-                },
-            );
-        });
-    }
-
-    /**
-     * Send stream of events store
-     * @return Promise<EventsStoreStreamResponse>
-     * @param cb
-     */
-    public stream(
-        cb: EventsStoreStreamCallback,
-    ): Promise<EventsStoreStreamResponse> {
-        return new Promise<EventsStoreStreamResponse>((resolve, reject) => {
-            if (!cb) {
-                reject(new Error('stream events store call requires a callback'));
-                return;
-            }
-            const stream = this.grpcClient.sendEventsStream(this.getMetadata());
-            stream.on('error', (e: Error) => {
-                cb(e, null);
-            });
-            let onCloseEvent = new TypedEvent<void>();
-            stream.on('close', () => {
-                onCloseEvent.emit();
-            });
-
-            const writeFn = (msg: EventsStoreMessage) => {
-                const pbMessage = new pb.kubemq.Event();
-                pbMessage.EventID=(msg.id ? msg.id : Utils.uuid());
-                pbMessage.ClientID=(msg.clientId ? msg.clientId : this.clientId);
-                pbMessage.Channel=(msg.channel);
-                //pbMessage.setBody(msg.body);
-                pbMessage.Body = typeof msg.body === 'string' ? new TextEncoder().encode(msg.body) : msg.body;
-                pbMessage.Metadata=(msg.metadata);
-                if (msg.tags != null) {
-                    pbMessage.Tags=(msg.tags);
-                }
-                pbMessage.Store=(true);
-                const sent = stream.write(pbMessage, (err: Error) => {
-                    cb(err, null);
-                });
-                cb(null, {
-                    id: pbMessage.EventID,
-                    sent: sent,
-                    error: null
-                });
-            };
-            resolve({
-                onClose: onCloseEvent,
-                write: writeFn,
-                end(): void {
-                    stream.end();
-                },
-            });
-        });
-    }
-
-    /**
      * Subscribe to events store messages
      * @param request
      * @param cb
      * @return Promise<EventsStoreSubscriptionResponse>
      */
-    async subscribe(
+      async subscribeToEventsStore(
         request: EventsStoreSubscriptionRequest,
         cb: EventsStoreReceiveMessageCallback,
     ): Promise<EventsStoreSubscriptionResponse> {
@@ -441,7 +281,7 @@ export class EventsStoreClient extends KubeMQClient {
                 let currentStream;
                 while (!unsubscribe) {
                     onStateChange.emit('connecting');
-                    await this.subscribeFn(request, cb).then((value) => {
+                    await this.subscribeFnEventStore(request, cb).then((value) => {
                         currentStream = value.stream;
                     });
                     isClosed = false;
@@ -461,7 +301,7 @@ export class EventsStoreClient extends KubeMQClient {
         );
     }
 
-    private subscribeFn(
+    private subscribeFnEventStore(
         request: EventsStoreSubscriptionRequest,
         cb: EventsStoreReceiveMessageCallback,
     ): Promise<internalEventsStoreSubscriptionResponse> {
@@ -514,12 +354,28 @@ export class EventsStoreClient extends KubeMQClient {
         );
     }
 
+
     /**
+     * Create channel
+     * @param channelName
+     * @return Promise<void>
+     */
+    createEventsChannel(channelName: string): Promise<void> {
+        return createChannel(
+            this.grpcClient,
+            this.getMetadata(),
+            this.clientId,
+            channelName,
+            'events',
+        );
+    }
+
+     /**
      * Create events store channel
      * @param channelName
      * @return Promise<void>
      */
-    create(channelName: string): Promise<void> {
+    createEventsStoreChannel(channelName: string): Promise<void> {
         return createChannel(
             this.grpcClient,
             this.getMetadata(),
@@ -529,12 +385,28 @@ export class EventsStoreClient extends KubeMQClient {
         );
     }
 
+
+    /**
+     * Delete commands channel
+     * @param channelName
+     * @return Promise<void>
+     */
+    deleteEventsChannel(channelName: string): Promise<void> {
+        return deleteChannel(
+            this.grpcClient,
+            this.getMetadata(),
+            this.clientId,
+            channelName,
+            'events',
+        );
+    }
+
     /**
      * Delete events store channel
      * @param channelName
      * @return Promise<void>
      */
-    delete(channelName: string): Promise<void> {
+    deleteEventsStoreChannel(channelName: string): Promise<void> {
         return deleteChannel(
             this.grpcClient,
             this.getMetadata(),
@@ -545,19 +417,34 @@ export class EventsStoreClient extends KubeMQClient {
     }
 
     /**
-     * List events store channels
+     * List events channels
      * @param search
      * @return Promise<PubSubChannel[]>
      */
-    list(search: string): Promise<PubSubChannel[]> {
+    listEventsChannels(search: string): Promise<PubSubChannel[]> {
         return listPubSubChannels(
             this.grpcClient,
             this.getMetadata(),
             this.clientId,
             search,
-            'events_store',
+            'events',
         );
     }
+
+    /**
+     * List events store channels
+     * @param search
+     * @return Promise<PubSubChannel[]>
+     */
+    listEventsStoreChannels(search: string): Promise<PubSubChannel[]> {
+            return listPubSubChannels(
+                this.grpcClient,
+                this.getMetadata(),
+                this.clientId,
+                search,
+                'events_store',
+            );
+        }
 }
 
 
