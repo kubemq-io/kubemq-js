@@ -244,7 +244,7 @@ export interface QueueMessageSendResult {
 /**
  * queue messages pull/peek requests
  */
-export interface QueuesPullPeekMessagesRequest {
+export interface QueuesPullWaitngMessagesRequest {
   /** pull/peek request id*/
   id?: string;
 
@@ -262,7 +262,7 @@ export interface QueuesPullPeekMessagesRequest {
 }
 /** queue messages subscribeFn callback */
 export interface QueuesSubscribeMessagesCallback {
-  (err: Error | null, response: QueuesPullPeekMessagesResponse): void;
+  (err: Error | null, response: QueuesPullWaitingMessagesResponse): void;
 }
 /** queue messages subscribeFn callback*/
 export interface QueuesSubscribeMessagesResponse {
@@ -294,7 +294,7 @@ export interface QueuesSubscribeMessagesRequest {
 /**
  * queue messages pull/peek response
  */
-export interface QueuesPullPeekMessagesResponse {
+export interface QueuesPullWaitingMessagesResponse {
   /** pull/peek request id*/
   id?: string;
 

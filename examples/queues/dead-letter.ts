@@ -13,7 +13,7 @@ async function main() {
   const queuesClient = new QueuesClient(opts);
 
   await queuesClient
-    .send({
+    .sendQueuesMessage({
       channel: 'queues.some-queue',
       body: Utils.stringToBytes('queue message'),
       policy: {
@@ -30,18 +30,6 @@ async function main() {
     visibilitySeconds: 60,
     waitTimeoutSeconds: 60,
   };
-  await queuesClient
-    .transaction(transactionRequest, (err, msg) => {
-      if (err) {
-        console.log(err);
-      }
-      if (msg) {
-        msg.reject().catch((reason) => console.error(reason));
-      }
-    })
-    .catch((reason) => {
-      console.error(reason);
-    });
 
   await queuesClient
     .pull({

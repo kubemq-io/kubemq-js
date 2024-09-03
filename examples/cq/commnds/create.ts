@@ -1,13 +1,13 @@
-import { Config, Utils, CommandsClient } from '../../../src';
+import { Config, Utils, CQClient } from '../../../src';
 
 const opts: Config = {
   address: 'localhost:50000',
   clientId: Utils.uuid(),
   reconnectInterval: 1000,
 };
-const commandsClient = new CommandsClient(opts);
+const cqClient = new CQClient(opts);
 async function create(channel: string) {
-  return commandsClient.create(channel);
+  return cqClient.createCommandsChannel(channel);
 }
 
 async function main() {

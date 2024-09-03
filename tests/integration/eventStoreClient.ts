@@ -1,14 +1,13 @@
-import { EventsClient, EventsStoreClient } from '../../src/pubsub/eventClient';
+import { PubsubClient } from '../../src/pubsub/PubsubClient';
 import { Config } from '../../src/client/config';
-import { PubSubChannel } from '../../src/common/channel_stats';
-import { EventsMessage, EventsStoreMessage, EventStoreType } from '../../src/pubsub/eventTypes';
+import { EventsStoreMessage, EventStoreType } from '../../src/pubsub/eventTypes';
 
 describe('EventsStoreClient Integration Tests', () => {
-    let client: EventsStoreClient;
+    let client: PubsubClient;
     const config: Config = { /* Your Config Here */ };
 
     beforeAll(() => {
-        client = new EventsStoreClient(config);
+        client = new PubsubClient(config);
     });
 
     it('should send an event to the store successfully', async () => {
@@ -21,38 +20,13 @@ describe('EventsStoreClient Integration Tests', () => {
             tags: new Map([['key1', 'value1']]),
         };
 
-        const result = await client.send(msg);
+        const result = await client.sendEventStoreMessage(msg);
         expect(result.sent).toBe(true);
         expect(result.id).toBe(msg.id);
     });
 
-    it('should stream events to the store successfully', async () => {
-        const response = await client.stream((err, result) => {
-            expect(err).toBeNull();
-            if (result) {
-                expect(result.id).toBeDefined();
-                expect(result.sent).toBe(true);
-            }
-        });
-
-        expect(response).toBeDefined();
-        expect(response.onClose).toBeDefined();
-
-        // Simulate sending an event
-        response.write({
-            id: 'test-stream-event-store-id',
-            clientId: 'test-client-id',
-            channel: 'test-channel',
-            body: Buffer.from('test-body'),
-            metadata: 'test-metadata',
-            tags: new Map([['key1', 'value1']]),
-        });
-
-        response.end();
-    });
-
     it('should subscribe to events store successfully', async () => {
-        const subscriptionResponse = await client.subscribe(
+        const subscriptionResponse = await client.subscribeToEventsStore(
             {
                 channel: 'test-channel',
                 requestType: EventStoreType.StartNewOnly
@@ -79,12 +53,12 @@ describe('EventsStoreClient Integration Tests', () => {
     it('should create, list, and delete a channel', async () => {
         const channelName = 'test-create-channel-store';
 
-        await client.create(channelName);
-        const channels = await client.list(channelName);
+        await client.createEventsStoreChannel(channelName);
+        const channels = await client.listEventsStoreChannels(channelName);
         expect(channels.length).toBeGreaterThan(0);
 
-        await client.delete(channelName);
-        const updatedChannels = await client.list(channelName);
+        await client.deleteEventsStoreChannel(channelName);
+        const updatedChannels = await client.listEventsStoreChannels(channelName);
         expect(updatedChannels.length).toBe(0);
     });
 });

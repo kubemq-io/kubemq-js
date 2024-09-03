@@ -20,7 +20,7 @@
     "outDir": "dist",              // Change output directory to 'dist'
     "declaration": true,
     "declarationMap": true,
-     "lib": ["es2019", "dom"] // Ensure "es2019" or later is included
+    "lib": ["es2019", "dom"] // Ensure "es2019" or later is included
   },
   "include": [
     "src/**/*"

@@ -1,4 +1,4 @@
-import { QueriesClient } from '../../src/cq/queriesClient';
+import { CQClient } from '../../src/cq/CQClient';
 import { Config } from '../../src/client/config';
 import * as pb from '../../src/protos';
 import * as grpc from '@grpc/grpc-js';
@@ -28,7 +28,7 @@ const config: Config = {
 };
 
 // Initialize QueriesClient with the mock gRPC client
-const queriesClient = new QueriesClient(config);
+const queriesClient = new CQClient(config);
 (queriesClient as any).grpcClient = mockGrpcClient;
 
 // Mock utility functions
@@ -68,7 +68,7 @@ describe('QueriesClient Integration Tests', () => {
       cacheTTL: 0,
     };
 
-    const result = await queriesClient.send(message);
+    const result = await queriesClient.sendQueryRequest(message);
     expect(result).toEqual({
       id: '123',
       clientId: 'test-client',
@@ -96,7 +96,7 @@ describe('QueriesClient Integration Tests', () => {
       tags: new Map([['key', 'value']]),
     };
 
-    await expect(queriesClient.response(response)).resolves.toBeUndefined();
+    await expect(queriesClient.sendQueryResponseMessage(response)).resolves.toBeUndefined();
   });
 
   test('subscribe() should handle subscription and reconnect', async () => {
@@ -124,7 +124,7 @@ describe('QueriesClient Integration Tests', () => {
 
     const callback = jest.fn();
 
-    const subscription = await queriesClient.subscribe(request, callback);
+    const subscription = await queriesClient.subscribeToQueries(request, callback);
 
     expect(mockSubscribeToRequests).toHaveBeenCalled();
     expect(callback).toHaveBeenCalled();
@@ -136,7 +136,7 @@ describe('QueriesClient Integration Tests', () => {
 
     const channelName = 'test-channel';
 
-    await expect(queriesClient.create(channelName)).resolves.toBeUndefined();
+    await expect(queriesClient.createQueriesChannel(channelName)).resolves.toBeUndefined();
     expect(mockCreateChannel).toHaveBeenCalledWith(
       mockGrpcClient,
       expect.anything(),
@@ -151,7 +151,7 @@ describe('QueriesClient Integration Tests', () => {
 
     const channelName = 'test-channel';
 
-    await expect(queriesClient.delete(channelName)).resolves.toBeUndefined();
+    await expect(queriesClient.deleteQueriesChannel(channelName)).resolves.toBeUndefined();
     expect(mockDeleteChannel).toHaveBeenCalledWith(
       mockGrpcClient,
       expect.anything(),
@@ -181,7 +181,7 @@ describe('QueriesClient Integration Tests', () => {
 
     const search = 'test';
 
-    const result = await queriesClient.list(search);
+    const result = await queriesClient.listQueriesChannels(search);
 
     expect(result).toEqual(mockChannels);
     expect(mockListCQChannels).toHaveBeenCalledWith(

@@ -7,7 +7,7 @@ const opts: Config = {
 };
 const queuesClient = new QueuesClient(opts);
 async function deleteChannel(channel: string) {
-  return queuesClient.delete(channel);
+  return queuesClient.deleteQueuesChannel(channel);
 }
 
 async function main() {

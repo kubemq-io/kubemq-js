@@ -2,7 +2,7 @@ import { QueuesClient } from '../../src/queues/QueuesClient';
 import { Config } from '../../src/client/config';
 import * as grpc from '@grpc/grpc-js';
 import * as pb from '../../src/protos';
-import { QueueMessage, QueueMessageSendResult, QueuesAckAllMessagesRequest, QueuesAckAllMessagesResponse, QueuesPullPeekMessagesRequest } from '../../src/queues/queuesTypes';
+import { QueueMessage, QueueMessageSendResult, QueuesAckAllMessagesRequest, QueuesPullWaitngMessagesRequest } from '../../src/queues/queuesTypes';
 import { UnaryCallback } from '@grpc/grpc-js/build/src/client';
 
 
@@ -45,7 +45,7 @@ describe('QueuesClient Integration Test', () => {
       body: Buffer.from('test-body'),
     };
 
-    const response = await client.send(message);
+    const response = await client.sendQueuesMessage(message);
     expect(response).toBeDefined();
     expect(response.id).toBe(message.id);
     expect(response.isError).toBe(false);
@@ -63,7 +63,7 @@ describe('QueuesClient Integration Test', () => {
       }
     );
 
-    await expect(client.delete('test-channel')).resolves.toBeUndefined();
+    await expect(client.deleteQueuesChannel('test-channel')).resolves.toBeUndefined();
 
     mockDeleteChannel.mockRestore();
   });
@@ -81,7 +81,7 @@ describe('QueuesClient Integration Test', () => {
       }
     );
 
-    const channels = await client.list('');
+    const channels = await client.listQueuesChannel('');
     expect(channels).toBeDefined();
     expect(channels).toHaveLength(1);
     expect(channels[0].name).toBe('test-channel');
@@ -89,7 +89,7 @@ describe('QueuesClient Integration Test', () => {
     mockListChannels.mockRestore();
   });
 
-  it('should peek queue messages', async () => {
+  it('should waiting queue messages', async () => {
     const mockPeekMessages = jest.spyOn(client.grpcClient as any, 'receiveQueueMessages').mockImplementation(
       (request: any, metadata: any, callback: any) => {
         const response = new pb.kubemq.ReceiveQueueMessagesResponse();
@@ -97,42 +97,24 @@ describe('QueuesClient Integration Test', () => {
         message.MessageID=('test-message-id');
         message.Channel=(request.getChannel());
         response.Messages.push(message);
-        response.IsPeak=(true);
+        response.IsPeak=(false);
         callback(null, response);
       }
     );
 
-    const queuePollRequest: QueuesPullPeekMessagesRequest = {
+    const queuePollRequest: QueuesPullWaitngMessagesRequest = {
         id: 'unique-request-id',
         channel: 'my-channel',
         clientId: 'my-client-id',
         maxNumberOfMessages: 10,
         waitTimeoutSeconds: 30,
       };
-    const messages = await client.peek(queuePollRequest);
+    const messages = await client.waiting(queuePollRequest);
     expect(messages).toBeDefined();
     expect(messages).toHaveLength(1);
     expect(messages[0].id).toBe('test-message-id');
 
     mockPeekMessages.mockRestore();
-  });
-
-  it('should acknowledge all queue messages', async () => {
-    const mockAckAllMessages = jest.spyOn(client.grpcClient as any, 'ackAllQueueMessages').mockImplementation(
-      (request: any, metadata:any, callback: any) => {
-        const response = new pb.kubemq.Response();
-        response.Executed=(true);
-        callback(null, response);
-      }
-    );
-
-    const ack: QueuesAckAllMessagesRequest = {
-        clientId: 'test-client',
-        channel: 'test-channel',
-        waitTimeoutSeconds: 0
-    };
-    await expect(client.ackAll(ack)).resolves.toBeUndefined();
-    mockAckAllMessages.mockRestore();
   });
 
   it('should receive queue messages', async () => {
@@ -148,7 +130,7 @@ describe('QueuesClient Integration Test', () => {
       }
     );
 
-    const pullQueueMessageRequest: QueuesPullPeekMessagesRequest = {
+    const pullQueueMessageRequest: QueuesPullWaitngMessagesRequest = {
         id: 'unique-request-id',
         channel: 'my-channel',
         clientId: 'my-client-id',

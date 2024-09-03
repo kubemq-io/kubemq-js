@@ -1,13 +1,13 @@
-import { Config, Utils, QueriesClient } from '../../../src';
+import { Config, Utils, CQClient } from '../../../src';
 
 const opts: Config = {
   address: 'localhost:50000',
   clientId: Utils.uuid(),
   reconnectInterval: 1000,
 };
-const queriesClient = new QueriesClient(opts);
+const queriesClient = new CQClient(opts);
 async function create(channel: string) {
-  return queriesClient.create(channel);
+  return queriesClient.createQueriesChannel(channel);
 }
 
 async function main() {

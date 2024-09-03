@@ -7,7 +7,7 @@ const opts: Config = {
 };
 const queuesClient = new QueuesClient(opts);
 async function create(channel: string) {
-  return queuesClient.create(channel);
+  return queuesClient.createQueuesChannel(channel);
 }
 
 async function main() {

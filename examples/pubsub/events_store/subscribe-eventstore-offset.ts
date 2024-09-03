@@ -1,15 +1,15 @@
-import { Config, EventsStoreClient, EventStoreType, Utils } from '../../../src';
+import { Config, PubsubClient as PubsubClient, EventStoreType, Utils } from '../../../src';
 
 async function main() {
   const opts: Config = {
     address: 'localhost:50000',
     clientId: Utils.uuid(),
   };
-  const eventsStoreClient = new EventsStoreClient(opts);
+  const eventsStoreClient = new PubsubClient(opts);
   const channel = Utils.uuid();
   for (let i = 0; i < 10; i++) {
     await eventsStoreClient
-      .send({
+      .sendEventStoreMessage({
         channel: channel,
         body: Utils.stringToBytes(`event store message - ${i + 1}`),
       })
@@ -19,7 +19,7 @@ async function main() {
 
   //get messages from start
   await eventsStoreClient
-    .subscribe(
+    .subscribeToEventsStore(
       {
         channel: channel,
         clientId: 'subscriber-from-start',
@@ -43,7 +43,7 @@ async function main() {
 
   // get messages from seq 5
   await eventsStoreClient
-    .subscribe(
+    .subscribeToEventsStore(
       {
         channel: channel,
         clientId: 'subscriber-at-sequence',
@@ -67,7 +67,7 @@ async function main() {
     });
   //get messages from last
   await eventsStoreClient
-    .subscribe(
+    .subscribeToEventsStore(
       {
         channel: channel,
         clientId: 'subscriber-from-last',
@@ -89,7 +89,7 @@ async function main() {
 
   // starts from 3 seconds ago
   await eventsStoreClient
-    .subscribe(
+    .subscribeToEventsStore(
       {
         channel: channel,
         clientId: 'subscriber-from-delta',
@@ -113,7 +113,7 @@ async function main() {
     });
   // starts from time
   await eventsStoreClient
-    .subscribe(
+    .subscribeToEventsStore(
       {
         channel: channel,
         clientId: 'subscriber-from-time',

@@ -1,13 +1,13 @@
-import { Config, Utils, EventsClient } from '../../../src';
+import { Config, Utils, PubsubClient } from '../../../src';
 
 const opts: Config = {
   address: 'localhost:50000',
   clientId: Utils.uuid(),
   reconnectInterval: 1000,
 };
-const eventsClient = new EventsClient(opts);
+const pubsubClient = new PubsubClient(opts);
 async function deleteChannel(channel: string) {
-  return eventsClient.delete(channel);
+  return pubsubClient.deleteEventsChannel(channel);
 }
 
 async function main() {
