@@ -1,16 +1,16 @@
-import { Config, Utils, CommandsClient, CommandsReceiveMessage } from '../../../src';
+import { Config, Utils, CQClient, CommandsReceiveMessage } from '../../../src';
 
 const opts: Config = {
   address: 'localhost:50000',
   clientId: Utils.uuid(),
   reconnectInterval: 1000,
 };
-const commandsClient = new CommandsClient(opts);
+const cqClient = new CQClient(opts);
 
 async function sender() {
   for (let i = 0; i < 10; i++) {
-    commandsClient
-      .send({
+    cqClient
+      .sendCommandRequest({
         channel: 'commands',
         body: Utils.stringToBytes('data'),
         timeout: 10000,
@@ -28,8 +28,8 @@ async function receiver() {
     }
     if (msg) {
       console.log(msg);
-      commandsClient
-        .response({
+      cqClient
+        .sendCommandResponseMessage({
           executed: true,
           error: '',
           replyChannel: msg.replyChannel,
@@ -40,8 +40,8 @@ async function receiver() {
         .catch((reason) => console.log(reason));
     }
   };
-  commandsClient
-    .subscribe(
+  cqClient
+    .subscribeToCommands(
       {
         channel: 'commands',
       },

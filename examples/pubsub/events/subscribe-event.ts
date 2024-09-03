@@ -1,13 +1,13 @@
-import { EventsClient, Utils, Config } from '../../../src';
+import { PubsubClient, Utils, Config } from '../../../src';
 
 async function main() {
   const opts: Config = {
     address: 'localhost:50000',
     clientId: Utils.uuid(),
   };
-  const eventsClient = new EventsClient(opts);
-  await eventsClient
-    .subscribe(
+  const pubsubClient = new PubsubClient(opts);
+  await pubsubClient
+    .subscribeToEvents(
       {
         channel: 'events.A',
         clientId: 'SubscriberA',
@@ -26,8 +26,8 @@ async function main() {
       console.log(reason);
     });
 
-  await eventsClient
-    .subscribe(
+  await pubsubClient
+    .subscribeToEvents(
       {
         channel: 'events.B',
         clientId: 'SubscriberB',
@@ -49,7 +49,7 @@ async function main() {
   await new Promise((r) => setTimeout(r, 2000));
 
   for (let i = 0; i < 10; i++) {
-    await eventsClient.send({
+    await pubsubClient.sendEventsMessage({
       channel: 'events.A;events.B',
       body: Utils.stringToBytes('event message'),
     });

@@ -7,7 +7,7 @@ const opts: Config = {
 };
 const queuesClient = new QueuesClient(opts);
 async function list(search: string) {
-  const channels = await queuesClient.list(search);
+  const channels = await queuesClient.listQueuesChannel(search);
   console.log(channels);
 }
 

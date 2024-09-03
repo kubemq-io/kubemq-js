@@ -1,13 +1,13 @@
-import { Config, EventsStoreClient, EventStoreType, Utils } from '../../../src';
+import { Config, PubsubClient, EventStoreType, Utils } from '../../../src';
 
 async function main() {
   const opts: Config = {
     address: 'localhost:50000',
     clientId: Utils.uuid(),
   };
-  const eventsStoreClient = new EventsStoreClient(opts);
-  await eventsStoreClient
-    .subscribe(
+  const pubsubClient = new PubsubClient(opts);
+  await pubsubClient
+    .subscribeToEventsStore(
       {
         channel: 'events_store.A',
         group: 'g1',
@@ -28,8 +28,8 @@ async function main() {
       console.log(reason);
     });
 
-  await eventsStoreClient
-    .subscribe(
+  await pubsubClient
+    .subscribeToEventsStore(
       {
         channel: 'events_store.B',
         group: 'g1',
@@ -53,7 +53,7 @@ async function main() {
   await new Promise((r) => setTimeout(r, 2000));
 
   for (let i = 0; i < 10; i++) {
-    await eventsStoreClient.send({
+    await pubsubClient.sendEventStoreMessage({
       channel: 'events_store.A;events_store.B',
       body: Utils.stringToBytes('event message'),
     });
