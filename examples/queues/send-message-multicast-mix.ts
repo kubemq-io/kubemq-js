@@ -1,5 +1,5 @@
 import {
-  EventsClient,
+  PubsubClient,
   Utils,
   Config,
   EventsStoreClient,
@@ -12,9 +12,9 @@ async function main() {
     address: 'localhost:50000',
     clientId: Utils.uuid(),
   };
-  const eventsClient = new EventsClient(opts);
+  const eventsClient = new PubsubClient(opts);
   await eventsClient
-    .subscribe(
+    .subscribeToEvents(
       {
         channel: 'e1',
         clientId: 'Events-Subscriber',
@@ -34,7 +34,7 @@ async function main() {
     });
   const eventsStoreClient = new EventsStoreClient(opts);
   await eventsStoreClient
-    .subscribe(
+    .subscribeToEventsStore(
       {
         channel: 'es1',
         clientId: 'Events-Store-Subscriber',
@@ -70,7 +70,7 @@ async function main() {
       console.error(reason);
     });
   await new Promise((r) => setTimeout(r, 2000));
-  await queuesClient.send({
+  await queuesClient.sendQueuesMessage({
     channel: 'q1;events:e1;events_store:es1',
     body: Utils.stringToBytes('event store multicast message'),
   });

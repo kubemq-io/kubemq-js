@@ -1,8 +1,7 @@
 import {
-  EventsClient,
+  PubsubClient,
   Utils,
   Config,
-  EventsStoreClient,
   EventStoreType,
   QueuesClient,
 } from '../../../src';
@@ -12,9 +11,9 @@ async function main() {
     address: 'localhost:50000',
     clientId: Utils.uuid(),
   };
-  const eventsClient = new EventsClient(opts);
-  await eventsClient
-    .subscribe(
+  const pubsubClient = new PubsubClient(opts);
+  await pubsubClient
+    .subscribeToEvents(
       {
         channel: 'e1',
         clientId: 'Events-Subscriber',
@@ -32,9 +31,9 @@ async function main() {
     .catch((reason) => {
       console.log(reason);
     });
-  const eventsStoreClient = new EventsStoreClient(opts);
-  await eventsStoreClient
-    .subscribe(
+
+  await pubsubClient
+    .subscribeToEventsStore(
       {
         channel: 'es1',
         clientId: 'Events-Store-Subscriber',
@@ -70,7 +69,7 @@ async function main() {
       console.error(reason);
     });
   await new Promise((r) => setTimeout(r, 2000));
-  await eventsClient.send({
+  await pubsubClient.sendEventsMessage({
     channel: 'e1;events_store:es1;queues:q1',
     body: Utils.stringToBytes('event multicast message'),
   });

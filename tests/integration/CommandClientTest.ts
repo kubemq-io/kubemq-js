@@ -1,4 +1,4 @@
-import { CommandsClient } from '../../src/cq/commandsClient';
+import { CQClient } from '../../src/cq/CQClient';
 import { CQChannel } from '../../src/common/channel_stats';
 import { Config } from '../../src/client/config';
 import { CommandsMessage, CommandsReceiveMessageCallback, CommandsSubscriptionRequest } from '../../src/cq/commandTypes';
@@ -79,14 +79,14 @@ class MockClientReadableStream extends EventEmitter implements grpc.ClientReadab
 
 
 describe('CommandsClient Integration Test', () => {
-  let client: CommandsClient;
+  let client: CQClient;
   
   beforeAll(() => {
     const config: Config = {
       address: 'localhost:50000',
       clientId: 'test-client',
     };
-    client = new CommandsClient(config);
+    client = new CQClient(config);
   });
 
   it('should send a command message and receive a response', async () => {
@@ -121,7 +121,7 @@ describe('CommandsClient Integration Test', () => {
       timeout: 5000,
     };
   
-    const response = await client.send(message);
+    const response = await client.sendCommandRequest(message);
     expect(response).toBeDefined();
     expect(response.id).toBe(message.id);
     expect(response.clientId).toBe(message.clientId);
@@ -154,7 +154,7 @@ describe('CommandsClient Integration Test', () => {
     };
   
     const callback = jest.fn();
-    const subscription = await client.subscribe(subscriptionRequest, callback);
+    const subscription = await client.subscribeToCommands(subscriptionRequest, callback);
   
     // Wait for a short time to ensure the message is received
     await new Promise((resolve) => setTimeout(resolve, 200));
@@ -184,7 +184,7 @@ describe('CommandsClient Integration Test', () => {
       }
     );
 
-    await expect(client.create('test-channel')).resolves.toBeUndefined();
+    await expect(client.createCommandsChannel('test-channel')).resolves.toBeUndefined();
 
     mockCreateChannel.mockRestore();
   });
@@ -198,7 +198,7 @@ describe('CommandsClient Integration Test', () => {
       }
     );
 
-    await expect(client.delete('test-channel')).resolves.toBeUndefined();
+    await expect(client.deleteCommandsChannel('test-channel')).resolves.toBeUndefined();
 
     mockDeleteChannel.mockRestore();
   });
@@ -216,7 +216,7 @@ describe('CommandsClient Integration Test', () => {
       }
     );
   
-    const channels = await client.list('');
+    const channels = await client.listCommandsChannels('');
     expect(channels).toBeDefined();
     expect(channels).toHaveLength(1);
     expect(channels[0].name).toBe('test-channel');
