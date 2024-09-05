@@ -55,7 +55,6 @@ export class KubeMQClient {
   protected pingTimeoutInSeconds: number;
   protected logLevel: string;
   public grpcClient: kubemq.kubemq.kubemqClient;
-  protected channel: grpc.Channel;
   private metadata: grpc.Metadata;
 
   constructor(config: Config) {
@@ -95,7 +94,7 @@ export class KubeMQClient {
       'grpc.keepalive_permit_without_calls': this.keepAlive ? 1 : 0
     };
 
-    this.channel = new grpc.Channel(this.address, channelCredentials, channelOptions);
+    //this.channel = new grpc.Channel(this.address, channelCredentials, channelOptions);
     this.grpcClient = new kubemq.kubemq.kubemqClient(this.address,channelCredentials,channelOptions);
     this.metadata = new grpc.Metadata();
     if (this.authToken != null) {
@@ -128,7 +127,7 @@ export class KubeMQClient {
   }
 
   public close(): void {
-    this.channel.close();
+    this.grpcClient.close();
   }
 
   public getMetadata(): grpc.Metadata {

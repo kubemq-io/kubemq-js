@@ -30,7 +30,7 @@ export function createChannel(
   pbtags.set('client_id', clientId);
   pbMessage.Timeout=(10000);
   return new Promise<void>((resolve, reject) => {
-    client.sendRequest(pbMessage, md, (e) => {
+    client.SendRequest(pbMessage, md, (e) => {
       if (e) {
         reject(e);
         return;
@@ -59,7 +59,7 @@ export function deleteChannel(
   pbtags.set('client_id', clientId);
   pbMessage.Timeout=(10000);
   return new Promise<void>((resolve, reject) => {
-    client.sendRequest(pbMessage, md, (e) => {
+    client.SendRequest(pbMessage, md, (e) => {
       if (e) {
         reject(e);
         return;
@@ -88,7 +88,7 @@ export function listPubSubChannels(
   pbtags.set('channel_search', search);
   pbMessage.Timeout=(10000);
   return new Promise<PubSubChannel[]>((resolve, reject) => {
-    client.sendRequest(pbMessage, md, (e, data) => {
+    client.SendRequest(pbMessage, md, (e, data) => {
       if (e) {
         reject(e);
         return;
@@ -97,11 +97,11 @@ export function listPubSubChannels(
         reject(new Error('no data'));
         return;
       }
-      if (data.getBody() === null) {
+      if (data.Body === null) {
         resolve([]);
         return;
       }
-      const channels = decodePubSubChannelList(data.getBody_asU8());
+      const channels = decodePubSubChannelList(data.Body);
       resolve(channels);
     });
   });
@@ -126,7 +126,7 @@ export function listQueuesChannels(
   pbtags.set('channel_search', search);
   pbMessage.Timeout=(10000);
   return new Promise<QueuesChannel[]>((resolve, reject) => {
-    client.sendRequest(pbMessage, md, (e, data) => {
+    client.SendRequest(pbMessage, md, (e, data) => {
       if (e) {
         reject(e);
         return;
@@ -135,11 +135,11 @@ export function listQueuesChannels(
         reject(new Error('no data'));
         return;
       }
-      if (data.getBody() === null) {
+      if (data.Body === null) {
         resolve([]);
         return;
       }
-      const channels = decodeQueuesChannelList(data.getBody_asU8());
+      const channels = decodeQueuesChannelList(data.Body);
       resolve(channels);
     });
   });
@@ -164,7 +164,7 @@ export function listCQChannels(
   pbtags.set('channel_search', search);
   pbMessage.Timeout=(10000);
   return new Promise<CQChannel[]>((resolve, reject) => {
-    client.sendRequest(pbMessage, md, (e, data) => {
+    client.SendRequest(pbMessage, md, (e, data) => {
       if (e) {
         reject(e);
         return;
@@ -173,11 +173,11 @@ export function listCQChannels(
         reject(new Error('no data'));
         return;
       }
-      if (data.getBody() === null) {
+      if (data.Body === null) {
         resolve([]);
         return;
       }
-      const channels = decodeCQChannelList(data.getBody_asU8());
+      const channels = decodeCQChannelList(data.Body);
       resolve(channels);
     });
   });
