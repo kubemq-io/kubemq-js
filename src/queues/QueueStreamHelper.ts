@@ -12,13 +12,14 @@ export class QueueStreamHelper {
     public async sendMessage(kubeMQClient: KubeMQClient, queueMessage: pb.kubemq.QueuesUpstreamRequest): Promise<QueueMessageSendResult> {
         return new Promise<QueueMessageSendResult>((resolve, reject) => {
             if (!this.queuesUpStreamHandler) {
-               
-                // Initiate a separate readable stream for receiving responses
-                const responseStream: grpc.ClientReadableStream<pb.kubemq.QueuesUpstreamResponse> = kubeMQClient.grpcClient.queuesUpstream();
-
-                responseStream.on('data', (messageReceive: pb.kubemq.QueuesUpstreamResponse) => {
+                // Initiate the duplex stream for both sending and receiving messages
+                const duplexStream: grpc.ClientDuplexStream<pb.kubemq.QueuesUpstreamRequest, pb.kubemq.QueuesUpstreamResponse> =
+                    kubeMQClient.grpcClient.QueuesUpstream();
+    
+                // Listen for data (responses from the server)
+                duplexStream.on('data', (messageReceive: pb.kubemq.QueuesUpstreamResponse) => {
                     console.log(`QueuesUpstreamResponse Received: ${messageReceive}`);
-
+    
                     if (!messageReceive.IsError) {
                         const qsr: QueueMessageSendResult = {
                             id: messageReceive.Results[0].MessageID || '',
@@ -41,8 +42,9 @@ export class QueueStreamHelper {
                         resolve(qsr);
                     }
                 });
-
-                responseStream.on('error', (err: grpc.ServiceError) => {
+    
+                // Handle stream errors
+                duplexStream.on('error', (err: grpc.ServiceError) => {
                     console.error('Error in QueuesUpstreamResponse:', err);
                     const qpResp: QueueMessageSendResult = {
                         id: '',
@@ -54,60 +56,63 @@ export class QueueStreamHelper {
                     };
                     reject(qpResp);
                 });
-
-                responseStream.on('end', () => {
+    
+                duplexStream.on('end', () => {
                     console.log('QueuesUpstreamResponse stream ended.');
                 });
-
-                // Initiate the writable stream for sending requests
-                this.queuesUpStreamHandler = kubeMQClient.grpcClient.queuesUpstream(responseStream);
+    
+                // Assign duplexStream as the handler for future messages
+                this.queuesUpStreamHandler = duplexStream;
             }
-
-            // Write the message to the writable stream
+    
+            // Write the message to the duplex stream (sending the request)
             if (this.queuesUpStreamHandler) {
                 this.queuesUpStreamHandler.write(queueMessage);
             }
         });
     }
-
+    
+    
     public async receiveMessage(kubeMQClient: KubeMQClient, queuesPollRequest: pb.kubemq.QueuesDownstreamRequest): Promise<QueuesMessagesPulledResponse> {
         return new Promise<QueuesMessagesPulledResponse>((resolve, reject) => {
             if (!this.queuesDownstreamHandler) {
-
-                const request: grpc.ClientReadableStream<pb.kubemq.QueuesDownstreamResponse> = kubeMQClient.grpcClient.queuesDownstream();
-
-                request.on('data', (messageReceive: pb.kubemq.QueuesDownstreamResponse) => {
+                // Initiate the duplex stream for both sending and receiving messages
+                const duplexStream: grpc.ClientDuplexStream<pb.kubemq.QueuesDownstreamRequest, pb.kubemq.QueuesDownstreamResponse> = 
+                    kubeMQClient.grpcClient.QueuesDownstream();
+    
+                // Listen for responses (data) from the server
+                duplexStream.on('data', (messageReceive: pb.kubemq.QueuesDownstreamResponse) => {
                     console.log(`QueuesDownstreamResponse Received: ${messageReceive}`);
                     const qpResp: QueuesMessagesPulledResponse = {
                         id: messageReceive.RefRequestId,
                         messages: [],
                         messagesReceived: messageReceive.Messages.length,
-                        messagesExpired: 0, // Assuming you need to calculate or assign this value based on your business logic
-                        isPeek: false, // Assuming a default value, you may need to adjust this based on your logic
+                        messagesExpired: 0, // You may need to adjust this based on your logic
+                        isPeek: false, // Adjust based on your logic
                         isError: messageReceive.IsError,
-                        error: messageReceive.Error,
+                        error: messageReceive.Error || '',
                     };
-
-                    // Push decoded messages into the `messages` array
+    
+                    // Decode the received messages and push them to the `messages` array
                     for (const qm of messageReceive.Messages) {
-                          
                         qpResp.messages.push(
                             QueueMessageReceived.decode(
-                            qm, 
-                            qpResp.id, // assuming this as transactionId (adjust if necessary)
-                            false, // assuming `isTransactionCompleted` (adjust if necessary)
-                            '', // assuming `receiverClientId` (adjust if necessary)
-                            this.queuesDownstreamHandler
-                        )
+                                qm,
+                                qpResp.id, // Assuming this as transactionId (adjust if necessary)
+                                false, // Assuming `isTransactionCompleted` (adjust if necessary)
+                                '', // Assuming `receiverClientId` (adjust if necessary)
+                                this.queuesDownstreamHandler
+                            )
                         );
                     }
-
+    
                     resolve(qpResp);
                 });
-
-                request.on('error', (err: grpc.ServiceError) => {
+    
+                // Handle errors from the server
+                duplexStream.on('error', (err: grpc.ServiceError) => {
                     console.error('Error in QueuesDownstreamResponse:', err);
-                    const qpResp: QueuesPullWaitingMessagesResponse = {
+                    const qpResp: QueuesMessagesPulledResponse = {
                         id: '',
                         messages: [],
                         messagesReceived: 0,
@@ -118,15 +123,21 @@ export class QueueStreamHelper {
                     };
                     reject(qpResp);
                 });
-
-                request.on('end', () => {
+    
+                // Handle end of the stream
+                duplexStream.on('end', () => {
                     console.log('QueuesDownstreamResponse stream ended.');
                 });
-
-                this.queuesDownstreamHandler =  kubeMQClient.grpcClient.queuesDownstream(request);
+    
+                // Assign duplexStream to handle future messages
+                this.queuesDownstreamHandler = duplexStream;
             }
-
-            this.queuesDownstreamHandler.write(queuesPollRequest);
+    
+            // Write the request to the duplex stream (sending the request)
+            if (this.queuesDownstreamHandler) {
+                this.queuesDownstreamHandler.write(queuesPollRequest);
+            }
         });
     }
+    
 }
