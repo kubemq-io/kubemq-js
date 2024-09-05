@@ -97,7 +97,7 @@ Once you check out the code from GitHub, you can build it using Node & Typescrip
 
 ``` bash
 
-npx  path/to/example_file.ts
+npx tsc path/to/example_file.ts
 
 Example:
 
@@ -105,7 +105,10 @@ npx  tsc  examples/cq/commnds/create.ts
 
 ```
 
-Above command will compile the .ts file and produce the .js file in same directory where .ts file is, To run the compiled JavaScript file use below command .
+Above command will compile the .ts file and produce the .js file in same directory where .ts file is, If you use the `npm run build` it will generate the js files
+in dist folder `dist/examples` 
+
+To run the compiled JavaScript file use below command .
 
 ```bash
 
