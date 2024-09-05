@@ -9,7 +9,7 @@ async function main() {
   
   //Send to single channel
   await queuesClient
-    .send({
+    .sendQueuesMessage({
       channel: 'queues.single',
       body: Utils.stringToBytes('queue message'),
     })
@@ -18,34 +18,12 @@ async function main() {
 
     // Send to multiple channel
     await queuesClient
-    .send({
+    .sendQueuesMessage({
       channel: 'queues.A;queues.B',
       body: Utils.stringToBytes('queue message'),
     })
     .then((result) => console.log(result))
     .catch((reason) => console.error(reason));
-
-  queuesClient
-    .subscribe(
-      {
-        channel: 'queues.single',
-        maxNumberOfMessages: 1,
-        waitTimeoutSeconds: 5,
-      },
-      (err, response) => {
-        if (err) {
-          console.log(err);
-          return;
-        }
-        response.messages.forEach((msg) => {
-          console.log(msg);
-        });
-      },
-    )
-    .then(async (resp) => {
-      await new Promise((r) => setTimeout(r, 500000));
-      resp.unsubscribe();
-    });
 }
 
 main();

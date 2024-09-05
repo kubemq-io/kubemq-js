@@ -1,13 +1,12 @@
 import * as pb from '../protos';
 import * as grpc from '@grpc/grpc-js';
 import { Config } from '../client/config';
-import { KubeMQClient,TypedEvent } from '../client/KubeMQClient';
+import { KubeMQClient } from '../client/KubeMQClient';
 import { createChannel, deleteChannel, listQueuesChannels } from '../common/common';
 import { QueuesChannel } from '../common/channel_stats';
 import { Utils } from '../common/utils';
-import { QueueMessage, QueueMessageReceived, QueueMessageSendResult, QueuesAckAllMessagesRequest, QueuesAckAllMessagesResponse, QueuesMessageAttributes, QueuesMessagesPulledResponse, QueuesPullWaitngMessagesRequest, QueuesPullWaitingMessagesResponse, QueuesSubscribeMessagesCallback, QueuesSubscribeMessagesRequest, QueuesSubscribeMessagesResponse, QueueTransactionRequest, QueueTransactionSubscriptionResponse } from './queuesTypes';
+import { QueueMessage, QueueMessageSendResult, QueuesMessageAttributes, QueuesMessagesPulledResponse, QueuesPullWaitngMessagesRequest, QueuesPullWaitingMessagesResponse} from './queuesTypes';
 import { QueueStreamHelper } from './QueueStreamHelper';
-import { v4 as uuidv4 } from 'uuid';
 
 /**
  * @internal
@@ -134,7 +133,7 @@ return pbMessage;
    sendQueuesMessage(msg: QueueMessage): Promise<QueueMessageSendResult> {
     return new Promise<QueueMessageSendResult>((resolve, reject) => {
         // Generate a unique RequestID for the request
-        const requestId = uuidv4();
+        const requestId = Utils.uuid();
 
         // Create an instance of QueuesUpstreamRequest with the generated RequestID and the message
         const qur = new pb.kubemq.QueuesUpstreamRequest({
@@ -168,8 +167,7 @@ return pbMessage;
     receiveQueuesMessages(msg: QueuesPullWaitngMessagesRequest): Promise<QueuesMessagesPulledResponse> {
       return new Promise<QueuesMessagesPulledResponse>((resolve, reject) => {
           // Generate a unique RequestID for the request
-          const requestId = uuidv4();
-  
+          const requestId = Utils.uuid();
           // Create an instance of QueuesDownstreamRequest with the generated RequestID and the message
           const qur = new pb.kubemq.QueuesDownstreamRequest({
               RequestID: requestId,
@@ -233,7 +231,7 @@ return pbMessage;
       pbPullSubRequest.WaitTimeSeconds=(request.waitTimeoutSeconds ? request.waitTimeoutSeconds : 0);
       pbPullSubRequest.IsPeak=(isPeek);
       return new Promise<QueuesPullWaitingMessagesResponse>((resolve, reject) => {
-        this.grpcClient.receiveQueueMessages(
+        this.grpcClient.ReceiveQueueMessages(
           pbPullSubRequest,
           this.getMetadata(),
           (e, response) => {
@@ -242,17 +240,17 @@ return pbMessage;
               return;
             }
             const respMessages: QueueMessage[] = [];
-            response.getMessagesList().forEach((msg) => {
+            response.Messages.forEach((msg) => {
               respMessages.push(fromPbQueueMessage(msg));
             });
             resolve({
-              id: response.getRequestid(),
+              id: response.RequestID,
               messages: respMessages,
-              error: response.getError(),
-              isError: response.getIserror(),
+              error: response.Error,
+              isError: response.IsError,
               isPeek: isPeek,
-              messagesExpired: response.getMessagesexpired(),
-              messagesReceived: response.getMessagesreceived(),
+              messagesExpired: response.MessagesExpired,
+              messagesReceived: response.MessagesReceived,
             });
           },
         );

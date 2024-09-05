@@ -16,13 +16,12 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("./client/KubeMQClient"), exports);
 __exportStar(require("./client/config"), exports);
-__exportStar(require("./pubsub/eventClient"), exports);
+__exportStar(require("./pubsub/PubsubClient"), exports);
 __exportStar(require("./pubsub/eventTypes"), exports);
-__exportStar(require("./queues/queuesClient"), exports);
+__exportStar(require("./queues/QueuesClient"), exports);
 __exportStar(require("./queues/queuesTypes"), exports);
-__exportStar(require("./cq/commandsClient"), exports);
+__exportStar(require("./cq/CQClient"), exports);
 __exportStar(require("./cq/commandTypes"), exports);
-__exportStar(require("./cq/queriesClient"), exports);
 __exportStar(require("./cq/queryTypes"), exports);
 __exportStar(require("./client/config"), exports);
 __exportStar(require("./client/KubeMQClient"), exports);

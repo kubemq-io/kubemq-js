@@ -2,7 +2,6 @@ import {
   PubsubClient,
   Utils,
   Config,
-  EventsStoreClient,
   EventStoreType,
   QueuesClient,
 } from '../../src';
@@ -32,13 +31,14 @@ async function main() {
     .catch((reason) => {
       console.log(reason);
     });
-  const eventsStoreClient = new EventsStoreClient(opts);
+  const eventsStoreClient = new PubsubClient(opts);
   await eventsStoreClient
     .subscribeToEventsStore(
       {
         channel: 'es1',
         clientId: 'Events-Store-Subscriber',
         requestType: EventStoreType.StartFromFirst,
+        requestTypeValue: 2,
       },
       (err, msg) => {
         if (err) {

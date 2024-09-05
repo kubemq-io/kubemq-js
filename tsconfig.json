@@ -23,7 +23,8 @@
     "lib": ["es2019", "dom"] // Ensure "es2019" or later is included
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "examples/**/*.ts"        // Include the examples folder
   ],
   "exclude": [
     "node_modules",              // Optionally exclude node_modules
