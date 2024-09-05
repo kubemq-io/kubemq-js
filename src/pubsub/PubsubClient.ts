@@ -71,7 +71,7 @@ export class PubsubClient extends KubeMQClient {
         }
         pbMessage.Store=(false);
         return new Promise<EventsSendResult>((resolve, reject) => {
-            this.grpcClient.sendEvent(
+            this.grpcClient.SendEvent(
                 pbMessage,
                 this.getMetadata(),
                 this.callOptions(),
@@ -104,7 +104,7 @@ export class PubsubClient extends KubeMQClient {
         }
         pbMessage.Store=(true);
         return new Promise<EventsStoreSendResult>((resolve, reject) => {
-            this.grpcClient.sendEvent(
+            this.grpcClient.SendEvent(
                 pbMessage,
                 this.getMetadata(),
                 this.callOptions(),
@@ -115,9 +115,9 @@ export class PubsubClient extends KubeMQClient {
                     }
                     if (result != null)
                         resolve({
-                            id: result.getEventid(),
-                            sent: result.getSent(),
-                            error: result.getError(),
+                            id: result.EventID,
+                            sent: result.Sent,
+                            error: result.Error,
                         });
                 },
             );
@@ -201,9 +201,9 @@ export class PubsubClient extends KubeMQClient {
                 pbSubRequest.ClientID=(request.clientId ? request.clientId : this.clientId);
                 pbSubRequest.Group=(request.group ? request.group : '');
                 pbSubRequest.Channel=(request.channel);
-                pbSubRequest.SubscribeTypeData=(1);
+                pbSubRequest.SubscribeTypeData=pb.kubemq.Subscribe.SubscribeType.Events;
 
-                const stream = this.grpcClient.subscribeToEvents(
+                const stream = this.grpcClient.SubscribeToEvents(
                     pbSubRequest,
                     this.getMetadata(),
                 );
@@ -315,14 +315,11 @@ export class PubsubClient extends KubeMQClient {
                 pbSubRequest.ClientID=(request.clientId ? request.clientId : this.clientId);
                 pbSubRequest.Group=(request.group ? request.group : '');
                 pbSubRequest.Channel=(request.channel);
-                pbSubRequest.SubscribeTypeData=(2);
-                //pbSubRequest.EventsStoreTypeData = request.requestType;
-                pbSubRequest.EventsStoreTypeData = pb.kubemq.Subscribe.EventsStoreType[
-                    request.requestType as unknown as keyof typeof EventStoreType as keyof typeof pb.kubemq.Subscribe.EventsStoreType
-                ];
+                pbSubRequest.SubscribeTypeData= pb.kubemq.Subscribe.SubscribeType.EventsStore;
+                pbSubRequest.EventsStoreTypeData = request.requestType as unknown as pb.kubemq.Subscribe.EventsStoreType;
                 pbSubRequest.EventsStoreTypeValue=(request.requestTypeValue);
 
-                const stream = this.grpcClient.subscribeToEvents(
+                const stream = this.grpcClient.SubscribeToEvents(
                     pbSubRequest,
                     this.getMetadata(),
                 );

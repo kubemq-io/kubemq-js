@@ -65,7 +65,7 @@ export class CQClient extends KubeMQClient {
     pbMessage.RequestTypeData= pb.kubemq.Request.RequestType.Command;
 
     return new Promise<CommandsResponse>((resolve, reject) => {
-      this.grpcClient.sendRequest(
+      this.grpcClient.SendRequest(
         pbMessage,
         this.getMetadata(),
         (e, response) => {
@@ -74,11 +74,11 @@ export class CQClient extends KubeMQClient {
             return;
           }
           resolve({
-            id: response.getRequestid(),
-            clientId: response.getClientid(),
-            error: response.getError(),
-            executed: response.getExecuted(),
-            timestamp: response.getTimestamp(),
+            id: response.RequestID,
+            clientId: response.ClientID,
+            error: response.Error,
+            executed: response.Executed,
+            timestamp: response.Timestamp,
           });
         },
       );
@@ -103,7 +103,7 @@ export class CQClient extends KubeMQClient {
     pbMessage.CacheTTL=(msg.cacheTTL ? msg.cacheTTL : 0);
 
     return new Promise<QueriesResponse>((resolve, reject) => {
-      this.grpcClient.sendRequest(
+      this.grpcClient.SendRequest(
         pbMessage,
         this.getMetadata(),
         (e, response) => {
@@ -112,14 +112,14 @@ export class CQClient extends KubeMQClient {
             return;
           }
           resolve({
-            id: response.getRequestid(),
-            clientId: response.getClientid(),
-            error: response.getError(),
-            executed: response.getExecuted(),
-            timestamp: response.getTimestamp(),
-            body: response.getBody(),
-            metadata: response.getMetadata(),
-            tags: response.getTagsMap(),
+            id: response.RequestID,
+            clientId: response.ClientID,
+            error: response.Error,
+            executed: response.Executed,
+            timestamp: response.Timestamp,
+            body: response.Body,
+            metadata: response.Metadata,
+            tags: response.Tags,
           });
         },
       );
@@ -134,7 +134,7 @@ export class CQClient extends KubeMQClient {
     pbMessage.Error=(msg.error);
     pbMessage.Executed=(msg.executed);
     return new Promise<void>((resolve, reject) => {
-      this.grpcClient.sendResponse(pbMessage, this.getMetadata(), (e) => {
+      this.grpcClient.SendResponse(pbMessage, this.getMetadata(), (e) => {
         if (e) {
           reject(e);
           return;
@@ -159,7 +159,7 @@ export class CQClient extends KubeMQClient {
     }
 
     return new Promise<void>((resolve, reject) => {
-      this.grpcClient.sendResponse(pbMessage, this.getMetadata(), (e) => {
+      this.grpcClient.SendResponse(pbMessage, this.getMetadata(), (e) => {
         if (e) {
           reject(e);
           return;
@@ -302,7 +302,7 @@ export class CQClient extends KubeMQClient {
         pbSubRequest.Group=(request.group ? request.group : '');
         pbSubRequest.Channel=(request.channel);
         pbSubRequest.SubscribeTypeData=(3);
-        const stream = this.grpcClient.subscribeToRequests(pbSubRequest, this.getMetadata());
+        const stream = this.grpcClient.SubscribeToRequests(pbSubRequest, this.getMetadata());
 
         stream.on('data', function (data: pb.kubemq.Request) {
           cb(null, {
@@ -399,7 +399,7 @@ export class CQClient extends KubeMQClient {
       pbSubRequest.Channel=(request.channel);
       pbSubRequest.SubscribeTypeData= pb.kubemq.Subscribe.SubscribeType.Queries;
 
-      const stream = this.grpcClient.subscribeToRequests(pbSubRequest, this.getMetadata());
+      const stream = this.grpcClient.SubscribeToRequests(pbSubRequest, this.getMetadata());
 
       stream.on('data', function (data: pb.kubemq.Request) {
         cb(null, {
