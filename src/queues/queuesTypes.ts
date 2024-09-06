@@ -1,4 +1,5 @@
 import { BaseMessage, TypedEvent } from "../client/KubeMQClient";
+import { Utils } from "../common/utils";
 import * as pb from '../protos';
 import * as grpc from '@grpc/grpc-js';
 import { v4 as uuidv4 } from 'uuid';
@@ -240,6 +241,52 @@ export interface QueueMessageSendResult {
   /** indicate sending message reason*/
   error: string;
 }
+
+export class QueuesPollRequest {
+  channel: string;
+  pollMaxMessages: number;
+  pollWaitTimeoutInSeconds: number;
+  autoAckMessages: boolean;
+
+  constructor(data: { 
+      channel: string, 
+      pollMaxMessages?: number, 
+      pollWaitTimeoutInSeconds?: number, 
+      autoAckMessages?: boolean 
+  }) {
+      this.channel = data.channel;
+      this.pollMaxMessages = data.pollMaxMessages ?? 1; // Default to 1 if not provided
+      this.pollWaitTimeoutInSeconds = data.pollWaitTimeoutInSeconds ?? 60; // Default to 60 seconds if not provided
+      this.autoAckMessages = data.autoAckMessages ?? false; // Default to false if not provided
+  }
+
+  validate() {
+      if (!this.channel || this.channel.trim() === "") {
+          throw new Error("Queue subscription must have a channel.");
+      }
+      if (this.pollMaxMessages < 1) {
+          throw new Error("Queue subscription pollMaxMessages must be greater than 0.");
+      }
+      if (this.pollWaitTimeoutInSeconds < 1) {
+          throw new Error("Queue subscription pollWaitTimeoutInSeconds must be greater than 0.");
+      }
+  }
+
+  encode(clientId: string) {
+      this.validate(); // Perform validation before encoding
+
+      return new pb.kubemq.QueuesDownstreamRequest({
+          RequestID: Utils.uuid(), // Generate a random UUID
+          ClientID: clientId,
+          Channel: this.channel,
+          MaxItems: this.pollMaxMessages,
+          WaitTimeout: this.pollWaitTimeoutInSeconds * 1000, // Convert seconds to milliseconds
+          AutoAck: this.autoAckMessages,
+          RequestTypeData: pb.kubemq.QueuesDownstreamRequestType.Get, // Assuming this is the correct type
+      });
+  }
+}
+
 
 /**
  * queue messages pull/peek requests
