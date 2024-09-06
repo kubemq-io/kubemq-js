@@ -15,10 +15,18 @@ async function main() {
 
 
   //Sends an event store message to the configured events store channel.
-  await pubsubClient.sendEventStoreMessage({
+  const result = await pubsubClient.sendEventStoreMessage({
     channel: 'events_store.single',
     body: Utils.stringToBytes('event store message'),
-  });
+  })
+
+  // Print the result
+  console.log('EventsSendResult:', result);
+  console.log(`ID: ${result.id}`);
+  console.log(`Sent: ${result.sent}`);
+  if (result.error) {
+    console.error(`Error: ${result.error}`);
+  }
 
 }
 main();
