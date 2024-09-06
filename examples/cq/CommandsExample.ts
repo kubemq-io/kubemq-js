@@ -1,26 +1,18 @@
-import { Config, Utils, CQClient, CommandsReceiveMessage } from '../../../src';
+import { Config, Utils, CQClient, CommandsReceiveMessage } from '../../src';
 
 const opts: Config = {
   address: 'localhost:50000',
-  clientId: Utils.uuid(),
+  clientId: 'kubeMQClientId-ts',
   reconnectInterval: 1000,
 };
 const cqClient = new CQClient(opts);
 
-async function sender() {
-  for (let i = 0; i < 10; i++) {
-    cqClient
-      .sendCommandRequest({
-        channel: 'commands',
-        body: Utils.stringToBytes('data'),
-        timeout: 10000,
-        clientId: 'commands-sender',
-      })
-      .catch((reason) => console.error(reason));
-  }
-}
+/**
+ * Subscribe to command
+ */
+async function subscribeToCommands(channelName: string) {
 
-async function receiver() {
+  // Consumer for handling received events
   const cb = (err: Error | null, msg: CommandsReceiveMessage) => {
     if (err) {
       console.error(err);
@@ -40,10 +32,11 @@ async function receiver() {
         .catch((reason) => console.log(reason));
     }
   };
-  cqClient
-    .subscribeToCommands(
+
+  
+  cqClient.subscribeToCommands(
       {
-        channel: 'commands',
+        channel: channelName,
       },
       cb,
     )
@@ -52,17 +45,34 @@ async function receiver() {
         console.log(event);
       });
       await new Promise((r) => setTimeout(r, 1000000));
-      value.unsubscribe();
+      //value.unsubscribe();
     })
     .catch((reason) => {
       console.log(reason);
     });
 }
 
+/**
+ * Send Command Request
+ */
+async function sendCommandRequest(channelName: string) {
+  for (let i = 0; i < 10; i++) {
+    cqClient
+      .sendCommandRequest({
+        channel: channelName,
+        body: Utils.stringToBytes('data'),
+        timeout: 10000,
+        clientId: 'commands-sender',
+      })
+      .catch((reason) => console.error(reason));
+  }
+}
+
+
 async function main() {
-  await receiver();
+  await subscribeToCommands('my_commands_channel');
   // wait for receiver
   await new Promise((r) => setTimeout(r, 2000));
-  await sender();
+  await sendCommandRequest('my_commands_channel');
 }
 main();

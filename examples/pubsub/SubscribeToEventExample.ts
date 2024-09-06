@@ -1,4 +1,4 @@
-import { PubsubClient, Utils, Config } from '../../../src';
+import { PubsubClient, Utils, Config, EventStoreType } from '../../src';
 
 async function main() {
   const opts: Config = {
@@ -6,6 +6,8 @@ async function main() {
     clientId: Utils.uuid(),
   };
   const pubsubClient = new PubsubClient(opts);
+
+  //Subscribes to events from the specified channel and processes received events.
   await pubsubClient
     .subscribeToEvents(
       {
@@ -25,32 +27,13 @@ async function main() {
     .catch((reason) => {
       console.log(reason);
     });
-
-  await pubsubClient
-    .subscribeToEvents(
-      {
-        channel: 'events.B',
-        clientId: 'SubscriberB',
-      },
-      (err, msg) => {
-        if (err) {
-          console.error('SubscriberB', err);
-          return;
-        }
-        if (msg) {
-          console.log('SubscriberB', msg);
-        }
-      },
-    )
-    .catch((reason) => {
-      console.log(reason);
-    });
+    
 
   await new Promise((r) => setTimeout(r, 2000));
 
   for (let i = 0; i < 10; i++) {
     await pubsubClient.sendEventsMessage({
-      channel: 'events.A;events.B',
+      channel: 'events.A',
       body: Utils.stringToBytes('event message'),
     });
   }

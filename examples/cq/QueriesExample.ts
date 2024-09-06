@@ -1,26 +1,18 @@
-import { Config, Utils, CQClient } from '../../../src';
+import { Config, Utils, CQClient } from '../../src';
 
 const opts: Config = {
   address: 'localhost:50000',
-  clientId: Utils.uuid(),
+  clientId: 'kubeMQClientId-ts',
   reconnectInterval: 1000,
 };
 const cqClient = new CQClient(opts);
 
-async function sender() {
-  for (let i = 0; i < 10; i++) {
-    cqClient
-      .sendQueryRequest({
-        channel: 'queries',
-        body: Utils.stringToBytes('data'),
-        timeout: 10000,
-        clientId: 'queries-sender',
-      })
-      .catch((reason) => console.error(reason));
-  }
-}
+/**
+ * Subscribe to queries
+ */
+async function subscribeToQueries(channelName: string) {
 
-async function receiver() {
+  // Consumer for handling received events
   const cb = (err: Error | null, msg) => {
     if (err) {
       console.error(err);
@@ -42,10 +34,10 @@ async function receiver() {
         .catch((reason) => console.log(reason));
     }
   };
-  cqClient
-    .subscribeToQueries(
+
+  cqClient.subscribeToQueries(
       {
-        channel: 'queries',
+        channel: channelName,
       },
       cb,
     )
@@ -61,10 +53,26 @@ async function receiver() {
     });
 }
 
+/**
+ * Send query request
+ */
+async function sendQueryRequest(channelName: string) {
+  for (let i = 0; i < 10; i++) {
+    cqClient
+      .sendQueryRequest({
+        channel: channelName,
+        body: Utils.stringToBytes('data'),
+        timeout: 10000,
+        clientId: 'queries-sender',
+      })
+      .catch((reason) => console.error(reason));
+  }
+}
+
 async function main() {
-  await receiver();
+  await subscribeToQueries('my_queries_channel');
   // wait for receiver
   await new Promise((r) => setTimeout(r, 2000));
-  await sender();
+  await sendQueryRequest('my_queries_channel');
 }
 main();
