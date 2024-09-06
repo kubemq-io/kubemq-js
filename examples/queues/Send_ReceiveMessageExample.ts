@@ -1,4 +1,4 @@
-import { Config, QueuesClient, Utils } from '../../src';
+import { Config, QueuesClient, QueuesPollRequest, Utils } from '../../src';
 
 async function main() {
   const opts: Config = {
@@ -12,36 +12,41 @@ async function main() {
     .sendQueuesMessage({
       channel: 'queues.single',
       body: Utils.stringToBytes('queue message'),
+      policy: {expirationSeconds:3600, delaySeconds:1, maxReceiveCount:3, maxReceiveQueue: 'dlq-queues.single'},
     })
     .then((result) => console.log(result))
     .catch((reason) => console.error(reason));
 
-   //Receive Queue Message
-   await queuesClient
-    .receiveQueuesMessages({
-      channel: 'q1',
-      clientId: 'kubeMQClientId-ts',
-      maxNumberOfMessages: 1,
-      waitTimeoutSeconds: 10,
-    })
-    .then((response) => {
-      response.messages.forEach((msg) => {
-        console.log(msg);
-        // Message handling options:
+   //Receive Queue Messagece
+const pollRequest = new QueuesPollRequest({
+  channel: 'queues.single',
+  pollMaxMessages: 1, // Maps to maxNumberOfMessages
+  pollWaitTimeoutInSeconds: 10, // Maps to waitTimeoutSeconds
+  autoAckMessages: false // Optional: add based on your needs
+});
 
-            // 1. Acknowledge message (mark as processed)
-            msg.ack();
+// Use the properties of QueuesPollRequest in the receiveQueuesMessages function
+await queuesClient
+  .receiveQueuesMessages(pollRequest)
+  .then((response) => {
+    console.log(response);
+    response.messages.forEach((msg) => {
+      console.log(msg);
+      // Message handling options:
 
-            // 2. Reject message (won't be requeued)
-            // msg.reject();
+      // 1. Acknowledge message (mark as processed)
+      // msg.ack();
 
-            // 3. Requeue message (send back to queue)
-            // msg.reQueue(channelName);
-      });
-    })
-    .catch((reason) => {
-      console.error(reason);
+      // 2. Reject message (won't be requeued)
+      // msg.reject();
+
+      // 3. Requeue message (send back to queue)
+      // msg.reQueue(channelName);
     });
+  })
+  .catch((reason) => {
+    console.error(reason);
+  });
    
 }
 

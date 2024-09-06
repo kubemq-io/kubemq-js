@@ -82,7 +82,7 @@ export class QueueStreamHelper {
     
                 // Listen for responses (data) from the server
                 duplexStream.on('data', (messageReceive: pb.kubemq.QueuesDownstreamResponse) => {
-                    console.log(`QueuesDownstreamResponse Received: ${messageReceive}`);
+                    console.log(`QueuesDownstreamResponse Received->: ${messageReceive}`);
                     const qpResp: QueuesMessagesPulledResponse = {
                         id: messageReceive.RefRequestId,
                         messages: [],
@@ -98,9 +98,9 @@ export class QueueStreamHelper {
                         qpResp.messages.push(
                             QueueMessageReceived.decode(
                                 qm,
-                                qpResp.id, // Assuming this as transactionId (adjust if necessary)
-                                false, // Assuming `isTransactionCompleted` (adjust if necessary)
-                                '', // Assuming `receiverClientId` (adjust if necessary)
+                                messageReceive.TransactionId, 
+                                messageReceive.TransactionComplete,
+                                '', // Assuming `receiverClientId`
                                 this.queuesDownstreamHandler
                             )
                         );

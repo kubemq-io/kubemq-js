@@ -5,7 +5,7 @@ import { KubeMQClient } from '../client/KubeMQClient';
 import { createChannel, deleteChannel, listQueuesChannels } from '../common/common';
 import { QueuesChannel } from '../common/channel_stats';
 import { Utils } from '../common/utils';
-import { QueueMessage, QueueMessageSendResult, QueuesMessageAttributes, QueuesMessagesPulledResponse, QueuesPullWaitngMessagesRequest, QueuesPullWaitingMessagesResponse} from './queuesTypes';
+import { QueueMessage, QueueMessageSendResult, QueuesMessageAttributes, QueuesMessagesPulledResponse, QueuesPullWaitngMessagesRequest, QueuesPullWaitingMessagesResponse, QueuesPollRequest} from './queuesTypes';
 import { QueueStreamHelper } from './QueueStreamHelper';
 
 /**
@@ -164,21 +164,11 @@ return pbMessage;
      * @param msg
      * @return Promise<QueueMessageSendResult>
      */
-    receiveQueuesMessages(msg: QueuesPullWaitngMessagesRequest): Promise<QueuesMessagesPulledResponse> {
+    receiveQueuesMessages(msg: QueuesPollRequest): Promise<QueuesMessagesPulledResponse> {
       return new Promise<QueuesMessagesPulledResponse>((resolve, reject) => {
-          // Generate a unique RequestID for the request
-          const requestId = Utils.uuid();
-          // Create an instance of QueuesDownstreamRequest with the generated RequestID and the message
-          const qur = new pb.kubemq.QueuesDownstreamRequest({
-              RequestID: requestId,
-              ClientID: this.clientId,
-              Channel: msg.channel,
-              MaxItems: msg.maxNumberOfMessages,
-              WaitTimeout: msg.waitTimeoutSeconds
-          });
-  
+          msg.validate();
           // Use the queueStreamHelper to receive the message
-          this.queueStreamHelper.receiveMessage(this, qur)
+          this.queueStreamHelper.receiveMessage(this, msg.encode(this.clientId))
               .then(response => {
                   // Resolve the promise with the constructed response
                   resolve(response);
