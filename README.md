@@ -1,14 +1,8 @@
 # KubeMQ Node JS/TS SDK
 
-  
-
 The **KubeMQ SDK for NodeJS/TS** enables typescript developers to communicate with [KubeMQ](https://kubemq.io/) server.
 
-  
-
 ## Prerequisites
-
-  
 
 - Node.js (Ensure you have a recent version of Node.js installed)
 
@@ -16,14 +10,11 @@ The **KubeMQ SDK for NodeJS/TS** enables typescript developers to communicate wi
 
 - KubeMQ server running locally or accessible over the network
 
-  
-
 ## Install KubeMQ Community Edition
 
 Please visit [KubeMQ Community](https://github.com/kubemq-io/kubemq-community) for intallation steps.
 
-  
-
+ 
 ## General SDK description
 
 The SDK implements all communication patterns available through the KubeMQ server:
@@ -42,8 +33,6 @@ The SDK implements all communication patterns available through the KubeMQ serve
 
 ### Installing
 
-  
-
 The recommended way to use the SDK for Node in your project is to consume it from Node package manager.
 
 ```
@@ -54,13 +43,11 @@ npm install kubemq-js
 
 ## Running the examples
 
-  
 
 The [examples](https://github.com/kubemq-io/kubemq-js/tree/main/examples)
 
 are standalone projects that showcase the usage of the SDK.
 
-  
 
 To run the examples, you need to have a running instance of KubeMQ.
 
@@ -84,31 +71,22 @@ Directories are:
 
 **queues** directory contains the example related to Queues
 
-  
-  
 
 ## Building from source
 
-  
-
 Once you check out the code from GitHub, you can build it using Node & Typescript.
-
-  
 
 ``` bash
 
-npx tsc path/to/example_file.ts
+npx  path/to/example_file.ts
 
 Example:
 
-npx  tsc  examples/cq/commnds/create.ts
+npx  tsc  examples/cq/CreateExample.ts
 
 ```
 
-Above command will compile the .ts file and produce the .js file in same directory where .ts file is, If you use the `npm run build` it will generate the js files
-in dist folder `dist/examples` 
-
-To run the compiled JavaScript file use below command .
+Above command will compile the .ts file and produce the .js file in same directory where .ts file is, To run the compiled JavaScript file use below command .
 
 ```bash
 
@@ -116,7 +94,7 @@ node  path/to/example_file.js
 
 Example:
 
-node  examples/cq/commnds/create.js
+node  examples/cq/CreateExample.ts
 
 ```
 
@@ -142,47 +120,22 @@ Below examples demonstrating the usage of KubeMQ PubSub (Event and EventStore) c
 
 ## File Structure
 
-  
-
 #### Event
 
--  `pubsub\events\create.ts`: Demonstrates creating event channels.
+-  `pubsub\CreateChannelExample.ts`: Demonstrates creating event channels.
 
--  `pubsub\events\delete.ts`: Demonstrates deleting event channels.
+-  `pubsub\DeleteChannelExample.ts`: Demonstrates deleting event channels.
 
--  `pubsub\events\list.ts`: Demonstrates listing event channels.
+-  `pubsub\ListEventsChanneExample.ts`: Demonstrates listing event channels.
 
--  `pubsub\events\send-message-multicast-mix.ts`: Demonstrates subscribing to event, eventStore & queues channel and sending message to these channel.
+-  `pubsub\SendEventMessageExample.ts`: Demonstrates to send message to single event & event-store event channel
 
--  `pubsub\events\send-message.ts`: Demonstrates to send a single message to single channel & multiple event channel
+-  `pubsub\SubscribeToEventExample.ts`: Demonstrates Subscribe to event channel
 
--  `pubsub\events\subscribe-event.ts`: Demonstrates Subscribe to single channel
+-  `pubsub\SubscribeToEventStoreExample.ts` Demonstrates example of subscribing event-store channel.
 
--  `pubsub\events\wildcard.ts` Demonstrates example of subscribing the channel using wildcard characters and sending message .
-
-  
-
-#### EventStore
-
--  `pubsub\events\create.ts`: Demonstrates creating event store channels.
-
--  `pubsub\events\delete.ts`: Demonstrates deleting event store channels.
-
--  `pubsub\events\list.ts`: Demonstrates listing event store channels.
-
--  `pubsub\events\send-message-multicast-mix.ts`: Demonstrates subscribing to event, eventStore & queues channel and sending message to these channel.
-
--  `pubsub\events\send-message.ts`: Demonstrates to send a single message to multiple event channel
-
--  `pubsub\events\subscribe-eventstore.ts`: Demonstrates Subscribe to single channel
-
--  `pubsub\events\subscribe-eventstore-offset.ts` Demonstrates example of subscribing the channel and receiving message using the specified offset.
-
-  
 
 ## Getting Started
-
-  
 
 ### Construct the PubsubClient
 
@@ -190,55 +143,29 @@ For executing PubSub operation we have to create the instance of PubsubClient, i
 
 ### PubsubClient Accepted Configuration
 
-  
-
-| Name | Type | Description | Default Value | Mandatory |
-
-|--------------------------|----------|---------------------------------------------------------------|-------------------------|-----------|
-
-| address | String | The address of the KubeMQ server. | None | Yes |
-
-| clientId | String | The client ID used for authentication. | None | Yes |
-
-| authToken | String | The authorization token for secure communication. | None | No |
-
-| tls | boolean | Indicates if TLS (Transport Layer Security) is enabled. | None | No |
-
-| tlsCertFile | String | The path to the TLS certificate file. | None | No (Yes if `tls` is true) |
-
-| tlsKeyFile | String | The path to the TLS key file. | None | No (Yes if `tls` is true) |
-
-| maxReceiveSize | int | The maximum size of the messages to receive (in bytes). | 104857600 (100MB) | No |
-
-| reconnectIntervalSeconds | int | The interval in seconds between reconnection attempts. | 5 | No |
-
-| keepAlive | boolean | Indicates if the connection should be kept alive. | None | No |
-
-| pingIntervalInSeconds | int | The interval in seconds between ping messages. | None | No |
-
-| pingTimeoutInSeconds | int | The timeout in seconds for ping messages. | None | No |
-
-| logLevel | Level | The logging level to use. | Level. INFO | No |
-
-  
+| Name                     | Type    | Description                                                | Default Value        | Mandatory |
+|--------------------------|---------|------------------------------------------------------------|----------------------|-----------|
+| address                  | String  | The address of the KubeMQ server.                         | None                 | Yes       |
+| clientId                 | String  | The client ID used for authentication.                     | None                 | Yes       |
+| authToken                | String  | The authorization token for secure communication.          | None                 | No        |
+| tls                      | boolean | Indicates if TLS (Transport Layer Security) is enabled.    | None                 | No        |
+| tlsCertFile              | String  | The path to the TLS certificate file.                      | None                 | No (Yes if `tls` is true) |
+| tlsKeyFile               | String  | The path to the TLS key file.                              | None                 | No (Yes if `tls` is true) |
+| maxReceiveSize           | int     | The maximum size of the messages to receive (in bytes).    | 104857600 (100MB)    | No        |
+| reconnectIntervalSeconds | int     | The interval in seconds between reconnection attempts.     | 5                    | No        |
+| keepAlive                | boolean | Indicates if the connection should be kept alive.         | None                 | No        |
+| pingIntervalInSeconds    | int     | The interval in seconds between ping messages.            | None                 | No        |
+| pingTimeoutInSeconds     | int     | The timeout in seconds for ping messages.                 | None                 | No        |
 
 ### PubsubClient connection establishment example code
-
-  
 
 ```typescript
 
 const  opts: Config = {
-
-address:  'localhost:50000',
-
-clientId:  Utils.uuid(),
-
-reconnectInterval:  1000,
-
+	address:  'localhost:50000',
+	clientId:  Utils.uuid(),
+	reconnectInterval:  1000,
 };
-
-  
 
 const  pubsubClient = new  PubsubClient(opts);
 
@@ -250,45 +177,24 @@ Below example demonstrate to construct PubSubClient with ssl and other configura
 
 const  config: Config = {
 
-address:  'localhost:50000', // KubeMQ gRPC endpoint address
-
-clientId:  'your-client-id', // Connection clientId
-
-authToken:  'your-jwt-auth-token', // Optional JWT authorization token
-
-tls:  true, // Indicates if TLS is enabled
-
-tlsCertFile:  'path/to/tls-cert.pem', // Path to the TLS certificate file
-
-tlsKeyFile:  'path/to/tls-key.pem', // Path to the TLS key file
-
-maxReceiveSize:  1024 * 1024 * 100, // Maximum size of the messages to receive (100MB)
-
-reconnectInterval:  1000, // Interval in milliseconds between reconnect attempts (1 second)
-
-keepAlive:  true, // Indicates if the connection should be kept alive
-
-pingIntervalInSeconds:  60, // Interval in seconds between ping messages
-
-pingTimeoutInSeconds:  30, // Timeout in seconds for ping messages
-
-logLevel:  'INFO', // Logging level for the client
-
-credentials: {
-
-cert:  Buffer.from('your-cert-content'), // Optional client cert credentials for talking to KubeMQ
-
-key:  Buffer.from('your-key-content'),
-
-caCert:  Buffer.from('your-ca-cert-content') // Optional CA certificate
-
-}
-
+	address:  'localhost:50000', // KubeMQ gRPC endpoint address
+	clientId:  'your-client-id', // Connection clientId
+	authToken:  'your-jwt-auth-token', // Optional JWT authorization token
+	tls:  true, // Indicates if TLS is enabled
+	tlsCertFile:  'path/to/tls-cert.pem', // Path to the TLS certificate file
+	tlsKeyFile:  'path/to/tls-key.pem', // Path to the TLS key file
+	maxReceiveSize:  1024 * 1024 * 100, // Maximum size of the messages to receive (100MB)
+	reconnectInterval:  1000, // Interval in milliseconds between reconnect attempts (1 second)
+	keepAlive:  true, // Indicates if the connection should be kept alive
+	pingIntervalInSeconds:  60, // Interval in seconds between ping messages
+	pingTimeoutInSeconds:  30, // Timeout in seconds for ping messages
+	credentials: {
+	cert:  Buffer.from('your-cert-content'), // Optional client cert credentials for talking to KubeMQ
+	key:  Buffer.from('your-key-content'),
+	caCert:  Buffer.from('your-ca-cert-content') // Optional CA certificate
 }
 
 ```
-
-  
 
 **Ping To KubeMQ server**
 
@@ -296,34 +202,19 @@ You can ping the server to check connection is established or not.
 
 #### Request: `NONE`
 
-  
-  
-
 #### Response: `ServerInfo` Interface Attributes
 
-  
-
-| Name | Type | Description |
-
-|---------------------|--------|--------------------------------------------|
-
-| host | String | The host of the server. |
-
-| version | String | The version of the server. |
-
-| serverStartTime | long | The start time of the server (in seconds). |
-
-| serverUpTimeSeconds | long | The uptime of the server (in seconds). |
-
-  
+| Name               | Type   | Description                              |
+|--------------------|--------|------------------------------------------|
+| host               | String | The host of the server.                  |
+| version            | String | The version of the server.               |
+| serverStartTime    | long   | The start time of the server (in seconds).|
+| serverUpTimeSeconds| long   | The uptime of the server (in seconds).    |
 
 ```typescript
 
 ServerInfo  pingResult = pubsubClient.ping();
-
 console.log('Ping Response: ' + pingResult);
-
-  
 
 ```
 
@@ -331,66 +222,47 @@ console.log('Ping Response: ' + pingResult);
 
 #### Request:
 
-| Name | Type | Description | Default Value | Mandatory |
+| Name        | Type   | Description                                 | Default Value | Mandatory |
+|-------------|--------|---------------------------------------------|---------------|-----------|
+| channelName | String | Channel name which you want to subscribe to | None          | Yes       |
 
-|---------------------|--------|--------------------------------------------|---------------|-----------|
-
-| channelName | String | Channel name which you want to subscribe | None | Yes |
-
-  
-  
 
 #### Response:
 
-| Name | Type | Description |
-
-|---------------------|--------|--------------------------------------------|
-
-| void | Promise<void>| Doesn't return value upon completion|
-
-  
+| Name | Type          | Description                           |
+|------|---------------|---------------------------------------|
+| void | Promise<void> | Doesn't return a value upon completion |
 
 ```typescript
 
-async  function  create(channel: string) {
-
+async  function  createEventsChannel(channel: string) {
 return  pubsubClient.createEventsChannel(channel);
-
 }
 
 ```
 
 **PubSub Create Events Store Channel Example:**
 
-  
-
 #### Request:
 
-| Name | Type | Description | Default Value | Mandatory |
+| Name        | Type   | Description                                 | Default Value | Mandatory |
+|-------------|--------|---------------------------------------------|---------------|-----------|
+| channelName | String | Channel name to which you want to subscribe | None          | Yes       |
 
-|---------------------|--------|--------------------------------------------|---------------|-----------|
-
-| channelName | String | Channel name which you want to subscribe | None | Yes |
-
-  
-  
 
 #### Response:
 
-| Name | Type | Description |
+| Name | Type          | Description                            |
+|------|---------------|----------------------------------------|
+| void | Promise<void> | Doesn't return a value upon completion |
 
-|---------------------|--------|--------------------------------------------|
-
-| void | Promise<void>| Doesn't return value upon completion|
 
 ----------------------------------------------------------------------------
 
 ```typescript
 
-async  function  create(channel: string) {
-
+async  function  createEventsStoreChannel(channel: string) {
 return  pubsubClient.createEventsStoreChannel(channel);
-
 }
 
 ```
@@ -399,93 +271,55 @@ return  pubsubClient.createEventsStoreChannel(channel);
 
 #### Request:
 
-| Name | Type | Description | Default Value | Mandatory |
+| Name        | Type   | Description                               | Default Value | Mandatory |
+|-------------|--------|-------------------------------------------|---------------|-----------|
+| channelName | String | Channel name that you want to search for  | None          | No        |
 
-|---------------------|--------|--------------------------------------------|---------------|-----------|
-
-| channelName | String | Channel name which you want to search | None | No |
-
-  
-  
 
 #### Response: `PubSubChannel[]`  `PubSubChannel` interface Attributes
 
-  
-
-| Name | Type | Description |
-
-|--------------|-------------|-----------------------------------------------------------------------------------------------|
-
-| name | String | The name of the Pub/Sub channel. |
-
-| type | String | The type of the Pub/Sub channel. |
-
-| lastActivity | long | The timestamp of the last activity on the channel, represented in milliseconds since epoch. |
-
-| isActive | boolean | Indicates whether the channel is active or not. |
-
-| incoming | PubSubStats | The statistics related to incoming messages for this channel. |
-
-| outgoing | PubSubStats | The statistics related to outgoing messages for this channel. |
-
-  
-  
+| Name        | Type        | Description                                                                                      |
+|-------------|-------------|--------------------------------------------------------------------------------------------------|
+| name        | String      | The name of the Pub/Sub channel.                                                                 |
+| type        | String      | The type of the Pub/Sub channel.                                                                 |
+| lastActivity| long        | The timestamp of the last activity on the channel, represented in milliseconds since epoch.       |
+| isActive    | boolean     | Indicates whether the channel is active or not.                                                  |
+| incoming    | PubSubStats | The statistics related to incoming messages for this channel.                                     |
+| outgoing    | PubSubStats | The statistics related to outgoing messages for this channel.                                     |
 
 ```typescript
 
-async  function  list(search: string) {
-
-const  channels = await  pubsubClient.listEventsChannels(search);
-
-console.log(channels);
-
+async  function  listEventsChannel(search: string) {
+	const  channels = await  pubsubClient.listEventsChannels(search);
+	console.log(channels);
 }
 
 ```
 
 **PubSub ListEventsStoreChannel Example:**
 
-  
-
 #### Request:
 
-| Name | Type | Description | Default Value | Mandatory |
-
-|---------------------|--------|--------------------------------------------|---------------|-----------|
-
-| channelName | String | Channel name which you want to search | None | No |
-
+| Name        | Type   | Description                               | Default Value | Mandatory |
+|-------------|--------|-------------------------------------------|---------------|-----------|
+| channelName | String | Channel name that you want to search for  | None          | No        |
   
-  
-
 #### Response: `PubSubChannel[]`  `PubSubChannel` interface Attributes
 
-  
-
-| Name | Type | Description |
-
-|--------------|-------------|-----------------------------------------------------------------------------------------------|
-
-| name | String | The name of the Pub/Sub channel. |
-
-| type | String | The type of the Pub/Sub channel. |
-
-| lastActivity | long | The timestamp of the last activity on the channel, represented in milliseconds since epoch. |
-
-| isActive | boolean | Indicates whether the channel is active or not. |
-
-| incoming | PubSubStats | The statistics related to incoming messages for this channel. |
-
-| outgoing | PubSubStats | The statistics related to outgoing messages for this channel.
+| Name         | Type        | Description                                                                                  |
+|--------------|-------------|----------------------------------------------------------------------------------------------|
+| name         | String      | The name of the Pub/Sub channel.                                                             |
+| type         | String      | The type of the Pub/Sub channel.                                                             |
+| lastActivity | long        | The timestamp of the last activity on the channel, represented in milliseconds since epoch.   |
+| isActive     | boolean     | Indicates whether the channel is active or not.                                              |
+| incoming     | PubSubStats | The statistics related to incoming messages for this channel.                                 |
+| outgoing     | PubSubStats | The statistics related to outgoing messages for this channel.                                 |
 
 ```typescript
 
-async  function  list(search: string) {
-
-const  channels = await  pubsubClient.listEventsStoreChannels(search);
-
-console.log(channels);
-
+async  function  listEventsStoreChannel(search: string) {
+	const  channels = await  pubsubClient.listEventsStoreChannels(search);
+	console.log(channels);
 }
 
 ```
@@ -494,82 +328,53 @@ console.log(channels);
 
 #### Request: `EventMessage` Interface Attributes
 
-  
 
-| Name | Type | Description | Default Value | Mandatory |
+| Name     | Type                  | Description                                              | Default Value    | Mandatory |
+|----------|-----------------------|----------------------------------------------------------|------------------|-----------|
+| id       | String                | Unique identifier for the event message.                | None             | No        |
+| channel  | String                | The channel to which the event message is sent.         | None             | Yes       |
+| metadata | String                | Metadata associated with the event message.             | None             | No        |
+| body     | byte[]                | Body of the event message in bytes.                     | Empty byte array | No        |
+| tags     | Map<String, String>   | Tags associated with the event message as key-value pairs. | Empty Map       | No        |
 
-|-----------|--------------------|-------------------------------------------------------------------------------------|-----------------|-----------|
-
-| id | String | Unique identifier for the event message. | None | No |
-
-| channel | String | The channel to which the event message is sent. | None | Yes |
-
-| metadata | String | Metadata associated with the event message. | None | No |
-
-| body | byte[] | Body of the event message in bytes. | Empty byte array | No |
-
-| tags | Map<String, String>| Tags associated with the event message as key-value pairs. | Empty Map | No |
 
 **Note:-**  `metadata` or `body` or `tags` any one is required
 
-  
-
 #### Response: `NONE`
-
-  
 
 ```typescript
 
 await  pubsubClient.sendEventsMessage({
-
-id:  `234`
-
-channel: 'events.single',
-
-body:  Utils.stringToBytes('event message'),
-
+	id:  `234`
+	channel: 'events.single',
+	body:  Utils.stringToBytes('event message'),
 });
 
 ```
 
 **PubSub SendEventStoreMessage Example:**
 
-  
-
 #### Request: `EventStoreMessage` Class Attributes
 
-  
+| Name     | Type                  | Description                                              | Default Value    | Mandatory |
+|----------|-----------------------|----------------------------------------------------------|------------------|-----------|
+| id       | String                | Unique identifier for the event message.                | None             | No        |
+| channel  | String                | The channel to which the event message is sent.         | None             | Yes       |
+| metadata | String                | Metadata associated with the event message.             | None             | No        |
+| body     | byte[]                | Body of the event message in bytes.                     | Empty byte array | No        |
+| tags     | Map<String, String>   | Tags associated with the event message as key-value pairs. | Empty Map       | No        |
 
-| Name | Type | Description | Default Value | Mandatory |
-
-|-----------|--------------------|-------------------------------------------------------------------------------------|-----------------|-----------|
-
-| id | String | Unique identifier for the event message. | None | No |
-
-| channel | String | The channel to which the event message is sent. | None | Yes |
-
-| metadata | String | Metadata associated with the event message. | None | No |
-
-| body | byte[] | Body of the event message in bytes. | Empty byte array | No |
-
-| tags | Map<String, String>| Tags associated with the event message as key-value pairs. | Empty Map | No |
 
 **Note:-**  `metadata` or `body` or `tags` any one is required
-
-  
 
 #### Response: `NONE`
 
 ```typescript
 
 await  pubsubClient.sendEventStoreMessage({
-
-id:  '987'
-
-channel: 'events_store.single',
-
-body:  Utils.stringToBytes('event store message'),
-
+	id:  '987'
+	channel: 'events_store.single',
+	body:  Utils.stringToBytes('event store message'),
 });
 
 ```
@@ -578,69 +383,49 @@ body:  Utils.stringToBytes('event store message'),
 
 #### Request: `EventsSubscription` Class Attributes
 
-  
 
-| Name | Type | Description | Default Value | Mandatory |
+| Name                    | Type                               | Description                                                               | Default Value | Mandatory |
+|-------------------------|------------------------------------|---------------------------------------------------------------------------|---------------|-----------|
+| channel                 | String                             | The channel to subscribe to.                                                | None          | Yes       |
+| group                   | String                             | The group to subscribe with.                                                | None          | No        |
+| onReceiveEventCallback   | Consumer<EventMessageReceived>    | Callback function to be called when an event message is received.          | None          | Yes       |
+| onErrorCallback         | Consumer<String>                   | Callback function to be called when an error occurs.                       | None          | No        |
 
-|-------------------------|---------------------------|----------------------------------------------------------------------|---------------|-----------|
-
-| channel | String | The channel to subscribe to. | None | Yes |
-
-| group | String | The group to subscribe with. | None | No |
-
-| onReceiveEventCallback | Consumer<EventMessageReceived> | Callback function to be called when an event message is received. | None | Yes |
-
-| onErrorCallback | Consumer<String> | Callback function to be called when an error occurs. | None | No |
-
-  
-  
 
 #### Response: `NONE`
 
 #### Callback: `EventMessageReceived` class details
 
-| Name | Type | Description |
-
-|-------------|-----------------------|--------------------------------------------------------|
-
-| id | String | The unique identifier of the message. |
-
-| fromClientId| String | The ID of the client that sent the message. |
-
-| timestamp | long | The timestamp when the message was received, in seconds. |
-
-| channel | String | The channel to which the message belongs. |
-
-| metadata | String | The metadata associated with the message. |
-
-| body | byte[] | The body of the message. |
-
-| sequence | long | The sequence number of the message. |
-
-| tags | Map<String, String> | The tags associated with the message. |
-
-  
+| Name        | Type                  | Description                                                        |
+|-------------|-----------------------|--------------------------------------------------------------------|
+| id          | String                | The unique identifier of the message.                             |
+| fromClientId| String                | The ID of the client that sent the message.                       |
+| timestamp   | long                  | The timestamp when the message was received, in seconds.           |
+| channel     | String                | The channel to which the message belongs.                         |
+| metadata    | String                | The metadata associated with the message.                         |
+| body        | byte[]                | The body of the message.                                          |
+| sequence    | long                  | The sequence number of the message.                               |
+| tags        | Map<String, String>   | The tags associated with the message.                             |
 
 ```typescript
 
-await  pubsubClient
-.subscribeToEvents(
+await  pubsubClient.subscribeToEvents(
 {
-channel:  'events.A',
-clientId:  'SubscriberA',
+	channel:  'events.A',
+	clientId:  'SubscriberA',
 },
 (err, msg) => {
 if (err) {
-console.error('SubscriberA', err);
-return;
+	console.error('SubscriberA', err);
+	return;
 }
 
 if (msg) {
-console.log('SubscriberA', msg);
+	console.log('SubscriberA', msg);
 }
 },
 ).catch((reason) => {
-console.log(reason);
+	console.log(reason);
 });
 
 ```
@@ -649,67 +434,47 @@ console.log(reason);
 
 #### Request: `EventsStoreSubscription` Interface Attributes
 
-  
 
-| Name | Type | Description | Default Value | Mandatory |
-
-|-------------------------|---------------------------|----------------------------------------------------------------------|---------------|-----------|
-
-| channel | String | The channel to subscribe to. | None | Yes |
-
-| group | String | The group to subscribe with. | None | No |
-
-| onReceiveEventCallback | Consumer<EventStoreMessageReceived> | Callback function to be called when an event message is received. | None | Yes |
-
-| onErrorCallback | Consumer<String> | Callback function to be called when an error occurs.
-
-  
-  
+| Name                     | Type                                    | Description                                                             | Default Value | Mandatory |
+|--------------------------|-----------------------------------------|-------------------------------------------------------------------------|---------------|-----------|
+| channel                  | String                                  | The channel to subscribe to.                                             | None          | Yes       |
+| group                    | String                                  | The group to subscribe with.                                             | None          | No        |
+| onReceiveEventCallback    | Consumer<EventStoreMessageReceived>    | Callback function to be called when an event message is received.       | None          | Yes       |
+| onErrorCallback          | Consumer<String>                       | Callback function to be called when an error occurs.                    | None          | No        |
 
 #### Response: `None`
 
 #### Callback: `EventStoreMessageReceived` class details
 
-| Name | Type | Description |
-
-|-------------|-----------------------|--------------------------------------------------------|
-
-| id | String | The unique identifier of the message. |
-
-| fromClientId| String | The ID of the client that sent the message. |
-
-| timestamp | long | The timestamp when the message was received, in seconds. |
-
-| channel | String | The channel to which the message belongs. |
-
-| metadata | String | The metadata associated with the message. |
-
-| body | byte[] | The body of the message. |
-
-| sequence | long | The sequence number of the message. |
-
-| tags | Map<String, String> | The tags associated with the message. |
-
-  
+| Name        | Type                  | Description                                                        |
+|-------------|-----------------------|--------------------------------------------------------------------|
+| id          | String                | The unique identifier of the message.                             |
+| fromClientId| String                | The ID of the client that sent the message.                       |
+| timestamp   | long                  | The timestamp when the message was received, in seconds.           |
+| channel     | String                | The channel to which the message belongs.                         |
+| metadata    | String                | The metadata associated with the message.                         |
+| body        | byte[]                | The body of the message.                                          |
+| sequence    | long                  | The sequence number of the message.                               |
+| tags        | Map<String, String>   | The tags associated with the message.                             |
 
 ```typescript
 
 await  pubsubClient
 .subscribeToEventsStore(
 {
-channel:  'events_store.A',
-group:  'g1',
-clientId:  'SubscriberA',
-requestType:  EventStoreType.StartFromFirst,
+	channel:  'events_store.A',
+	group:  'g1',
+	clientId:  'SubscriberA',
+	requestType:  EventStoreType.StartFromFirst,
 },
 (err, msg) => {
 if (err) {
-console.error('SubscriberA', err);
-return;
+	console.error('SubscriberA', err);
+	return;
 }
 
 if (msg) {
-console.log('SubscriberA', msg);
+	console.log('SubscriberA', msg);
 }
 },
 )
@@ -725,34 +490,24 @@ console.log('SubscriberA', msg);
 
 #### Request:
 
-| Name | Type | Description | Default Value | Mandatory |
-
-|---------------------|--------|--------------------------------------------|---------------|-----------|
-
-| channelName | String | Channel name which you want to delete | None | Yes |
-
-  
-  
+| Name        | Type   | Description                                   | Default Value | Mandatory |
+|-------------|--------|-----------------------------------------------|---------------|-----------|
+| channelName | String | Channel name that you want to delete         | None          | Yes       |
 
 #### Response:
 
-| Name | Type | Description |
+| Name | Type          | Description    |
+|------|---------------|----------------|
+| void | Promise<void> | Returns nothing |
 
-|---------------------|--------|--------------------------------------------|
-
-| void | Promise<void>| Return nothing|
 
 ----------------------------------------------------------------------------
 
 ```typescript
 
 async  function  deleteChannel(channel: string) {
-
-return  pubsubClient.deleteEventsChannel(channel);
-
+	return  pubsubClient.deleteEventsChannel(channel);
 }
-
-  
 
 ```
 
@@ -760,22 +515,17 @@ return  pubsubClient.deleteEventsChannel(channel);
 
 #### Request:
 
-| Name | Type | Description | Default Value | Mandatory |
-
-|---------------------|--------|--------------------------------------------|---------------|-----------|
-
-| channelName | String | Channel name which you want to delete | None | Yes |
-
-  
+| Name        | Type   | Description                               | Default Value | Mandatory |
+|-------------|--------|-------------------------------------------|---------------|-----------|
+| channelName | String | The name of the channel you want to delete | None          | Yes       |
   
 
 #### Response:
 
-| Name | Type | Description |
+| Name             | Type    | Description                   |
+|------------------|---------|-------------------------------|
+| isChannelDeleted | boolean | Indicates if the channel is deleted (true/false) |
 
-|---------------------|--------|--------------------------------------------|
-
-| isChannelDeleted | boolean| Channel deleted true/false|
 
 ----------------------------------------------------------------------------
 
@@ -784,46 +534,30 @@ return  pubsubClient.deleteEventsChannel(channel);
 ```typescript
 
 async  function  deleteChannel(channel: string) {
-
-return  pubsubClient.deleteEventsStoreChannel(channel);
-
+	return  pubsubClient.deleteEventsStoreChannel(channel);
 }
 
 ```
 
-  
 
 # KubeMQ Queues Client Examples
 
 Below examples demonstrating the usage of KubeMQ Queues client. The examples include creating, deleting, listing channels, and sending/receiving queues messages.
 
-  
-
 ## Project Structure
 
-  
+-  `queues/CreateQueuesChannelExample.ts`: Demonstrates creating queues channels.
 
--  `queues/create.ts`: Demonstrates creating queues channels.
+-  `queues/DeleteQueuesChannelExample.ts`: Demonstrates deleting queues channels.
 
--  `queues/delete.ts`: Demonstrates deleting queues channels.
+-  `queues/ListQueuesChannelExample.ts`: Demonstrates listing queues channels.
 
--  `queues/list.ts`: Demonstrates listing queues channels.
+-  `queues/Send_ReceiveMessageExample.ts`: Demonstrates example of sending & receiving message.
 
--  `queues/dead-letter.ts`: Demonstrates sending message which will pushed to dead-letter-queue and then pulling back.
+-  `queues/WaitingPullExample.ts`: Demonstrates example of pulling message by waiting and pulling.
 
--  `queues/send-message-multicast-mis.ts`: Demonstrates sending message in various types of channels.
-
--  `queues/send-message.ts`: Demonstrates example of sending message.
-
--  `queues/subscribe-queue.ts`: Demonstrates example of subscribing queue.
-
--  `queues/wait-pull.ts`: Demonstrates example of pulling message by waiting and pulling.
-
-  
 
 ## Getting Started
-
-  
 
 ### Construct the QueuesClient
 
@@ -831,35 +565,19 @@ For executing Queues operation we have to create the instance of QueuesClient, i
 
 ### QueuesClient Accepted Configuration
 
-  
-
-| Name | Type | Description | Default Value | Mandatory |
-
-|--------------------------|----------|---------------------------------------------------------------|-------------------------|-----------|
-
-| address | String | The address of the KubeMQ server. | None | Yes |
-
-| clientId | String | The client ID used for authentication. | None | Yes |
-
-| authToken | String | The authorization token for secure communication. | None | No |
-
-| tls | boolean | Indicates if TLS (Transport Layer Security) is enabled. | None | No |
-
-| tlsCertFile | String | The path to the TLS certificate file. | None | No (Yes if `tls` is true) |
-
-| tlsKeyFile | String | The path to the TLS key file. | None | No (Yes if `tls` is true) |
-
-| maxReceiveSize | int | The maximum size of the messages to receive (in bytes). | 104857600 (100MB) | No |
-
-| reconnectIntervalSeconds | int | The interval in seconds between reconnection attempts. | 5 | No |
-
-| keepAlive | boolean | Indicates if the connection should be kept alive. | None | No |
-
-| pingIntervalInSeconds | int | The interval in seconds between ping messages. | None | No |
-
-| pingTimeoutInSeconds | int | The timeout in seconds for ping messages. | None | No |
-
-| logLevel | Level | The logging level to use. | Level. INFO | No |
+| Name                     | Type    | Description                                                | Default Value        | Mandatory |
+|--------------------------|---------|------------------------------------------------------------|----------------------|-----------|
+| address                  | String  | The address of the KubeMQ server.                         | None                 | Yes       |
+| clientId                 | String  | The client ID used for authentication.                     | None                 | Yes       |
+| authToken                | String  | The authorization token for secure communication.          | None                 | No        |
+| tls                      | boolean | Indicates if TLS (Transport Layer Security) is enabled.    | None                 | No        |
+| tlsCertFile              | String  | The path to the TLS certificate file.                      | None                 | No (Yes if `tls` is true) |
+| tlsKeyFile               | String  | The path to the TLS key file.                              | None                 | No (Yes if `tls` is true) |
+| maxReceiveSize           | int     | The maximum size of the messages to receive (in bytes).    | 104857600 (100MB)    | No        |
+| reconnectIntervalSeconds | int     | The interval in seconds between reconnection attempts.     | 5                    | No        |
+| keepAlive                | boolean | Indicates if the connection should be kept alive.         | None                 | No        |
+| pingIntervalInSeconds    | int     | The interval in seconds between ping messages.            | None                 | No        |
+| pingTimeoutInSeconds     | int     | The timeout in seconds for ping messages.                 | None                 | No        |
 
   
 
@@ -892,7 +610,6 @@ const  config: Config = {
 	keepAlive:  true, // Indicates if the connection should be kept alive
 	pingIntervalInSeconds:  60, // Interval in seconds between ping messages
 	pingTimeoutInSeconds:  30, // Timeout in seconds for ping messages
-	logLevel:  'INFO', // Logging level for the client
 	credentials: {
 	cert:  Buffer.from('your-cert-content'), // Optional client cert credentials for talking to KubeMQ
 	key:  Buffer.from('your-key-content'),
@@ -903,33 +620,21 @@ const  queuesClient = new  QueuesClient(opts);
 
 ```
 
-  
-
 **Ping To KubeMQ server**
 
 You can ping the server to check connection is established or not.
 
 #### Request: `NONE`
 
-  
-
 #### Response: `ServerInfo` Class Attributes
 
-  
 
-| Name | Type | Description |
-
-|---------------------|--------|--------------------------------------------|
-
-| host | String | The host of the server. |
-
-| version | String | The version of the server. |
-
-| serverStartTime | long | The start time of the server (in seconds). |
-
-| serverUpTimeSeconds | long | The uptime of the server (in seconds). |
-
-  
+| Name             | Type  | Description                                          |
+|------------------|-------|------------------------------------------------------|
+| host             | String| The host of the server.                            |
+| version          | String| The version of the server.                         |
+| serverStartTime  | long  | The start time of the server (in seconds).         |
+| serverUpTimeSeconds | long  | The uptime of the server (in seconds).             |
 
 ```typescript
 
@@ -941,29 +646,22 @@ console.log('Ping Response: ' + pingResult);
 **Queues CreateQueueChannel Example:**
 
 #### Request:
+| Name         | Type   | Description                              | Default Value | Mandatory |
+|--------------|--------|------------------------------------------|---------------|-----------|
+| channelName  | String | The name of the channel you want to create | None          | Yes       |
 
-| Name | Type | Description | Default Value | Mandatory |
-
-|---------------------|--------|--------------------------------------------|---------------|-----------|
-
-| channelName | String | Channel name which you want to create | None | Yes |
-
-  
-  
 
 #### Response:
 
-| Name | Type | Description |
-
-|---------------------|--------|--------------------------------------------|
-
-| isChannelCreated | boolean| Channel created true/false|
+| Name             | Type    | Description                                    |
+|------------------|---------|------------------------------------------------|
+| isChannelCreated | boolean | Indicates whether the channel was created (true/false) |
 
 ----------------------------------------------------------------------------
 
 ```typescript
 
-async  function  create(channel: string) {
+async  function  createQueueChannel(channel: string) {
 	return  queuesClient.createQueuesChannel(channel);
 }
 
@@ -973,41 +671,26 @@ async  function  create(channel: string) {
 
 #### Request:
 
-| Name | Type | Description | Default Value | Mandatory |
+| Name          | Type   | Description                              | Default Value | Mandatory |
+|---------------|--------|------------------------------------------|---------------|-----------|
+| searchString  | String | The channel name you want to search for | None          | No        |
 
-|---------------------|--------|--------------------------------------------|---------------|-----------|
-
-| searchString | String | Channel name which you want to search | None | No |
-
-  
-  
 
 #### Response: `QueuesChannel[]` QueuesChannel interface Attributes
 
-  
+| Name            | Type          | Description                                              |
+|-----------------|---------------|----------------------------------------------------------|
+| name            | String        | The name of the queue channel.                          |
+| type            | String        | The type of the queue channel.                          |
+| lastActivity    | long          | The timestamp of the last activity in the queue channel.|
+| isActive        | boolean       | Indicates whether the queue channel is currently active.|
+| incoming        | QueuesStats   | The statistics for incoming messages in the queue channel. |
+| outgoing        | QueuesStats   | The statistics for outgoing messages in the queue channel. |
 
-| Name | Type | Description |
-
-|---------------|---------------|------------------------------------------------------------|
-
-| name | String | The name of the queue channel. |
-
-| type | String | The type of the queue channel. |
-
-| lastActivity | long | The timestamp of the last activity in the queue channel. |
-
-| isActive | boolean | Indicates whether the queue channel is currently active. |
-
-| incoming | QueuesStats | The statistics for incoming messages in the queue channel. |
-
-| outgoing | QueuesStats | The statistics for outgoing messages in the queue channel. |
-
-  
-  
 
 ```typescript
 
-async  function  list(search: string) {
+async  function  listQueueChannels(search: string) {
 	const  channels = await  queuesClient.listQueuesChannel(search);
 	console.log(channels);
 }
@@ -1020,55 +703,33 @@ async  function  list(search: string) {
 
 #### Request: `QueueMessage` class attributes
 
-| Name | Type | Description | Default Value | Mandatory |
+| Name                          | Type                 | Description                                                                                 | Default Value    | Mandatory |
+|-------------------------------|----------------------|---------------------------------------------------------------------------------------------|------------------|-----------|
+| id                             | String               | The unique identifier for the message.                                                      | None             | No        |
+| channel                        | String               | The channel of the message.                                                                 | None             | Yes       |
+| metadata                       | String               | The metadata associated with the message.                                                   | None             | No        |
+| body                           | byte[]               | The body of the message.                                                                    | new byte[0]      | No        |
+| tags                           | Map<String, String>  | The tags associated with the message.                                                       | new HashMap<>()  | No        |
+| delayInSeconds                 | int                  | The delay in seconds before the message becomes available in the queue.                     | None             | No        |
+| expirationInSeconds            | int                  | The expiration time in seconds for the message.                                             | None             | No        |
+| attemptsBeforeDeadLetterQueue  | int                  | The number of receive attempts allowed before the message is moved to the dead letter queue. | None             | No        |
+| deadLetterQueue                | String               | The dead letter queue where the message will be moved after reaching max receive attempts.   | None             | No        |
 
-|------------------------------|---------------------|---------------------------------------------------------------------------------------------|---------------|-----------|
-
-| id | String | The unique identifier for the message. | None | No |
-
-| channel | String | The channel of the message. | None | Yes |
-
-| metadata | String | The metadata associated with the message. | None | No |
-
-| body | byte[] | The body of the message. | new byte[0] | No |
-
-| tags | Map<String, String> | The tags associated with the message. | new HashMap<>()| No |
-
-| delayInSeconds | int | The delay in seconds before the message becomes available in the queue. | None | No |
-
-| expirationInSeconds | int | The expiration time in seconds for the message. | None | No |
-
-| attemptsBeforeDeadLetterQueue| int | The number of receive attempts allowed for the message before it is moved to the dead letter queue. | None | No |
-
-| deadLetterQueue | String | The dead letter queue where the message will be moved after reaching the maximum receive attempts. | None | No |
-
-  
-  
 
 #### Response: `QueueSendResult` class attributes
 
-| Name | Type | Description |
-
-|------------|-----------------|---------------------------------------------------------------|
-
-| id | String | The unique identifier of the message. |
-
-| sentAt | LocalDateTime | The timestamp when the message was sent. |
-
-| expiredAt | LocalDateTime | The timestamp when the message will expire. |
-
-| delayedTo | LocalDateTime | The timestamp when the message will be delivered. |
-
-| isError | boolean | Indicates if there was an error while sending the message. |
-
-| error | String | The error message if `isError` is true. |
-
-  
+| Name      | Type           | Description                                                     |
+|-----------|----------------|-----------------------------------------------------------------|
+| id        | String          | The unique identifier of the message.                           |
+| sentAt    | LocalDateTime   | The timestamp when the message was sent.                        |
+| expiredAt | LocalDateTime   | The timestamp when the message will expire.                     |
+| delayedTo | LocalDateTime   | The timestamp when the message will be delivered.               |
+| isError   | boolean         | Indicates if there was an error while sending the message.       |
+| error     | String          | The error message if `isError` is true.                         |
 
 ```typescript
 
-await  queuesClient
-.sendQueuesMessage({
+await  queuesClient.sendQueuesMessage({
 	channel:  'queues.single',
 	body:  Utils.stringToBytes('queue message'),
 })
@@ -1076,46 +737,29 @@ await  queuesClient
 .catch((reason) =>  console.error(reason));
 ```
 
-  
-
 **Queues Pulls messages from a queue. Example:**
 
 #### Request: `QueuesPullWaitngMessagesRequest` class attributes
 
-| Name | Type | Description | Default Value | Mandatory |
+| Name                | Type   | Description                                | Default Value | Mandatory |
+|---------------------|--------|--------------------------------------------|---------------|-----------|
+| channel             | String | The channel to poll messages from.         | None          | Yes       |
+| maxNumberOfMessages | int    | The maximum number of messages to poll.    | 1             | No        |
+| waitTimeoutSeconds  | int    | The wait timeout in seconds for polling messages. | 60        | No        |
 
-|-----------------------------|--------|------------------------------------------------------|---------------|-----------|
-
-| channel | String | The channel to poll messages from. | None | Yes |
-
-| maxNumberOfMessages | int | The maximum number of messages to poll. | 1 | No |
-
-| waitTimeoutSeconds | int | The wait timeout in seconds for polling messages. | 60 | No |
-
-  
   
 
 #### Response: `QueuesPullWaitingMessagesResponse` class attributes
+| Name             | Type              | Description                                         |
+|------------------|-------------------|-----------------------------------------------------|
+| id               | String            | The reference ID of the request.                    |
+| messagesReceived | number            | Number of valid messages received.                  |
+| messages         | `QueueMessage[]`  | The list of received queue messages.                |
+| error            | String            | The error message, if any error occurred.           |
+| isError          | boolean           | Indicates if there was an error.                    |
+| isPeek           | boolean           | Indicates if it is a peek or pull operation.        |
+| messagesExpired  | number            | Number of expired messages from the queue.          |
 
-| Name | Type | Description |
-
-|-----------------------|-----------------------------------|---------------------------------------------------------|
-
-| id | String | The reference ID of the request. |
-
-| messagesReceived | number | number of valid messages received. |
-
-| messages | `QueueMessage[]` | The list of received queue messages. |
-
-| error | String | The error message, if any error occurred. |
-
-| isError | boolean | Indicates if there was an error. |
-
-| isPeek. | boolean | Indicates is peak or pul. |
-
-| messagesExpired | number | number of expired messages from the queue |
-
-  
 
 ```typescript
 
@@ -1141,41 +785,24 @@ await  queuesClient
 **Queues Get waiting messages from a queue Example:**
 
 #### Request: `QueuesPullWaitngMessagesRequest` class attributes
-
-| Name | Type | Description | Default Value | Mandatory |
-
-|-----------------------------|--------|------------------------------------------------------|---------------|-----------|
-
-| channel | String | The channel to poll messages from. | None | Yes |
-
-| maxNumberOfMessages | int | The maximum number of messages to poll. | 1 | No |
-
-| waitTimeoutSeconds | int | The wait timeout in seconds for polling messages. | 60 | No |
+| Name               | Type   | Description                                        | Default Value | Mandatory |
+|--------------------|--------|----------------------------------------------------|---------------|-----------|
+| channel            | String | The channel to poll messages from.                 | None          | Yes       |
+| maxNumberOfMessages| int    | The maximum number of messages to poll.            | 1             | No        |
+| waitTimeoutSeconds | int    | The wait timeout in seconds for polling messages.  | 60            | No        |
 
   
-  
-
 #### Response: `QueuesPullWaitingMessagesResponse` class attributes
 
-| Name | Type | Description |
-
-|-----------------------|-----------------------------------|---------------------------------------------------------|
-
-| id | String | The reference ID of the request. |
-
-| messagesReceived | number | number of valid messages received. |
-
-| messages | `QueueMessage[]` | The list of received queue messages. |
-
-| error | String | The error message, if any error occurred. |
-
-| isError | boolean | Indicates if there was an error. |
-
-| isPeek. | boolean | Indicates is peak or pul. |
-
-| messagesExpired | number | number of expired messages from the queue |
-
-  
+| Name             | Type              | Description                                      |
+|------------------|-------------------|--------------------------------------------------|
+| id               | String            | The reference ID of the request.                 |
+| messagesReceived | number            | Number of valid messages received.               |
+| messages         | `QueueMessage[]`  | The list of received queue messages.             |
+| error            | String            | The error message, if any error occurred.        |
+| isError          | boolean           | Indicates if there was an error.                 |
+| isPeek           | boolean           | Indicates if the operation is a peek or pull.    |
+| messagesExpired  | number            | Number of expired messages from the queue.       |
 
 ```typescript
 
@@ -1197,43 +824,25 @@ await  queuesClient
 
 ```
 
-  
 
 # KubeMQ Command & Query Client Examples
 
-  
-
 Below examples demonstrating the usage of KubeMQ CQ (Commands and Queries) Client. The examples include creating, deleting, listing channels, and sending/subscribing to command and query messages.
-
-  
 
 ## Project Structure
 
 #### Command
 
--  `command\creates.ts`: Demonstrates creating command channels.
+-  `cq\CreateExample.ts`: Demonstrates creating command channels.
 
--  `command\deletes.ts`: Demonstrates deleting command channels.
+-  `cq\DeleteExample.ts`: Demonstrates deleting command channels.
 
--  `command\list.ts`: Demonstrates listing command channels.
+-  `cq\ListExample.ts`: Demonstrates listing command channels.
 
--  `command\send_receive.ts`: Demonstrates sending and subscribing to command messages.
-
-  
-
-#### Queries
-
--  `queries\creates.ts`: Demonstrates creating queries channels.
-
--  `queries\deletes.ts`: Demonstrates deleting queries channels.
-
--  `queries\list.ts`: Demonstrates listing queries channels.
-
--  `queries\send_receive.ts`: Demonstrates sending and subscribing to queries messages.
+-  `cq\CommandsExample.ts`: Demonstrates sending & subscribing to command messages.
+-  `cq\QueriesExample.ts`: Demonstrates sending & subscribing to queries messages.
 
 ## Getting Started
-
-  
 
 ### Construct the CQClient
 
@@ -1241,37 +850,20 @@ For executing command & query operation we have to create the instance of CQClie
 
 ### CQClient Accepted Configuration
 
-  
+| Name                     | Type    | Description                                                | Default Value        | Mandatory |
+|--------------------------|---------|------------------------------------------------------------|----------------------|-----------|
+| address                  | String  | The address of the KubeMQ server.                         | None                 | Yes       |
+| clientId                 | String  | The client ID used for authentication.                     | None                 | Yes       |
+| authToken                | String  | The authorization token for secure communication.          | None                 | No        |
+| tls                      | boolean | Indicates if TLS (Transport Layer Security) is enabled.    | None                 | No        |
+| tlsCertFile              | String  | The path to the TLS certificate file.                      | None                 | No (Yes if `tls` is true) |
+| tlsKeyFile               | String  | The path to the TLS key file.                              | None                 | No (Yes if `tls` is true) |
+| maxReceiveSize           | int     | The maximum size of the messages to receive (in bytes).    | 104857600 (100MB)    | No        |
+| reconnectIntervalSeconds | int     | The interval in seconds between reconnection attempts.     | 5                    | No        |
+| keepAlive                | boolean | Indicates if the connection should be kept alive.         | None                 | No        |
+| pingIntervalInSeconds    | int     | The interval in seconds between ping messages.            | None                 | No        |
+| pingTimeoutInSeconds     | int     | The timeout in seconds for ping messages.                 | None                 | No        |
 
-| Name | Type | Description | Default Value | Mandatory |
-
-|--------------------------|----------|---------------------------------------------------------------|-------------------------|-----------|
-
-| address | String | The address of the KubeMQ server. | None | Yes |
-
-| clientId | String | The client ID used for authentication. | None | Yes |
-
-| authToken | String | The authorization token for secure communication. | None | No |
-
-| tls | boolean | Indicates if TLS (Transport Layer Security) is enabled. | None | No |
-
-| tlsCertFile | String | The path to the TLS certificate file. | None | No (Yes if `tls` is true) |
-
-| tlsKeyFile | String | The path to the TLS key file. | None | No (Yes if `tls` is true) |
-
-| maxReceiveSize | int | The maximum size of the messages to receive (in bytes). | 104857600 (100MB) | No |
-
-| reconnectIntervalSeconds | int | The interval in seconds between reconnection attempts. | 5 | No |
-
-| keepAlive | boolean | Indicates if the connection should be kept alive. | None | No |
-
-| pingIntervalInSeconds | int | The interval in seconds between ping messages. | None | No |
-
-| pingTimeoutInSeconds | int | The timeout in seconds for ping messages. | None | No |
-
-| logLevel | Level | The logging level to use. | Level. INFO | No |
-
-  
 
 ### CQClient establishing connection example code
 
@@ -1303,7 +895,6 @@ const  config: Config = {
 	keepAlive:  true, // Indicates if the connection should be kept alive
 	pingIntervalInSeconds:  60, // Interval in seconds between ping messages
 	pingTimeoutInSeconds:  30, // Timeout in seconds for ping messages
-	logLevel:  'INFO', // Logging level for the client
 	credentials: {
 	cert:  Buffer.from('your-cert-content'), // Optional client cert credentials for talking to KubeMQ
 	key:  Buffer.from('your-key-content'),
@@ -1314,34 +905,20 @@ const  cqClient = new  CQClient(opts);
 
 ```
 
-  
-
 **Ping To KubeMQ server**
 
 You can ping the server to check connection is established or not.
 
 #### Request: `NONE`
 
-  
-  
-
 #### Response: `ServerInfo` interface Attributes
 
-  
-
-| Name | Type | Description |
-
-|---------------------|--------|--------------------------------------------|
-
-| host | String | The host of the server. |
-
-| version | String | The version of the server. |
-
-| serverStartTime | long | The start time of the server (in seconds). |
-
-| serverUpTimeSeconds | long | The uptime of the server (in seconds). |
-
-  
+| Name              | Type   | Description                                  |
+|-------------------|--------|----------------------------------------------|
+| host              | String | The host of the server.                      |
+| version           | String | The version of the server.                   |
+| serverStartTime   | long   | The start time of the server (in seconds).   |
+| serverUpTimeSeconds | long   | The uptime of the server (in seconds).       |
 
 ```typescript
 
@@ -1350,66 +927,51 @@ console.log('Ping Response: ' + pingResult);
 
 ```
 
-  
-
 **Command CreateCommandsChannel Example:**
 
 #### Request:
 
-| Name | Type | Description | Default Value | Mandatory |
+| Name        | Type   | Description                         | Default Value | Mandatory |
+|-------------|--------|-------------------------------------|---------------|-----------|
+| channelName | String | Channel name which you want to create | None          | Yes       |
 
-|---------------------|--------|--------------------------------------------|---------------|-----------|
-
-| channelName | String | Channel name which you want to create | None | Yes |
-
-  
-  
 
 #### Response:
 
-| Name | Type | Description |
-
-|---------------------|--------|--------------------------------------------|
-
-| isChannelCreated | boolean| Channel created true/false|
+| Name              | Type    | Description                        |
+|-------------------|---------|------------------------------------|
+| isChannelCreated  | boolean | Indicates if the channel was created (true/false) |
 
 ----------------------------------------------------------------------------
 
 ```typescript
 
-async  function  create(channel: string) {
+async  function  createCommandsChannel(channel: string) {
 	return  cqClient.createCommandsChannel(channel);
 }
 ```
 
 **Queries CreateQueriesChannel Example:**
 
-  
 
 #### Request:
 
-| Name | Type | Description | Default Value | Mandatory |
-
-|---------------------|--------|--------------------------------------------|---------------|-----------|
-
-| channelName | String | Channel name which you want to create | None | Yes |
-
-  
-  
+| Name        | Type   | Description                           | Default Value | Mandatory |
+|-------------|--------|---------------------------------------|---------------|-----------|
+| channelName | String | The name of the channel to create.    | None          | Yes       |
 
 #### Response:
 
-| Name | Type | Description |
+| Name              | Type    | Description                              |
+|-------------------|---------|------------------------------------------|
+| isChannelCreated  | boolean | Indicates whether the channel was created (true/false) |
 
-|---------------------|--------|--------------------------------------------|
-
-| isChannelCreated | boolean| Channel created true/false|
 
 ----------------------------------------------------------------------------
 
 ```typescript
 
-async  function  create(channel: string) {
+async  function  createQueriesChannel(channel: string) {
 	return  cqClient.createQueriesChannel(channel);
 }
 
@@ -1417,44 +979,25 @@ async  function  create(channel: string) {
 
 **Command ListCommandsChannel Example:**
 
-  
-
 #### Request:
+| Name          | Type   | Description                            | Default Value | Mandatory |
+|---------------|--------|----------------------------------------|---------------|-----------|
+| searchString  | String | The name of the channel to search for. | None          | No        |
 
-| Name | Type | Description | Default Value | Mandatory |
-
-|---------------------|--------|--------------------------------------------|---------------|-----------|
-
-| searchString | String | Channel name which you want to search | None | No |
-
-  
-  
 
 #### Response: `CQChannel[]`  `CQChannel` interface attributes
-
-  
-
-| Name | Type | Description |
-
-|---------------|-----------|--------------------------------------------------|
-
-| name | String | The name of the channel. |
-
-| type | String | The type of the channel. |
-
-| lastActivity | long | The timestamp of the last activity on the channel. |
-
-| isActive | boolean | Indicates whether the channel is currently active. |
-
-| incoming | CQStats | Statistics about incoming messages to the channel. |
-
-| outgoing | CQStats | Statistics about outgoing messages from the channel. |
-
-  
+| Name           | Type   | Description                                               |
+|----------------|--------|-----------------------------------------------------------|
+| name           | String | The name of the channel.                                |
+| type           | String | The type of the channel.                                |
+| lastActivity   | long   | The timestamp of the last activity on the channel.      |
+| isActive       | boolean| Indicates whether the channel is currently active.      |
+| incoming       | CQStats| Statistics about incoming messages to the channel.      |
+| outgoing       | CQStats| Statistics about outgoing messages from the channel.    |
 
 ```typescript
 
-async  function  list(search: string) {
+async  function  listCommandsChannels(search: string) {
 	const  channels = await  cqClient.listCommandsChannels(search);
 	console.log(channels);
 }
@@ -1464,41 +1007,23 @@ async  function  list(search: string) {
 **Queries ListQueriesChannel Example:**
 
 #### Request:
-
-| Name | Type | Description | Default Value | Mandatory |
-
-|---------------------|--------|--------------------------------------------|---------------|-----------|
-
-| searchString | String | Channel name which you want to search | None | No |
-
-  
-  
+| Name         | Type   | Description                                   | Default Value | Mandatory |
+|--------------|--------|-----------------------------------------------|---------------|-----------|
+| searchString | String | Channel name which you want to search        | None          | No        |
 
 #### Response: `List<CQChannel>`  `CQChannel` class attributes
-
-  
-
-| Name | Type | Description |
-
-|---------------|-----------|--------------------------------------------------|
-
-| name | String | The name of the channel. |
-
-| type | String | The type of the channel. |
-
-| lastActivity | long | The timestamp of the last activity on the channel. |
-
-| isActive | boolean | Indicates whether the channel is currently active. |
-
-| incoming | CQStats | Statistics about incoming messages to the channel. |
-
-| outgoing | CQStats | Statistics about outgoing messages from the channel. |
-
-  
+| Name         | Type   | Description                                           |
+|--------------|--------|-------------------------------------------------------|
+| name         | String | The name of the channel.                            |
+| type         | String | The type of the channel.                            |
+| lastActivity | long   | The timestamp of the last activity on the channel.  |
+| isActive     | boolean| Indicates whether the channel is currently active.  |
+| incoming     | CQStats| Statistics about incoming messages to the channel.  |
+| outgoing     | CQStats| Statistics about outgoing messages from the channel.|
 
 ```typescript
 
-async  function  list(search: string) {
+async  function  listQueriesChannels(search: string) {
 	const  channels = await  cqClient.listQueriesChannels(search);
 	console.log(channels);
 }
@@ -1508,138 +1033,97 @@ async  function  list(search: string) {
 **Command SubscribeToCommandsChannel Example:**
 
 #### Request: `CommandsSubscription` Class Attributes
+| Name                     | Type                    | Description                                      | Default Value | Mandatory |
+|--------------------------|-------------------------|--------------------------------------------------|---------------|-----------|
+| channel                  | String                  | The channel for the subscription.               | None          | Yes       |
+| group                    | String                  | The group associated with the subscription.     | None          | No        |
+| onReceiveCommandCallback | `CommandsReceiveMessage`| Callback function for receiving commands.       | None          | Yes       |
 
-| Name | Type | Description | Default Value | Mandatory |
-
-|--------------------------|---------------------------------------|--------------------------------------------------------|---------------|-----------|
-
-| channel | String | The channel for the subscription. | None | Yes |
-
-| group | String | The group associated with the subscription. | None | No |
-
-| onReceiveCommandCallback | `CommandsReceiveMessage` | Callback function for receiving commands. | None | Yes |
-
-  
-  
 
 #### Response: `None`
 
 #### Callback: `CommandsReceiveMessage` interface attributes
-
-| Name | Type | Description |
-
-|------------------|-----------------------|------------------------------------------------|
-
-| commandReceived | CommandsReceiveMessage| The command message that was received. |
-
-| clientId | String | The ID of the client that sent the command. |
-
-| requestId | String | The ID of the request. |
-
-| isExecuted | boolean | Indicates whether the command was executed. |
-
-| timestamp | LocalDateTime | The timestamp of the response. |
-
-| error | String | The error message if an error occurred. |
-
-  
-  
+| Name          | Type                  | Description                                |
+|---------------|-----------------------|--------------------------------------------|
+| commandReceived | `CommandsReceiveMessage` | The command message that was received.   |
+| clientId      | String                | The ID of the client that sent the command. |
+| requestId     | String                | The ID of the request.                    |
+| isExecuted    | boolean               | Indicates whether the command was executed. |
+| timestamp     | LocalDateTime         | The timestamp of the response.            |
+| error         | String                | The error message if an error occurred.   |
 
 ```typescript
-
-const  cb = (err: Error | null, msg: CommandsReceiveMessage) => {
+async  function  subscribeToCommands(channelName:  string) {
+// Consumer for handling received events
+const  cb  = (err:  Error  |  null, msg:  CommandsReceiveMessage) => {
 if (err) {
-	console.error(err);
-	return;
+console.error(err);
+return;
 }
-
 if (msg) {
 console.log(msg);
-	cqClient.sendCommandResponseMessage({
-	executed:  true,
-	error:  '',
-	replyChannel:  msg.replyChannel,
-	clientId:  'command-response',
-	timestamp:  Date.now(),
-	id:  msg.id,
-})
-.catch((reason) =>  console.log(reason));
+cqClient.sendCommandResponseMessage({
+executed:  true,
+error:  '',
+replyChannel:  msg.replyChannel,
+clientId:  'command-response',
+timestamp:  Date.now(),
+id:  msg.id,
+}).catch((reason) =>  console.log(reason));
 }
 };
- 
 
 cqClient.subscribeToCommands(
 {
-	channel:  'commands',
+	channel:  channelName,
 },
 cb,
 ).then(async (value) => {
-	value.onState.on((event) => {
-	console.log(event);
+value.onState.on((event) => {
+console.log(event);
 });
 
-
 await  new  Promise((r) =>  setTimeout(r, 1000000));
-value.unsubscribe();
+//value.unsubscribe();
 }).catch((reason) => {
 console.log(reason);
 });
-
+}
 ```
-
-  
 
 **Queries SubscribeToQueriesChannel Example:**
 
 #### Request: `QueriesSubscriptionRequest` Class Attributes
-
-| Name | Type | Description | Default Value | Mandatory |
-
-|--------------------------|---------------------------------------|--------------------------------------------------------|---------------|-----------|
-
-| channel | String | The channel for the subscription. | None | Yes |
-
-| group | String | The group associated with the subscription. | None | No |
-
-| onReceiveQueriesCallback | `QueriesReceiveMessage` | Callback function for receiving queries. | None | Yes |
-
-  
-  
+| Name                    | Type                       | Description                                | Default Value | Mandatory |
+|-------------------------|----------------------------|--------------------------------------------|---------------|-----------|
+| channel                 | String                     | The channel for the subscription.         | None          | Yes       |
+| group                   | String                     | The group associated with the subscription. | None          | No        |
+| onReceiveQueriesCallback | `QueriesReceiveMessage`   | Callback function for receiving queries.  | None          | Yes       |
 
 #### Response: `None`
 
 #### Callback: `QueriesReceiveMessage` interface attributes
-
-| Name | Type | Description |
-
-|------------------|-----------------------|------------------------------------------------|
-
-| id | String | The ID of the request. |
-
-| channel | String | Channel name from which message received. |
-
-| metadata | string | Metadata of the message. |
-
-| body | Uint8Array | The body of the response. |
-
-| tags | Map<string, string> | Tags to the queries message. |
-
-| replyChannel | String | The reply channel for this message. |
-
-  
-  
+| Name          | Type                     | Description                                    |
+|---------------|--------------------------|------------------------------------------------|
+| id            | String                   | The ID of the request.                        |
+| channel       | String                   | Channel name from which the message was received. |
+| metadata      | String                   | Metadata of the message.                      |
+| body          | Uint8Array               | The body of the response.                     |
+| tags          | Map<String, String>      | Tags associated with the query message.       |
+| replyChannel  | String                   | The reply channel for this message.           |
 
 ```typescript
 
-const  cb = (err: Error | null, msg) => {
-	if (err) {
+async  function  subscribeToQueries(channelName:  string) {
+// Consumer for handling received events
+const  cb  = (err:  Error  |  null, msg) => {
+if (err) {
 	console.error(err);
 	return;
-	}
-
+}
 if (msg) {
-	console.log(msg);
-	cqClient.sendQueryResponseMessage({
+console.log(msg);
+cqClient.sendQueryResponseMessage({
 	executed:  true,
 	error:  '',
 	replyChannel:  msg.replyChannel,
@@ -1649,12 +1133,11 @@ if (msg) {
 	metadata:  'some metadata',
 	body:  Utils.stringToBytes('Im here'),
 }).catch((reason) =>  console.log(reason));
-}
-};
+}};
 
 cqClient.subscribeToQueries(
 {
-	channel:  'queries',
+	channel:  channelName,
 },
 cb,
 ).then(async (value) => {
@@ -1662,45 +1145,37 @@ cb,
 	console.log(event);
 });
 
-
 await  new  Promise((r) =>  setTimeout(r, 1000000));
 value.unsubscribe();
 }).catch((reason) => {
 	console.log(reason);
 });
+}
 
 ```
 
-  
 
 **Command DeleteCommandsChannel Example:**
 
 #### Request:
 
-| Name | Type | Description | Default Value | Mandatory |
 
-|---------------------|--------|--------------------------------------------|---------------|-----------|
+| Name         | Type   | Description                                | Default Value | Mandatory |
+|--------------|--------|--------------------------------------------|---------------|-----------|
+| channelName  | String | The name of the channel you want to delete. | None          | Yes       |
 
-| channelName | String | Channel name which you want to delete | None | Yes |
-
-  
-  
 
 #### Response:
 
-| Name | Type | Description |
-
-|---------------------|--------|--------------------------------------------|
-
-| void | Promise<void>| Channel deleted return no result|
+| Name  | Type         | Description                           |
+|-------|--------------|---------------------------------------|
+| void  | Promise<void> | Indicates no result is returned after deletion. |
 
 ----------------------------------------------------------------------------
 
-  
-
 ```typescript
 
-async  function  deleteChannel(channel: string) {
+async  function  deleteCommandsChannel(channel: string) {
 	return  cqClient.deleteCommandsChannel(channel);
 }
 
@@ -1708,53 +1183,34 @@ async  function  deleteChannel(channel: string) {
 
 **Queries DeleteQueriesChannel Example:**
 
-  
-
 #### Request:
+| Name         | Type   | Description                          | Default Value | Mandatory |
+|--------------|--------|--------------------------------------|---------------|-----------|
+| channelName  | String | Channel name which you want to delete | None          | Yes       |
 
-| Name | Type | Description | Default Value | Mandatory |
-
-|---------------------|--------|--------------------------------------------|---------------|-----------|
-
-| channelName | String | Channel name which you want to delete | None | Yes |
-
-  
-  
 
 #### Response:
-
-| Name | Type | Description |
-
-|---------------------|--------|--------------------------------------------|
-
-| void | Promise<void>| Channel deleted return no result|
+| Name | Type         | Description                      |
+|------|--------------|----------------------------------|
+| void | Promise<void> | Channel deletion returns no result |
 
 ----------------------------------------------------------------------------
 
-  
-
 ```typescript
 
-async  function  deleteChannel(channel: string) {
+async  function  deleteQueriesChannel(channel: string) {
 	return  cqClient.deleteQueriesChannel(channel);
 }
 
 ```
 
-  
-
 ## Learn KubeMQ
 
 Visit our [Extensive KubeMQ Documentation](https://docs.kubemq.io/).
 
-  
-
 ## Examples - Cookbook Recipes
 
 Please visit our cookbook [repository](https://github.com/kubemq-io/node-sdk-cookbook)
-
-  
-  
 
 ## Support
 
