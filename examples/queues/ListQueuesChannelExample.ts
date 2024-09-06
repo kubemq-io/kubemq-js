@@ -2,17 +2,18 @@ import { Config, Utils, QueuesClient } from '../../src';
 
 const opts: Config = {
   address: 'localhost:50000',
-  clientId: Utils.uuid(),
+  clientId: 'kubeMQClientId-ts',
   reconnectInterval: 1000,
 };
 const queuesClient = new QueuesClient(opts);
-async function list(search: string) {
+
+async function listQueueChannels(search: string) {
   const channels = await queuesClient.listQueuesChannel(search);
   console.log(channels);
 }
 
 async function main() {
-  await list('');
+  await listQueueChannels('');
   // wait for receiver
 }
 main();
