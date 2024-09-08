@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es6",
+    "target": "es2019",
     "module": "commonjs",
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
@@ -12,16 +12,22 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noImplicitAny": false,
     "noImplicitThis": false,
     "strictNullChecks": false,
-    "outDir": "lib",
+    "outDir": "dist",              // Change output directory to 'dist'
     "declaration": true,
-    "declarationMap" : true
+    "declarationMap": true,
+    "lib": ["es2019", "dom"] // Ensure "es2019" or later is included
   },
   "include": [
     "src/**/*",
+    "examples/**/*.ts"        // Include the examples folder
+  ],
+  "exclude": [
+    "node_modules",              // Optionally exclude node_modules
+    "dist"                       // Exclude 'dist' to prevent potential conflicts
   ]
 }
