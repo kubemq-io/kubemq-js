@@ -18,7 +18,7 @@ __exportStar(require("./client/KubeMQClient"), exports);
 __exportStar(require("./client/config"), exports);
 __exportStar(require("./pubsub/PubsubClient"), exports);
 __exportStar(require("./pubsub/eventTypes"), exports);
-__exportStar(require("./queues/QueuesClient"), exports);
+__exportStar(require("./queues/queuesClient"), exports);
 __exportStar(require("./queues/queuesTypes"), exports);
 __exportStar(require("./cq/CQClient"), exports);
 __exportStar(require("./cq/commandTypes"), exports);
