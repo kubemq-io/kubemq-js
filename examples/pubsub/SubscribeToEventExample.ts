@@ -1,41 +1,42 @@
-import { PubsubClient, Utils, Config, EventStoreType } from '../../src';
+import { PubsubClient, Utils, Config, EventStoreType, EventsSubscriptionRequest, EventMessageReceived } from '../../src';
 
 async function main() {
   const opts: Config = {
     address: 'localhost:50000',
-    clientId: Utils.uuid(),
+    clientId: 'kubeMQClientId-ts',
+    reconnectInterval: 2
   };
   const pubsubClient = new PubsubClient(opts);
 
   //Subscribes to events from the specified channel and processes received events.
-  await pubsubClient
-    .subscribeToEvents(
-      {
-        channel: 'events.A',
-        clientId: 'SubscriberA',
-      },
-      (err, msg) => {
-        if (err) {
-          console.error('SubscriberA', err);
-          return;
-        }
-        if (msg) {
-          console.log('SubscriberA', msg);
-        }
-      },
-    )
-    .catch((reason) => {
-      console.log(reason);
-    });
+  const eventsSubscriptionRequest = new EventsSubscriptionRequest('events.A', '');
+
+  // Define the callback for receiving events
+  eventsSubscriptionRequest.onReceiveEventCallback = (event: EventMessageReceived) => {
+      console.log('SubscriberA received event:', {
+          id: event.id,
+          fromClientId: event.fromClientId,
+          timestamp: event.timestamp,
+          channel: event.channel,
+          metadata: event.metadata,
+          body: event.body,
+          tags: event.tags,
+      });
+  };
+  
+  // Define the callback for handling errors
+  eventsSubscriptionRequest.onErrorCallback = (error: string) => {
+      console.error('SubscriberA error:', error);
+  };
+  
+  pubsubClient
+      .subscribeToEvents(eventsSubscriptionRequest)
+      .then(() => {
+          console.log('Subscription successful');
+      })
+      .catch((reason: any) => {
+          console.error('Subscription failed:', reason);
+      });
     
-
-  await new Promise((r) => setTimeout(r, 2000));
-
-  for (let i = 0; i < 10; i++) {
-    await pubsubClient.sendEventsMessage({
-      channel: 'events.A',
-      body: Utils.stringToBytes('event message'),
-    });
-  }
 }
 main();
