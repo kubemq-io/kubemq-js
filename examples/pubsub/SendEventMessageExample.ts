@@ -9,14 +9,14 @@ async function main() {
   
   //Sends an event message to the configured events channel.
   await pubsubClient.sendEventsMessage({
-    channel: 'events.single',
+    channel: 'events.A',
     body: Utils.stringToBytes('event message'),
   });
 
 
   //Sends an event store message to the configured events store channel.
   const result = await pubsubClient.sendEventStoreMessage({
-    channel: 'events_store.single',
+    channel: 'events_store.A',
     body: Utils.stringToBytes('event store message'),
   })
 

@@ -43,7 +43,7 @@ export interface BaseMessage {
 export class KubeMQClient {
 
   protected address: string;
-  protected clientId: string;
+  public clientId: string;
   protected authToken?: string;
   protected tls: boolean;
   protected tlsCertFile?: Buffer;
@@ -65,7 +65,7 @@ export class KubeMQClient {
     this.tlsCertFile = config.credentials?.cert;
     this.tlsKeyFile = config.credentials?.key;
     this.maxReceiveSize = config.maxReceiveSize || 1024 * 1024 * 100; // 100MB
-    this.reconnectIntervalSeconds = config.reconnectInterval || 1000; // 1 second
+    this.reconnectIntervalSeconds = config.reconnectInterval || 1; // 1 second
     this.keepAlive = config.keepAlive;
     this.pingIntervalInSeconds = config.pingIntervalInSeconds || 60;
     this.pingTimeoutInSeconds = config.pingTimeoutInSeconds || 30;
