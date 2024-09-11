@@ -6,14 +6,12 @@ import { createChannel, deleteChannel, listPubSubChannels } from '../common/comm
 import { PubSubChannel } from '../common/channel_stats';
 import {
     EventsMessage,
-    EventsReceiveMessageCallback,
     EventsSendResult,
     EventsSubscriptionRequest,
-    EventsSubscriptionResponse,
     EventsStoreMessage,
-    EventsStoreReceiveMessageCallback,
     EventsStoreSubscriptionRequest,
-    EventsStoreSubscriptionResponse,
+    EventMessageReceived,
+    EventStoreMessageReceived,
 } from './eventTypes';
 import { EventStreamHelper } from './EventStreamHelper';
 import { Config } from '../client/config';
@@ -75,195 +73,95 @@ export class PubsubClient extends KubeMQClient {
         }
     }
 
-    public async subscribeToEvents(
-        request: EventsSubscriptionRequest,
-        cb: EventsReceiveMessageCallback,
-    ): Promise<EventsSubscriptionResponse> {
-        if (!request || !request.channel || !cb) {
-            throw new Error('Invalid parameters for event subscription');
-        }
-    
-        const onStateChange = new TypedEvent<string>();
-        let unsubscribe = false;
-        let currentStream: grpc.ClientReadableStream<pb.kubemq.EventReceive> | null = null;
-    
-        const connect = async () => {
-            while (!unsubscribe) {
-                onStateChange.emit('connecting');
-                try {
-                    const { stream } = await this.subscribeFnEvent(request, cb);
-                    currentStream = stream;
-                    onStateChange.emit('connected');
-    
-                    stream.on('data', (data: pb.kubemq.EventReceive) => {
-                        cb(null, {
-                            id: data.EventID,
-                            channel: data.Channel,
-                            metadata: data.Metadata,
-                            body: data.Body,
-                            tags: data.Tags,
-                        });
-                    });
-    
-                    stream.on('error', (e: Error) => {
-                        console.error('Subscription error:', e);
-                        onStateChange.emit('disconnected');
-                        // Attempt to reconnect
-                        if (!unsubscribe) {
-                            setTimeout(connect, this.reconnectIntervalSeconds * 1000);
-                        }
-                    });
-    
-                    stream.on('close', () => {
-                        console.log('Stream closed');
-                        onStateChange.emit('disconnected');
-                        // Attempt to reconnect
-                        if (!unsubscribe) {
-                            setTimeout(connect, this.reconnectIntervalSeconds * 1000);
-                        }
-                    });
-    
-                    // Keep the connection alive
-                    while (!unsubscribe) {
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    }
-                } catch (error) {
-                    console.error('Subscription setup failed:', error);
-                    // Attempt to reconnect on setup failure
-                    await new Promise(resolve => setTimeout(resolve, this.reconnectIntervalSeconds * 1000));
-                }
-            }
-        };
-    
-        connect();
-    
-        return {
-            onState: onStateChange,
-            unsubscribe() {
-                unsubscribe = true;
-                if (currentStream) {
-                    currentStream.cancel();
-                }
-            },
-        };
-    }
-    
+   // Subscribe to Events Method
+   public async subscribeToEvents(request: EventsSubscriptionRequest): Promise<void> {
+    try {
+        console.debug('Subscribing to events');
+        request.validate(); // Validate the request
 
-    private subscribeFnEvent(
-        request: EventsSubscriptionRequest,
-        cb: EventsReceiveMessageCallback,
-    ): Promise<InternalEventsSubscriptionResponse> {
-        return new Promise<InternalEventsSubscriptionResponse>((resolve, reject) => {
-            const pbSubRequest = new pb.kubemq.Subscribe();
-            pbSubRequest.ClientID = request.clientId || this.clientId;
-            pbSubRequest.Group = request.group || '';
-            pbSubRequest.Channel = request.channel;
-            pbSubRequest.SubscribeTypeData = pb.kubemq.Subscribe.SubscribeType.Events;
+        const subscribe = request.encode(this);
+        const stream = this.grpcClient.SubscribeToEvents(subscribe, this.getMetadata());
 
-            const stream = this.grpcClient.SubscribeToEvents(pbSubRequest, this.getMetadata());
+        // Assign observer to the request
+        request.observer = stream;
 
-            resolve({
-                onClose: new TypedEvent<void>(),
-                stream,
-            });
+        // Event received
+        stream.on('data', (data: pb.kubemq.EventReceive) => {
+            console.debug(`Event received: ID='${data.EventID}', Channel='${data.Channel}'`);
+            const event = EventMessageReceived.decode(data);
+            request.raiseOnReceiveMessage(event); // Process received event
         });
-    }
 
-    public async subscribeToEventsStore(
-        request: EventsStoreSubscriptionRequest,
-        cb: EventsStoreReceiveMessageCallback,
-    ): Promise<EventsStoreSubscriptionResponse> {
-        if (!request || !request.channel || !cb) {
-            throw new Error('Invalid parameters for event store subscription');
-        }
-    
-        const onStateChange = new TypedEvent<string>();
-        let unsubscribe = false;
-        let currentStream: grpc.ClientReadableStream<pb.kubemq.EventReceive> | null = null;
-    
-        const connect = async () => {
-            while (!unsubscribe) {
-                onStateChange.emit('connecting');
-                try {
-                    const { stream } = await this.subscribeFnEventStore(request, cb);
-                    currentStream = stream;
-                    onStateChange.emit('connected');
-    
-                    stream.on('data', (data: pb.kubemq.EventReceive) => {
-                        cb(null, {
-                            id: data.EventID,
-                            channel: data.Channel,
-                            metadata: data.Metadata,
-                            body: data.Body,
-                            tags: data.Tags,
-                            timestamp: data.Timestamp,
-                            sequence: data.Sequence
-                        });
-                    });
-    
-                    stream.on('error', (e: Error) => {
-                        console.error('Subscription error:', e);
-                        onStateChange.emit('disconnected');
-                        // Attempt to reconnect
-                        if (!unsubscribe) {
-                            setTimeout(connect, this.reconnectIntervalSeconds * 1000);
-                        }
-                    });
-    
-                    stream.on('close', () => {
-                        console.log('Stream closed');
-                        onStateChange.emit('disconnected');
-                        // Attempt to reconnect
-                        if (!unsubscribe) {
-                            setTimeout(connect, this.reconnectIntervalSeconds * 1000);
-                        }
-                    });
-    
-                    // Keep the connection alive
-                    while (!unsubscribe) {
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    }
-                } catch (error) {
-                    console.error('Subscription setup failed:', error);
-                    // Attempt to reconnect on setup failure
-                    await new Promise(resolve => setTimeout(resolve, this.reconnectIntervalSeconds * 1000));
-                }
+        // Handle errors (like server being unavailable)
+        stream.on('error', (err: grpc.ServiceError) => {
+            console.error('Subscription error:', err.message);
+            console.error('Subscription error code:', err.code);
+
+            request.raiseOnError(err.message);
+
+            if (err.code === grpc.status.UNAVAILABLE) {
+                console.debug('Server is unavailable, attempting to reconnect...');
+                request.reconnect(this, this.reconnectIntervalSeconds); // Trigger reconnection
             }
-        };
-    
-        connect();
-    
-        return {
-            onState: onStateChange,
-            unsubscribe() {
-                unsubscribe = true;
-                if (currentStream) {
-                    currentStream.cancel();
-                }
-            },
-        };
-    }
-    
-    
-    private subscribeFnEventStore(
-        request: EventsStoreSubscriptionRequest,
-        cb: EventsStoreReceiveMessageCallback,
-    ): Promise<InternalEventsStoreSubscriptionResponse> {
-        return new Promise<InternalEventsStoreSubscriptionResponse>((resolve, reject) => {
-            const pbSubRequest = new pb.kubemq.Subscribe();
-            pbSubRequest.ClientID = request.clientId || this.clientId;
-            pbSubRequest.Group = request.group || '';
-            pbSubRequest.Channel = request.channel;
-            pbSubRequest.SubscribeTypeData = pb.kubemq.Subscribe.SubscribeType.EventsStore;
-
-            const stream = this.grpcClient.SubscribeToEvents(pbSubRequest, this.getMetadata());
-
-            resolve({
-                onClose: new TypedEvent<void>(),
-                stream,
-            });
         });
+
+        // Handle stream close
+        stream.on('close', () => {
+            console.debug('Stream closed by the server, attempting to reconnect...');
+            request.reconnect(this, this.reconnectIntervalSeconds); // Attempt to reconnect when the stream is closed
+        });
+    } catch (error) {
+        console.error('Failed to subscribe to events', error);
+        throw new Error('Subscription failed');
     }
+}
+
+
+ // Subscribe to EventStore Method
+ public async subscribeToEventsStore(request: EventsStoreSubscriptionRequest): Promise<void> {
+    try {
+        console.debug('Subscribing to events');
+        request.validate(); // Validate the request
+
+        const subscribe = request.encode(this);
+        console.log(subscribe.toObject());
+        const stream = this.grpcClient.SubscribeToEvents(subscribe, this.getMetadata());
+
+        // Assign observer to the request
+        request.observer = stream;
+
+        // Event received
+        stream.on('data', (data: pb.kubemq.EventReceive) => {
+            console.debug(`EventStore Event received: ID='${data.EventID}', Channel='${data.Channel}'`);
+            const event = EventStoreMessageReceived.decode(data);
+            request.raiseOnReceiveMessage(event); // Process received event
+        });
+
+        // Handle errors (like server being unavailable)
+        stream.on('error', (err: grpc.ServiceError) => {
+            console.error('Subscription error:', err.message);
+            console.error('Subscription error code:', err.code);
+
+            request.raiseOnError(err.message);
+
+            if (err.code === grpc.status.UNAVAILABLE) {
+                console.debug('Server is unavailable, attempting to reconnect...');
+                request.reconnect(this, this.reconnectIntervalSeconds); // Trigger reconnection
+            }
+        });
+
+        // Handle stream close
+        stream.on('close', () => {
+            console.debug('Stream closed by the server, attempting to reconnect...');
+            request.reconnect(this, this.reconnectIntervalSeconds); // Attempt to reconnect when the stream is closed
+        });
+    } catch (error) {
+        console.error('Failed to subscribe to eventstore', error);
+        throw new Error('Subscription failed');
+    }
+}
+
+   
 
    /**
      * Create channel
