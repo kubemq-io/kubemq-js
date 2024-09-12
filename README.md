@@ -14,7 +14,7 @@ The **KubeMQ SDK for NodeJS/TS** enables typescript developers to communicate wi
 
 Please visit [KubeMQ Community](https://github.com/kubemq-io/kubemq-community) for intallation steps.
 
- 
+
 ## General SDK description
 
 The SDK implements all communication patterns available through the KubeMQ server:
@@ -29,7 +29,7 @@ The SDK implements all communication patterns available through the KubeMQ serve
 
 - Queue
 
-  
+
 
 ### Installing
 
@@ -100,7 +100,7 @@ node  examples/cq/CreateExample.ts
 
 ## Payload Details
 
-  
+
 
 -  **Metadata:** The metadata allows us to pass additional information with the event. Can be in any form that can be presented as a string, i.e., struct, JSON, XML and many more.
 
@@ -110,13 +110,13 @@ node  examples/cq/CreateExample.ts
 
 -  **Tags:** Set of Key value pair that help categorize the message
 
-  
+
 
 # KubeMQ PubSub Client Examples
 
 Below examples demonstrating the usage of KubeMQ PubSub (Event and EventStore) client. The examples include creating, deleting, listing channels, and sending/subscribing event messages.
 
-  
+
 
 ## File Structure
 
@@ -303,7 +303,7 @@ async  function  listEventsChannel(search: string) {
 | Name        | Type   | Description                               | Default Value | Mandatory |
 |-------------|--------|-------------------------------------------|---------------|-----------|
 | channelName | String | Channel name that you want to search for  | None          | No        |
-  
+
 #### Response: `PubSubChannel[]`  `PubSubChannel` interface Attributes
 
 | Name         | Type        | Description                                                                                  |
@@ -408,26 +408,38 @@ await  pubsubClient.sendEventStoreMessage({
 | tags        | Map<String, String>   | The tags associated with the message.                             |
 
 ```typescript
-
-await  pubsubClient.subscribeToEvents(
-{
-	channel:  'events.A',
-	clientId:  'SubscriberA',
-},
-(err, msg) => {
-if (err) {
-	console.error('SubscriberA', err);
-	return;
+async function subscribeToEvent() {  
+  //Subscribes to events from the specified channel and processes received events.  
+  const eventsSubscriptionRequest = new EventsSubscriptionRequest('events.A', '');  
+  
+  // Define the callback for receiving events  
+  eventsSubscriptionRequest.onReceiveEventCallback = (event: EventMessageReceived) => {  
+    console.log('SubscriberA received event:', {  
+      id: event.id,  
+      fromClientId: event.fromClientId,  
+      timestamp: event.timestamp,  
+      channel: event.channel,  
+      metadata: event.metadata,  
+      body: event.body,  
+      tags: event.tags,  
+    });  
+  };  
+  
+  // Define the callback for handling errors  
+  eventsSubscriptionRequest.onErrorCallback = (error: string) => {  
+    console.error('SubscriberA error:', error);  
+  };  
+  
+  pubsubClient  
+  .subscribeToEvents(eventsSubscriptionRequest)  
+    .then(() => {  
+      console.log('Subscription successful');  
+    })  
+    .catch((reason: any) => {  
+      console.error('Subscription failed:', reason);  
+    });  
+  
 }
-
-if (msg) {
-	console.log('SubscriberA', msg);
-}
-},
-).catch((reason) => {
-	console.log(reason);
-});
-
 ```
 
 **PubSub SubscribeEventsStore Example:**
@@ -458,35 +470,45 @@ if (msg) {
 | tags        | Map<String, String>   | The tags associated with the message.                             |
 
 ```typescript
-
-await  pubsubClient
-.subscribeToEventsStore(
-{
-	channel:  'events_store.A',
-	group:  'g1',
-	clientId:  'SubscriberA',
-	requestType:  EventStoreType.StartFromFirst,
-},
-(err, msg) => {
-if (err) {
-	console.error('SubscriberA', err);
-	return;
+async function subscribeToEventStore() {  
+  //Subscribes to events store messages from the specified channel with a specific configuration.  
+  const eventsSubscriptionRequest = new EventsStoreSubscriptionRequest('events_store.A', '');  
+  eventsSubscriptionRequest.eventsStoreType = EventStoreType.StartAtSequence;  
+  eventsSubscriptionRequest.eventsStoreSequenceValue=1;  
+  
+  // Define the callback for receiving events  
+  eventsSubscriptionRequest.onReceiveEventCallback = (event: EventStoreMessageReceived) => {  
+    console.log('SubscriberA received event:', {  
+      id: event.id,  
+      fromClientId: event.fromClientId,  
+      timestamp: event.timestamp,  
+      channel: event.channel,  
+      metadata: event.metadata,  
+      body: event.body,  
+      tags: event.tags,  
+      sequence: event.sequence,  
+    });  
+  };  
+  
+  // Define the callback for handling errors  
+  eventsSubscriptionRequest.onErrorCallback = (error: string) => {  
+    console.error('SubscriberA error:', error);  
+  };  
+  
+  pubsubClient  
+  .subscribeToEvents(eventsSubscriptionRequest)  
+    .then(() => {  
+      console.log('Eventstore Subscription successful');  
+    })  
+    .catch((reason: any) => {  
+      console.error('Eventstore Subscription failed:', reason);  
+    });  
 }
-
-if (msg) {
-	console.log('SubscriberA', msg);
-}
-},
-)
-.catch((reason) => {
-   console.log(reason);
-});
-
 ```
 
 **PubSub DeleteEventsChannel Example:**
 
-  
+
 
 #### Request:
 
@@ -518,7 +540,7 @@ async  function  deleteChannel(channel: string) {
 | Name        | Type   | Description                               | Default Value | Mandatory |
 |-------------|--------|-------------------------------------------|---------------|-----------|
 | channelName | String | The name of the channel you want to delete | None          | Yes       |
-  
+
 
 #### Response:
 
@@ -529,7 +551,7 @@ async  function  deleteChannel(channel: string) {
 
 ----------------------------------------------------------------------------
 
-  
+
 
 ```typescript
 
@@ -579,7 +601,7 @@ For executing Queues operation we have to create the instance of QueuesClient, i
 | pingIntervalInSeconds    | int     | The interval in seconds between ping messages.            | None                 | No        |
 | pingTimeoutInSeconds     | int     | The timeout in seconds for ping messages.                 | None                 | No        |
 
-  
+
 
 ### QueuesClient establishing connection example code
 
@@ -697,7 +719,7 @@ async  function  listQueueChannels(search: string) {
 
 ```
 
-  
+
 
 **Queues SendSingleMessage Example:**
 
@@ -747,7 +769,7 @@ await  queuesClient.sendQueuesMessage({
 | maxNumberOfMessages | int    | The maximum number of messages to poll.    | 1             | No        |
 | waitTimeoutSeconds  | int    | The wait timeout in seconds for polling messages. | 60        | No        |
 
-  
+
 
 #### Response: `QueuesPullWaitingMessagesResponse` class attributes
 | Name             | Type              | Description                                         |
@@ -791,7 +813,7 @@ await  queuesClient
 | maxNumberOfMessages| int    | The maximum number of messages to poll.            | 1             | No        |
 | waitTimeoutSeconds | int    | The wait timeout in seconds for polling messages.  | 60            | No        |
 
-  
+
 #### Response: `QueuesPullWaitingMessagesResponse` class attributes
 
 | Name             | Type              | Description                                      |
@@ -834,13 +856,12 @@ Below examples demonstrating the usage of KubeMQ CQ (Commands and Queries) Clien
 #### Command
 
 -  `cq\CreateExample.ts`: Demonstrates creating command channels.
-
 -  `cq\DeleteExample.ts`: Demonstrates deleting command channels.
-
 -  `cq\ListExample.ts`: Demonstrates listing command channels.
-
--  `cq\CommandsExample.ts`: Demonstrates sending & subscribing to command messages.
--  `cq\QueriesExample.ts`: Demonstrates sending & subscribing to queries messages.
+-  `cq\CommandsExample.ts`: Demonstrates sending to command messages.
+- `cq\SubscribeCommandsExample.ts`: Demonstrates subscribing to command messages.
+-  `cq\QueriesExample.ts`: Demonstrates sending to queries messages.
+-  `cq\SubscribeQueriesExample.ts`: Demonstrates subscribing to queries messages.
 
 ## Getting Started
 
@@ -1053,41 +1074,35 @@ async  function  listQueriesChannels(search: string) {
 | error         | String                | The error message if an error occurred.   |
 
 ```typescript
-async  function  subscribeToCommands(channelName:  string) {
-// Consumer for handling received events
-const  cb  = (err:  Error  |  null, msg:  CommandsReceiveMessage) => {
-if (err) {
-console.error(err);
-return;
-}
-if (msg) {
-console.log(msg);
-cqClient.sendCommandResponseMessage({
-executed:  true,
-error:  '',
-replyChannel:  msg.replyChannel,
-clientId:  'command-response',
-timestamp:  Date.now(),
-id:  msg.id,
-}).catch((reason) =>  console.log(reason));
-}
-};
-
-cqClient.subscribeToCommands(
-{
-	channel:  channelName,
-},
-cb,
-).then(async (value) => {
-value.onState.on((event) => {
-console.log(event);
-});
-
-await  new  Promise((r) =>  setTimeout(r, 1000000));
-//value.unsubscribe();
-}).catch((reason) => {
-console.log(reason);
-});
+async function subscribeToCommands(channelName: string) {  
+  //Subscribes to commands from the specified channel with a specific configuration.  
+  const commandSubscriptionRequest = new CommandsSubscriptionRequest(channelName, 'group1');  
+  
+  // Define the callback for receiving commandMessage  
+  commandSubscriptionRequest.onReceiveEventCallback = (commandMessage: CommandMessageReceived) => {  
+      console.log('SubscriberA received commandMessage:', {  
+          id: commandMessage.id,  
+          fromClientId: commandMessage.fromClientId,  
+          timestamp: commandMessage.timestamp,  
+          channel: commandMessage.channel,  
+          metadata: commandMessage.metadata,  
+          body: commandMessage.body,  
+          tags: commandMessage.tags,  
+      });  
+  };  
+    
+  // Define the callback for handling errors  
+  commandSubscriptionRequest.onErrorCallback = (error: string) => {  
+      console.error('SubscriberA error:', error);  
+  };  
+    
+  cqClient.subscribeToCommands(commandSubscriptionRequest)  
+      .then(() => {  
+          console.log('Command Subscription successful');  
+      })  
+      .catch((reason: any) => {  
+          console.error('Command Subscription failed:', reason);  
+      });  
 }
 ```
 
@@ -1113,45 +1128,37 @@ console.log(reason);
 | replyChannel  | String                   | The reply channel for this message.           |
 
 ```typescript
-
-async  function  subscribeToQueries(channelName:  string) {
-// Consumer for handling received events
-const  cb  = (err:  Error  |  null, msg) => {
-if (err) {
-	console.error(err);
-	return;
+async function subscribeToQueries(channelName: string) {  
+  
+  //Subscribes to queries from the specified channel with a specific configuration.  
+  const commandSubscriptionRequest = new CommandsSubscriptionRequest(channelName, 'group1');  
+  
+  // Define the callback for receiving queriesMessage  
+  commandSubscriptionRequest.onReceiveEventCallback = (commandMessage: CommandMessageReceived) => {  
+      console.log('SubscriberA received event:', {  
+          id: commandMessage.id,  
+          fromClientId: commandMessage.fromClientId,  
+          timestamp: commandMessage.timestamp,  
+          channel: commandMessage.channel,  
+          metadata: commandMessage.metadata,  
+          body: commandMessage.body,  
+          tags: commandMessage.tags,  
+      });  
+  };  
+    
+  // Define the callback for handling errors  
+  commandSubscriptionRequest.onErrorCallback = (error: string) => {  
+      console.error('SubscriberA error:', error);  
+  };  
+    
+  cqClient.subscribeToQueries(commandSubscriptionRequest)  
+      .then(() => {  
+          console.log('Queries Subscription successful');  
+      })  
+      .catch((reason: any) => {  
+          console.error('Queries Subscription failed:', reason);  
+      });  
 }
-if (msg) {
-console.log(msg);
-cqClient.sendQueryResponseMessage({
-	executed:  true,
-	error:  '',
-	replyChannel:  msg.replyChannel,
-	clientId:  'query-response',
-	timestamp:  Date.now(),
-	id:  msg.id,
-	metadata:  'some metadata',
-	body:  Utils.stringToBytes('Im here'),
-}).catch((reason) =>  console.log(reason));
-}};
-
-cqClient.subscribeToQueries(
-{
-	channel:  channelName,
-},
-cb,
-).then(async (value) => {
-	value.onState.on((event) => {
-	console.log(event);
-});
-
-await  new  Promise((r) =>  setTimeout(r, 1000000));
-value.unsubscribe();
-}).catch((reason) => {
-	console.log(reason);
-});
-}
-
 ```
 
 
