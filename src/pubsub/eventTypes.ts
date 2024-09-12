@@ -291,6 +291,7 @@ export class EventsStoreSubscriptionRequest {
     group?: string;
     eventsStoreType: EventStoreType;
     eventsStoreSequenceValue?: number;
+    eventsStoreStartTime?: Date;
   
     onReceiveEventCallback?: (event: EventStoreMessageReceived) => void;
     onErrorCallback?: (error: string) => void;
@@ -304,8 +305,24 @@ export class EventsStoreSubscriptionRequest {
     }
   
     validate() {
-        if (!this.channel || !this.onReceiveEventCallback) {
-            throw new Error('Event subscription must have a channel and onReceiveEventCallback.');
+        if (!this.channel || this.channel.trim().length === 0) {
+            throw new Error("Event Store subscription must have a channel.");
+        }
+
+        if (!this.onReceiveEventCallback) {
+            throw new Error("Event Store subscription must have an onReceiveEventCallback function.");
+        }
+
+        if (this.eventsStoreType == null || this.eventsStoreType === EventStoreType.EventsStoreTypeUndefined) {
+            throw new Error("Event Store subscription must have an events store type.");
+        }
+
+        if (this.eventsStoreType === EventStoreType.StartAtSequence && !this.eventsStoreSequenceValue) {
+            throw new Error("Event Store subscription with StartAtSequence events store type must have a sequence value.");
+        }
+
+        if (this.eventsStoreType === EventStoreType.StartAtTime && !this.eventsStoreStartTime) {
+            throw new Error("Event Store subscription with StartAtTime events store type must have a start time.");
         }
     }
   
@@ -315,10 +332,13 @@ export class EventsStoreSubscriptionRequest {
         subscribe.Channel = this.channel;
         subscribe.Group = this.group || '';
         subscribe.SubscribeTypeData = pb.kubemq.Subscribe.SubscribeType.EventsStore;
-        subscribe.EventsStoreTypeData = pb.kubemq.Subscribe.EventsStoreType.EventsStoreTypeUndefined;
-        let eventsStoreStartTime: Date | null = new Date(); // Current date and time
-        subscribe.EventsStoreTypeValue = (this.eventsStoreSequenceValue === null || this.eventsStoreSequenceValue === undefined)? Math.floor(eventsStoreStartTime.getTime()/1000):this.eventsStoreSequenceValue;
+        subscribe.EventsStoreTypeData = this.convertToEventStoreType(this.eventsStoreType)
+        subscribe.EventsStoreTypeValue = this.eventsStoreStartTime !== null && this.eventsStoreStartTime !== undefined ? Math.floor(this.eventsStoreStartTime.getTime() / 1000) : this.eventsStoreSequenceValue;
         return subscribe;
+    }
+
+    convertToEventStoreType(eventsStoreType:EventStoreType):pb.kubemq.Subscribe.EventsStoreType{
+        return eventsStoreType as unknown as pb.kubemq.Subscribe.EventsStoreType;
     }
   
     raiseOnReceiveMessage(event: EventStoreMessageReceived) {
