@@ -10,6 +10,8 @@ async function main() {
 
   //Subscribes to events store messages from the specified channel with a specific configuration.
   const eventsSubscriptionRequest = new EventsStoreSubscriptionRequest('events_store.A', '');
+  eventsSubscriptionRequest.eventsStoreType = EventStoreType.StartAtSequence;
+  eventsSubscriptionRequest.eventsStoreSequenceValue=1;
 
   // Define the callback for receiving events
   eventsSubscriptionRequest.onReceiveEventCallback = (event: EventStoreMessageReceived) => {

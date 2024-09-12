@@ -76,7 +76,7 @@ export class PubsubClient extends KubeMQClient {
    // Subscribe to Events Method
    public async subscribeToEvents(request: EventsSubscriptionRequest): Promise<void> {
     try {
-        console.debug('Subscribing to events');
+        console.debug('Subscribing to event');
         request.validate(); // Validate the request
 
         const subscribe = request.encode(this);
@@ -94,8 +94,8 @@ export class PubsubClient extends KubeMQClient {
 
         // Handle errors (like server being unavailable)
         stream.on('error', (err: grpc.ServiceError) => {
-            console.error('Subscription error:', err.message);
-            console.error('Subscription error code:', err.code);
+            console.error('Event Subscription error:', err.message);
+            console.error('Event Subscription error code:', err.code);
 
             request.raiseOnError(err.message);
 
@@ -112,7 +112,7 @@ export class PubsubClient extends KubeMQClient {
         });
     } catch (error) {
         console.error('Failed to subscribe to events', error);
-        throw new Error('Subscription failed');
+        throw new Error('Event Subscription failed');
     }
 }
 
@@ -120,11 +120,11 @@ export class PubsubClient extends KubeMQClient {
  // Subscribe to EventStore Method
  public async subscribeToEventsStore(request: EventsStoreSubscriptionRequest): Promise<void> {
     try {
-        console.debug('Subscribing to events');
+        console.debug('Subscribing to eventstore');
         request.validate(); // Validate the request
 
         const subscribe = request.encode(this);
-        console.log(subscribe.toObject());
+        //console.log(subscribe.toObject());
         const stream = this.grpcClient.SubscribeToEvents(subscribe, this.getMetadata());
 
         // Assign observer to the request
@@ -139,8 +139,8 @@ export class PubsubClient extends KubeMQClient {
 
         // Handle errors (like server being unavailable)
         stream.on('error', (err: grpc.ServiceError) => {
-            console.error('Subscription error:', err.message);
-            console.error('Subscription error code:', err.code);
+            console.error('EventStore Subscription error:', err.message);
+            console.error('EventStore Subscription error code:', err.code);
 
             request.raiseOnError(err.message);
 
@@ -157,7 +157,7 @@ export class PubsubClient extends KubeMQClient {
         });
     } catch (error) {
         console.error('Failed to subscribe to eventstore', error);
-        throw new Error('Subscription failed');
+        throw new Error('EventStore Subscription failed');
     }
 }
 
