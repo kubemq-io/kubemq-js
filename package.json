@@ -1,35 +1,27 @@
 {
   "name": "kubemq-js",
-  "version": "2.0.0-beta.1",
+  "version": "2.0.0",
   "description": "kubemq js/ts library for KubeMQ Message Broker",
-  "main": "lib/index.js",
-  "types": "lib/index.d.ts",
-  "devDependencies": {
-    "@types/jest": "~26.0.20",
-    "@types/node": "~14.14.31",
-    "@types/uuid": "^10.0.0",
-    "@typescript-eslint/eslint-plugin": "~4.16.1",
-    "@typescript-eslint/parser": "~4.16.1",
-    "dotenv": "^8.2.0",
-    "eslint": "~7.21.0",
-    "eslint-config-prettier": "~8.1.0",
-    "eslint-plugin-jest": "~24.1.5",
-    "glob": "^7.1.6",
-    "jest": "^29.7.0",
-    "prettier": "~2.2.1",
-    "rimraf": "~3.0.2",
-    "text-encoding": "^0.7.0",
-    "ts-jest": "^29.2.5",
-    "ts-node": "^9.1.1",
-    "tsutils": "~3.20.0",
-    "typedoc": "^0.26.5",
-    "typescript": "^5.5.4"
+  "main": "./lib/index.js",
+  "module": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./lib/index.js",
+      "import": "./lib/index.js",
+      "types": "./lib/index.d.ts"
+    }
   },
+  "files": [
+    "lib/**/*"
+  ],
   "scripts": {
-    "build": "tsc",
+    "clean": "rimraf lib",
+    "build": "npm run clean && tsc",
     "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
     "lint": "eslint . --ext .ts,.tsx",
     "prepare": "npm run build",
+    "prepublishOnly": "npm run build",
     "docs": "typedoc src/",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -55,7 +47,35 @@
     "tslib": "^2.7.0",
     "uuid": "^8.3.2"
   },
-  "files": [
-    "lib/**/*"
-  ]
+  "devDependencies": {
+    "@types/jest": "~26.0.20",
+    "@types/node": "~14.14.31",
+    "@types/uuid": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "~4.16.1",
+    "@typescript-eslint/parser": "~4.16.1",
+    "dotenv": "^8.2.0",
+    "eslint": "~7.21.0",
+    "eslint-config-prettier": "~8.1.0",
+    "eslint-plugin-jest": "~24.1.5",
+    "glob": "^7.1.6",
+    "jest": "^29.7.0",
+    "prettier": "~2.2.1",
+    "rimraf": "~3.0.2",
+    "text-encoding": "^0.7.0",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^9.1.1",
+    "tsutils": "~3.20.0",
+    "typedoc": "^0.26.5",
+    "typescript": "^5.5.4"
+  },
+  "keywords": [
+    "kubemq",
+    "message broker",
+    "queue",
+    "pubsub",
+    "rpc"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  }
 }

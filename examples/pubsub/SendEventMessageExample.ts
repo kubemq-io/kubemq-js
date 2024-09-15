@@ -1,4 +1,4 @@
-import { Utils, PubsubClient, Config } from '../../src';
+import { Utils, PubsubClient, Config } from 'kubemq-js'
 
 async function main() {
   const opts: Config = {
