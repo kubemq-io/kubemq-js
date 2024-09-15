@@ -1,43 +1,49 @@
-import { Config, PubsubClient, EventStoreType, Utils } from '../../src';
+import { Config, PubsubClient, EventStoreType, Utils, EventsStoreSubscriptionRequest, EventStoreMessageReceived } from '../../src';
+
+const opts: Config = {
+  address: 'localhost:50000',
+  clientId: 'kubeMQClientId-ts',
+  reconnectInterval: 2
+};
+const pubsubClient = new PubsubClient(opts);
+
+async function subscribeToEventStore() {
+  //Subscribes to events store messages from the specified channel with a specific configuration.
+  const eventsSubscriptionRequest = new EventsStoreSubscriptionRequest('events_store.A', '');
+  eventsSubscriptionRequest.eventsStoreType = EventStoreType.StartAtSequence;
+  eventsSubscriptionRequest.eventsStoreSequenceValue=1;
+
+  // Define the callback for receiving events
+  eventsSubscriptionRequest.onReceiveEventCallback = (event: EventStoreMessageReceived) => {
+    console.log('SubscriberA received event:', {
+      id: event.id,
+      fromClientId: event.fromClientId,
+      timestamp: event.timestamp,
+      channel: event.channel,
+      metadata: event.metadata,
+      body: event.body,
+      tags: event.tags,
+      sequence: event.sequence,
+    });
+  };
+
+  // Define the callback for handling errors
+  eventsSubscriptionRequest.onErrorCallback = (error: string) => {
+    console.error('SubscriberA error:', error);
+  };
+
+  pubsubClient
+    .subscribeToEvents(eventsSubscriptionRequest)
+    .then(() => {
+      console.log('Eventstore Subscription successful');
+    })
+    .catch((reason: any) => {
+      console.error('Eventstore Subscription failed:', reason);
+    });
+}
 
 async function main() {
-  const opts: Config = {
-    address: 'localhost:50000',
-    clientId: Utils.uuid(),
-  };
-  const pubsubClient = new PubsubClient(opts);
-
-  //Subscribes to events store messages from the specified channel with a specific configuration.
-  await pubsubClient
-    .subscribeToEventsStore(
-      {
-        channel: 'events_store.A',
-        group: 'g1',
-        clientId: 'SubscriberA',
-        requestType: EventStoreType.StartFromFirst,
-      },
-      (err, msg) => {
-        if (err) {
-          console.error('SubscriberA', err);
-          return;
-        }
-        if (msg) {
-          console.log('SubscriberA', msg);
-        }
-      },
-    )
-    .catch((reason) => {
-      console.log(reason);
-    });
-
-
-  await new Promise((r) => setTimeout(r, 2000));
-
-  for (let i = 0; i < 10; i++) {
-    await pubsubClient.sendEventStoreMessage({
-      channel: 'events_store.A',
-      body: Utils.stringToBytes('event message'),
-    });
-  }
+ await subscribeToEventStore();
 }
+
 main();

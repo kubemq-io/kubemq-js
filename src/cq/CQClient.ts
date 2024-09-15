@@ -7,26 +7,14 @@ import { Utils } from '../common/utils';
 import * as grpc from '@grpc/grpc-js';
 import { createChannel, deleteChannel, listCQChannels } from '../common/common';
 import { CQChannel } from '../common/channel_stats';
-import { QueriesMessage, QueriesResponse, QueriesSubscriptionRequest, QueriesReceiveMessageCallback, QueriesSubscriptionResponse } from './queryTypes';
+import { QueriesMessage, QueriesResponse, QueriesSubscriptionRequest, QueryMessageReceived } from './queryTypes';
 import {
   CommandsMessage,
   CommandsResponse,
-  CommandsReceiveMessageCallback,
   CommandsSubscriptionRequest,
-  CommandsSubscriptionResponse,
+  CommandMessageReceived,
 } from './commandTypes';
 
-interface InternalCommandsSubscriptionResponse {
-    onClose: TypedEvent<void>;
-    stream: grpc.ClientReadableStream<pb.kubemq.Request>;
-  }
-
-interface internalQueriesSubscriptionResponse {
-  /** emit events on close subscription*/
-  onClose: TypedEvent<void>;
-  /** call stream*/
-  stream: grpc.ClientReadableStream<pb.kubemq.Request>;
-}
 
 export class CQClient extends KubeMQClient {
   constructor(Options: Config) {
@@ -230,204 +218,135 @@ export class CQClient extends KubeMQClient {
     );
   }
 
-  async subscribeToCommands(
-    request: CommandsSubscriptionRequest,
-    cb: CommandsReceiveMessageCallback,
-  ): Promise<CommandsSubscriptionResponse> {
-    return new Promise<CommandsSubscriptionResponse>(
-      async (resolve, reject) => {
-        if (!request) {
-          reject(new Error('commands subscription requires a request object'));
-          return;
-        }
-        if (request.channel === '') {
-          reject(new Error('commands subscription requires a non empty request channel'));
-          return;
-        }
-        if (!cb) {
-          reject(new Error('commands subscription requires a callback'));
-          return;
-        }
-        let isClosed = false;
-        let unsubscribe = false;
-        const onStateChange = new TypedEvent<string>();
-        onStateChange.on((event) => {
-          if (event === 'close') {
-            isClosed = true;
-            onStateChange.emit('disconnected');
-          }
-        });
-        resolve({
-          onState: onStateChange,
-          unsubscribe() {
-            unsubscribe = true;
-          },
-        });
-        let currentStream;
-        while (!unsubscribe) {
-          onStateChange.emit('connecting');
-          await this.subscribeFnCommand(request, cb).then((value) => {
-            currentStream = value.stream;
-          });
-          isClosed = false;
-          onStateChange.emit('connected');
-          while (!isClosed && !unsubscribe) {
-            await new Promise((r) => setTimeout(r, 1000));
-          }
-          const reconnectionInterval = this.reconnectIntervalSeconds;
-          if (reconnectionInterval === 0) {
-            unsubscribe = true;
-          } else {
-            await new Promise((r) => setTimeout(r, reconnectionInterval));
-          }
-        }
-        currentStream.cancel();
-      },
-    );
-  }
 
-  private subscribeFnCommand(
-    request: CommandsSubscriptionRequest,
-    cb: CommandsReceiveMessageCallback,
-  ): Promise<InternalCommandsSubscriptionResponse> {
-    return new Promise<InternalCommandsSubscriptionResponse>(
-      (resolve, reject) => {
-        if (!cb) {
-          reject(new Error('commands subscription requires a callback'));
-          return;
-        }
+  public async subscribeToCommands(request: CommandsSubscriptionRequest): Promise<void> {
+    try {
+        console.debug('Subscribing to Command');
+        request.validate(); // Validate the request
 
-        const pbSubRequest = new pb.kubemq.Subscribe();
-        pbSubRequest.ClientID=(request.clientId ? request.clientId : this.clientId);
-        pbSubRequest.Group=(request.group ? request.group : '');
-        pbSubRequest.Channel=(request.channel);
-        pbSubRequest.SubscribeTypeData=(3);
-        const stream = this.grpcClient.SubscribeToRequests(pbSubRequest, this.getMetadata());
+        const subscribe = request.encode(this);
+        const stream = this.grpcClient.SubscribeToRequests(subscribe, this.getMetadata());
 
-        stream.on('data', function (data: pb.kubemq.Request) {
-          cb(null, {
-            id: data.RequestID,
-            channel: data.Channel,
-            metadata: data.Metadata,
-            body: data.Body,
-            tags: data.Tags,
-            replyChannel: data.ReplyChannel,
-          });
-        });
-        stream.on('error', (e: Error) => {
-          cb(e, null);
+        // Assign observer to the request
+        request.observer = stream;
+
+        // Command Message received
+        stream.on('data', (data: pb.kubemq.Request) => {
+            console.debug(`Command Message received: ID='${data.RequestID}', Channel='${data.Channel}'`);
+            const event = CommandMessageReceived.decode(data);
+            request.raiseOnReceiveMessage(event); // Process received event
         });
 
-        let onClose = new TypedEvent<void>();
+        // Handle errors (like server being unavailable)
+        stream.on('error', (err: grpc.ServiceError) => {
+            console.error('Command Subscription error:', err.message);
+            console.error('Command Subscription error code:', err.code);
+
+            request.raiseOnError(err.message);
+
+            if (err.code === grpc.status.UNAVAILABLE) {
+                console.debug('Server is unavailable, attempting to reconnect...');
+                request.reconnect(this, this.reconnectIntervalSeconds); // Trigger reconnection
+            }
+        });
+
+        // Handle stream close
         stream.on('close', () => {
-          onClose.emit();
+            console.debug('Stream closed by the server, attempting to reconnect...');
+            request.reconnect(this, this.reconnectIntervalSeconds); // Attempt to reconnect when the stream is closed
         });
-        resolve({
-          onClose: onClose,
-          stream: stream,
-        });
-      },
-    );
-  }
-
-
-
-  async subscribeToQueries(request: QueriesSubscriptionRequest, cb: QueriesReceiveMessageCallback): Promise<QueriesSubscriptionResponse> {
-    return new Promise<QueriesSubscriptionResponse>(async (resolve, reject) => {
-      if (!request) {
-        reject(new Error('queries subscription requires a request object'));
-        return;
-      }
-      if (request.channel === '') {
-        reject(new Error('queries subscription requires a non empty request channel'));
-        return;
-      }
-      if (!cb) {
-        reject(new Error('queries subscription requires a callback'));
-        return;
-      }
-
-      let isClosed = false;
-      let unsubscribe = false;
-      const onStateChange = new TypedEvent<string>();
-      onStateChange.on((event) => {
-        if (event === 'close') {
-          isClosed = true;
-          onStateChange.emit('disconnected');
-        }
-      });
-
-      resolve({
-        onState: onStateChange,
-        unsubscribe() {
-          unsubscribe = true;
-        },
-      });
-
-      let currentStream;
-      while (!unsubscribe) {
-        onStateChange.emit('connecting');
-        await this.subscribeFnQueries(request, cb).then((value) => {
-          currentStream = value.stream;
-        });
-        isClosed = false;
-        onStateChange.emit('connected');
-        while (!isClosed && !unsubscribe) {
-          await new Promise((r) => setTimeout(r, 1000));
-        }
-        const reconnectionInterval = this.reconnectIntervalSeconds;
-        if (reconnectionInterval === 0) {
-          unsubscribe = true;
-        } else {
-          await new Promise((r) => setTimeout(r, reconnectionInterval));
-        }
-      }
-      currentStream.cancel();
-    });
-  }
-
-  private subscribeFnQueries(request: QueriesSubscriptionRequest, cb: QueriesReceiveMessageCallback): Promise<internalQueriesSubscriptionResponse> {
-    return new Promise<internalQueriesSubscriptionResponse>((resolve, reject) => {
-      if (!cb) {
-        reject(new Error('queries subscription requires a callback'));
-        return;
-      }
-
-      const pbSubRequest = new pb.kubemq.Subscribe();
-      pbSubRequest.ClientID=(request.clientId ? request.clientId : this.clientId);
-      pbSubRequest.Group=(request.group ? request.group : '');
-      pbSubRequest.Channel=(request.channel);
-      pbSubRequest.SubscribeTypeData= pb.kubemq.Subscribe.SubscribeType.Queries;
-
-      const stream = this.grpcClient.SubscribeToRequests(pbSubRequest, this.getMetadata());
-
-      stream.on('data', function (data: pb.kubemq.Request) {
-        cb(null, {
-          id: data.RequestID,
-          channel: data.Channel,
-          metadata: data.Metadata,
-          body: data.Body,
-          tags: data.Tags,
-          replyChannel: data.ReplyChannel,
-        });
-      });
-
-      stream.on('error', (e: Error) => {
-        cb(e, null);
-      });
-
-      let onClose = new TypedEvent<void>();
-      stream.on('close', () => {
-        onClose.emit();
-      });
-
-      resolve({
-        onClose: onClose,
-        stream: stream,
-      });
-    });
-  }
-
+    } catch (error) {
+        console.error('Failed to subscribe to events', error);
+        throw new Error('Subscription failed');
+    }
 }
 
 
+public async subscribeToQueries(request: QueriesSubscriptionRequest): Promise<void> {
+  try {
+      console.debug('Subscribing to queries');
+      request.validate(); // Validate the request
+
+      const subscribe = request.encode(this);
+      const stream = this.grpcClient.SubscribeToRequests(subscribe, this.getMetadata());
+
+      // Assign observer to the request
+      request.observer = stream;
+
+      // Command Message received
+      stream.on('data', (data: pb.kubemq.Request) => {
+          console.debug(`Queries Message received: ID='${data.RequestID}', Channel='${data.Channel}'`);
+          const event = QueryMessageReceived.decode(data);
+          request.raiseOnReceiveMessage(event); // Process received event
+      });
+
+      // Handle errors (like server being unavailable)
+      stream.on('error', (err: grpc.ServiceError) => {
+          console.error('Queries Subscription error:', err.message);
+          console.error('Queries Subscription error code:', err.code);
+
+          request.raiseOnError(err.message);
+
+          if (err.code === grpc.status.UNAVAILABLE) {
+              console.debug('Server is unavailable, attempting to reconnect...');
+              request.reconnect(this, this.reconnectIntervalSeconds); // Trigger reconnection
+          }
+      });
+
+      // Handle stream close
+      stream.on('close', () => {
+          console.debug('Stream closed by the server, attempting to reconnect...');
+          request.reconnect(this, this.reconnectIntervalSeconds); // Attempt to reconnect when the stream is closed
+      });
+  } catch (error) {
+      console.error('Failed to subscribe to events', error);
+      throw new Error('Subscription failed');
+  }
+}
+}
+
+ 
+
+//   private subscribeFnQueries(request: QueriesSubscriptionRequest, cb: QueriesReceiveMessageCallback): Promise<internalQueriesSubscriptionResponse> {
+//     return new Promise<internalQueriesSubscriptionResponse>((resolve, reject) => {
+//       if (!cb) {
+//         reject(new Error('queries subscription requires a callback'));
+//         return;
+//       }
+
+//       const pbSubRequest = new pb.kubemq.Subscribe();
+//       pbSubRequest.ClientID=(request.clientId ? request.clientId : this.clientId);
+//       pbSubRequest.Group=(request.group ? request.group : '');
+//       pbSubRequest.Channel=(request.channel);
+//       pbSubRequest.SubscribeTypeData= pb.kubemq.Subscribe.SubscribeType.Queries;
+
+//       const stream = this.grpcClient.SubscribeToRequests(pbSubRequest, this.getMetadata());
+
+//       stream.on('data', function (data: pb.kubemq.Request) {
+//         cb(null, {
+//           id: data.RequestID,
+//           channel: data.Channel,
+//           metadata: data.Metadata,
+//           body: data.Body,
+//           tags: data.Tags,
+//           replyChannel: data.ReplyChannel,
+//         });
+//       });
+
+//       stream.on('error', (e: Error) => {
+//         cb(e, null);
+//       });
+
+//       let onClose = new TypedEvent<void>();
+//       stream.on('close', () => {
+//         onClose.emit();
+//       });
+
+//       resolve({
+//         onClose: onClose,
+//         stream: stream,
+//       });
+//     });
+//   }
+
+// }
