@@ -1,9 +1,8 @@
-import { Config, Utils, CQClient, CommandsSubscriptionRequest, CommandMessageReceived } from '../../src';
+import { Config, Utils, CQClient, CommandsSubscriptionRequest, CommandMessageReceived } from 'kubemq-js'
 
 const opts: Config = {
   address: 'localhost:50000',
-  clientId: 'kubeMQClientId-ts',
-  reconnectInterval: 1000,
+  clientId: 'kubeMQClientId-ts'
 };
 const cqClient = new CQClient(opts);
 
