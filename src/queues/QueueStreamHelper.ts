@@ -73,7 +73,7 @@ export class QueueStreamHelper {
     }
     
     
-    public async receiveMessage(kubeMQClient: KubeMQClient, queuesPollRequest: pb.kubemq.QueuesDownstreamRequest): Promise<QueuesMessagesPulledResponse> {
+    public async receiveMessage(kubeMQClient: KubeMQClient, queuesPollRequest: pb.kubemq.QueuesDownstreamRequest, visibilitySeconds: number, autoAckMessages: boolean): Promise<QueuesMessagesPulledResponse> {
         return new Promise<QueuesMessagesPulledResponse>((resolve, reject) => {
             if (!this.queuesDownstreamHandler) {
                 // Initiate the duplex stream for both sending and receiving messages
@@ -91,6 +91,8 @@ export class QueueStreamHelper {
                         isPeek: false, // Adjust based on your logic
                         isError: messageReceive.IsError,
                         error: messageReceive.Error || '',
+                        visibilitySeconds: visibilitySeconds,
+                        isAutoAcked: autoAckMessages
                     };
     
                     // Decode the received messages and push them to the `messages` array
@@ -101,7 +103,9 @@ export class QueueStreamHelper {
                                 messageReceive.TransactionId, 
                                 messageReceive.TransactionComplete,
                                 '', // Assuming `receiverClientId`
-                                this.queuesDownstreamHandler
+                                this.queuesDownstreamHandler,
+                                visibilitySeconds,
+                                autoAckMessages
                             )
                         );
                     }
@@ -120,6 +124,8 @@ export class QueueStreamHelper {
                         isPeek: false,
                         isError: true,
                         error: err.message,
+                        visibilitySeconds: 0,
+                        isAutoAcked: false
                     };
                     reject(qpResp);
                 });
