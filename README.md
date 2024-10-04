@@ -170,16 +170,17 @@ For executing PubSub operation we have to create the instance of PubsubClient, i
 
 ### PubsubClient Accepted Configuration
 
-| Name                     | Type    | Description                                                | Default Value     | Mandatory |
-|--------------------------|---------|------------------------------------------------------------|-------------------|-----------|
-| address                  | String  | The address of the KubeMQ server.                         | None              | Yes       |
-| clientId                 | String  | The client ID used for authentication.                     | None              | Yes       |
-| authToken                | String  | The authorization token for secure communication.          | None              | No        |
-| tls                      | boolean | Indicates if TLS (Transport Layer Security) is enabled.    | None              | No        |
-| tlsCertFile              | String  | The path to the TLS certificate file.                      | None              | No (Yes if `tls` is true) |
-| tlsKeyFile               | String  | The path to the TLS key file.                              | None              | No (Yes if `tls` is true) |
-| maxReceiveSize           | int     | The maximum size of the messages to receive (in bytes).    | 104857600 (100MB) | No        |
-| reconnectInterval | int     | The interval in seconds between reconnection attempts.     | 1                 | No        |
+| Name                     | Type    | Description                                             | Default Value     | Mandatory |
+|--------------------------|---------|---------------------------------------------------------|-------------------|-----------|
+| address                  | String  | The address of the KubeMQ server.                       | None              | Yes       |
+| clientId                 | String  | The client ID used for authentication.                  | None              | Yes       |
+| authToken                | String  | The authorization token for secure communication.       | None              | No        |
+| tls                      | boolean | Indicates if TLS (Transport Layer Security) is enabled. | None              | No        |
+| tlsCertFile              | String  | The path to the TLS certificate file.                   | None              | No (Yes if `tls` is true) |
+| tlsKeyFile               | String  | The path to the TLS key file.                           | None              | No (Yes if `tls` is true) |
+| tlsCaCertFile            | String  | The path to the TLS CA cert file.                   | None              | No (Yes if `tls` is true) |
+| maxReceiveSize           | int     | The maximum size of the messages to receive (in bytes). | 104857600 (100MB) | No        |
+| reconnectIntervalSeconds | int     | The interval in seconds between reconnection attempts.  | 1                 | No        |
 
 ### PubsubClient connection establishment example code
 
@@ -188,7 +189,7 @@ For executing PubSub operation we have to create the instance of PubsubClient, i
 const  opts: Config = {
 	address:  'localhost:50000',
 	clientId:  Utils.uuid(),
-	reconnectInterval:  1,
+	reconnectIntervalSeconds:  1,
 };
 
 const  pubsubClient = new  PubsubClient(opts);
@@ -207,8 +208,9 @@ const  config: Config = {
 	tls:  true, // Indicates if TLS is enabled
 	tlsCertFile:  'path/to/tls-cert.pem', // Path to the TLS certificate file
 	tlsKeyFile:  'path/to/tls-key.pem', // Path to the TLS key file
+	tlsCaCertFile:  'path/to/tls-key.pem', // Path to the TLS key file
 	maxReceiveSize:  1024 * 1024 * 100, // Maximum size of the messages to receive (100MB)
-	reconnectInterval:  1 // Interval in milliseconds between reconnect attempts (1 second)
+	reconnectIntervalSeconds:  1 // Interval in milliseconds between reconnect attempts (1 second)
 };
 
 ```
@@ -612,8 +614,9 @@ For executing Queues operation we have to create the instance of QueuesClient, i
 | tls                      | boolean | Indicates if TLS (Transport Layer Security) is enabled.    | None              | No        |
 | tlsCertFile              | String  | The path to the TLS certificate file.                      | None              | No (Yes if `tls` is true) |
 | tlsKeyFile               | String  | The path to the TLS key file.                              | None              | No (Yes if `tls` is true) |
+| tlsCaCertFile            | String  | The path to the TLS CA cert file.                   | None              | No (Yes if `tls` is true) |
 | maxReceiveSize           | int     | The maximum size of the messages to receive (in bytes).    | 104857600 (100MB) | No        |
-| reconnectInterval | int     | The interval in seconds between reconnection attempts.     | 1                 | No        |
+| reconnectIntervalSeconds | int     | The interval in seconds between reconnection attempts.     | 1                 | No        |
 
 
 
@@ -640,8 +643,9 @@ const  opts: Config = {
 	tls:  true, // Indicates if TLS is enabled
 	tlsCertFile:  'path/to/tls-cert.pem', // Path to the TLS certificate file
 	tlsKeyFile:  'path/to/tls-key.pem', // Path to the TLS key file
+	tlsCaCertFile:  'path/to/tls-ca-cert.pem', // Path to the TLS CA cert file
 	maxReceiveSize:  1024 * 1024 * 100, // Maximum size of the messages to receive (100MB)
-	reconnectInterval:  1 // Interval in milliseconds between reconnect attempts (1 second)
+	reconnectIntervalSeconds:  1 // Interval in milliseconds between reconnect attempts (1 second)
 };
 
 const  queuesClient = new  QueuesClient(opts);
@@ -1041,8 +1045,9 @@ For executing command & query operation we have to create the instance of CQClie
 | tls                      | boolean | Indicates if TLS (Transport Layer Security) is enabled.    | None              | No        |
 | tlsCertFile              | String  | The path to the TLS certificate file.                      | None              | No (Yes if `tls` is true) |
 | tlsKeyFile               | String  | The path to the TLS key file.                              | None              | No (Yes if `tls` is true) |
+| tlsCaCertFile            | String  | The path to the TLS CA cert file.                   | None              | No (Yes if `tls` is true) |
 | maxReceiveSize           | int     | The maximum size of the messages to receive (in bytes).    | 104857600 (100MB) | No        |
-| reconnectInterval | int     | The interval in seconds between reconnection attempts.     | 1                 | No        |
+| reconnectIntervalSeconds | int     | The interval in seconds between reconnection attempts.     | 1                 | No        |
 
 
 ### CQClient establishing connection example code
@@ -1053,7 +1058,7 @@ const  opts: Config = {
 
     address:  'localhost:50000',
     clientId:  Utils.uuid(),
-    reconnectInterval:  1000,
+    reconnectIntervalSeconds:  1,
 };
 
 const  cqClient = new  CQClient(opts);
@@ -1072,16 +1077,10 @@ const  config: Config = {
     tls:  true, // Indicates if TLS is enabled
     tlsCertFile:  'path/to/tls-cert.pem', // Path to the TLS certificate file
     tlsKeyFile:  'path/to/tls-key.pem', // Path to the TLS key file
+    tlsCaCertFile:  'path/to/tls-ca-cert.pem', // Path to the TLS CA cert file
     maxReceiveSize:  1024 * 1024 * 100, // Maximum size of the messages to receive (100MB)
-    reconnectInterval:  1000, // Interval in milliseconds between reconnect attempts (1 second)
-    keepAlive:  true, // Indicates if the connection should be kept alive
-    pingIntervalInSeconds:  60, // Interval in seconds between ping messages
-    pingTimeoutInSeconds:  30, // Timeout in seconds for ping messages
-    credentials: {
-        cert:  Buffer.from('your-cert-content'), // Optional client cert credentials for talking to KubeMQ
-        key:  Buffer.from('your-key-content'),
-        caCert:  Buffer.from('your-ca-cert-content') // Optional CA certificate
-    }
+    reconnectIntervalSeconds:  1, // Interval in milliseconds between reconnect attempts (1 second)
+};
 const  cqClient = new  CQClient(opts);
 
 ```
