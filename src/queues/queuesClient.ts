@@ -184,21 +184,21 @@ export class QueuesClient extends KubeMQClient {
 
   /**
    * Send queue message
-   * @param msg
-   * @return Promise<QueueMessageSendResult>
+   * @param request
+   * @return Promise<QueuesMessagesPulledResponse>
    */
   receiveQueuesMessages(
-    msg: QueuesPollRequest,
+    request: QueuesPollRequest,
   ): Promise<QueuesMessagesPulledResponse> {
     return new Promise<QueuesMessagesPulledResponse>((resolve, reject) => {
-      msg.validate();
+      request.validate();
       // Use the queueStreamHelper to receive the message
       this.queueStreamHelper
         .receiveMessage(
           this,
-          msg.encode(this.clientId),
-          msg.visibilitySeconds,
-          msg.autoAckMessages,
+          request.encode(this.clientId),
+          request.visibilitySeconds,
+          request.autoAckMessages,
         )
         .then((response) => {
           // Resolve the promise with the constructed response
