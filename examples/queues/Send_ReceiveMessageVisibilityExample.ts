@@ -1,4 +1,4 @@
-import { Config, QueuesClient, QueuesPollRequest, Utils } from '../../src';
+import { Config, QueuesClient, QueuesPollRequest, Utils } from 'kubemq-js';
 
 async function main() {
   const opts: Config = {
@@ -7,10 +7,11 @@ async function main() {
   };
   const queuesClient = new QueuesClient(opts);
 
-
   // Receive with message visibility
   async function receiveWithVisibility(visibilitySeconds: number) {
-    console.log("\n============================== Receive with Visibility =============================\n");
+    console.log(
+      '\n============================== Receive with Visibility =============================\n',
+    );
     try {
       const pollRequest = new QueuesPollRequest({
         channel: 'visibility_channel',
@@ -20,22 +21,28 @@ async function main() {
         autoAckMessages: false,
       });
 
-      const pollResponse = await queuesClient.receiveQueuesMessages(pollRequest);
-      console.log("Received Message Response:", pollResponse);
-      
+      const pollResponse = await queuesClient.receiveQueuesMessages(
+        pollRequest,
+      );
+      console.log('Received Message Response:', pollResponse);
+
       if (pollResponse.isError) {
-        console.log("Error: " + pollResponse.error);
+        console.log('Error: ' + pollResponse.error);
       } else {
-        pollResponse.messages.forEach(async (msg) => {
-          console.log(`Message ID: ${msg.id}, Message Body: ${Utils.bytesToString(msg.body)}`);
+        for (const msg of pollResponse.messages) {
+          console.log(
+            `Message ID: ${msg.id}, Message Body: ${Utils.bytesToString(
+              msg.body,
+            )}`,
+          );
           try {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            await msg.ack();
-            console.log("Acknowledged message");
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            msg.ack();
+            console.log('Acknowledged message');
           } catch (err) {
-            console.error("Error acknowledging message:", err);
+            console.error('Error acknowledging message:', err);
           }
-        });
+        }
       }
     } catch (error) {
       console.error('Failed to receive queue messages:', error);
@@ -44,13 +51,17 @@ async function main() {
 
   // Test visibility expiration
   async function receiveWithVisibilityExpired() {
-    console.log("\n============================== Receive with Visibility Expired =============================\n");
+    console.log(
+      '\n============================== Receive with Visibility Expired =============================\n',
+    );
     await receiveWithVisibility(2);
   }
 
   // Test visibility extension
   async function receiveWithVisibilityExtension() {
-    console.log("\n============================== Receive with Visibility Extension =============================\n");
+    console.log(
+      '\n============================== Receive with Visibility Extension =============================\n',
+    );
     try {
       const pollRequest = new QueuesPollRequest({
         channel: 'visibility_channel',
@@ -60,24 +71,30 @@ async function main() {
         autoAckMessages: false,
       });
 
-      const pollResponse = await queuesClient.receiveQueuesMessages(pollRequest);
-      console.log("Received Message Response:", pollResponse);
+      const pollResponse = await queuesClient.receiveQueuesMessages(
+        pollRequest,
+      );
+      console.log('Received Message Response:', pollResponse);
 
       if (pollResponse.isError) {
-        console.log("Error: " + pollResponse.error);
+        console.log('Error: ' + pollResponse.error);
       } else {
-        pollResponse.messages.forEach(async (msg) => {
-          console.log(`Message ID: ${msg.id}, Message Body: ${Utils.bytesToString(msg.body)}`);
+        for (const msg of pollResponse.messages) {
+          console.log(
+            `Message ID: ${msg.id}, Message Body: ${Utils.bytesToString(
+              msg.body,
+            )}`,
+          );
           try {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            await msg.extendVisibilityTimer(3);
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            await msg.ack();
-            console.log("Acknowledged message after extending visibility");
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            msg.extendVisibilityTimer(3);
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+            msg.ack();
+            console.log('Acknowledged message after extending visibility');
           } catch (err) {
-            console.error("Error during visibility extension:", err);
+            console.error('Error during visibility extension:', err);
           }
-        });
+        }
       }
     } catch (error) {
       console.error('Failed to receive queue messages:', error);

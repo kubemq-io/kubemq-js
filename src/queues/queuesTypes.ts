@@ -1,9 +1,8 @@
-import { BaseMessage, TypedEvent } from "../client/KubeMQClient";
-import { Utils } from "../common/utils";
+import { BaseMessage, TypedEvent } from '../client/KubeMQClient';
+import { Utils } from '../common/utils';
 import * as pb from '../protos';
 import * as grpc from '@grpc/grpc-js';
 import { v4 as uuidv4 } from 'uuid';
-
 
 export class QueueMessageReceived {
   id: string;
@@ -50,7 +49,7 @@ export class QueueMessageReceived {
     responseHandler: grpc.ClientWritableStream<pb.kubemq.QueuesDownstreamRequest>,
     receiverClientId: string,
     visibilitySeconds: number,
-    isAutoAcked: boolean
+    isAutoAcked: boolean,
   ) {
     this.id = id;
     this.channel = channel;
@@ -79,7 +78,10 @@ export class QueueMessageReceived {
 
   private startVisibilityTimer(): void {
     if (this.visibilitySeconds > 0) {
-      this.visibilityTimer = setTimeout(() => this.onVisibilityExpired(), this.visibilitySeconds * 1000);
+      this.visibilityTimer = setTimeout(
+        () => this.onVisibilityExpired(),
+        this.visibilitySeconds * 1000,
+      );
     }
   }
 
@@ -87,21 +89,21 @@ export class QueueMessageReceived {
     this.timerExpired = true;
     this.visibilityTimer = undefined;
     this.reject();
-    throw new Error("Message visibility expired");
+    throw new Error('Message visibility expired');
   }
 
   public extendVisibilityTimer(additionalSeconds: number): void {
     if (additionalSeconds <= 0) {
-      throw new Error("additionalSeconds must be greater than 0");
+      throw new Error('additionalSeconds must be greater than 0');
     }
     if (!this.visibilityTimer) {
-      throw new Error("Cannot extend, timer not active");
+      throw new Error('Cannot extend, timer not active');
     }
     if (this.timerExpired) {
-      throw new Error("Cannot extend, timer has expired");
+      throw new Error('Cannot extend, timer has expired');
     }
     if (this.messageCompleted) {
-      throw new Error("Message transaction is already completed");
+      throw new Error('Message transaction is already completed');
     }
 
     clearTimeout(this.visibilityTimer);
@@ -111,10 +113,10 @@ export class QueueMessageReceived {
 
   ack(): void {
     if (this.messageCompleted || this.isTransactionCompleted) {
-      throw new Error("Transaction is already completed");
+      throw new Error('Transaction is already completed');
     }
     if (this.isAutoAcked) {
-      throw new Error("Auto-acked message, operations are not allowed");
+      throw new Error('Auto-acked message, operations are not allowed');
     }
 
     const request = new pb.kubemq.QueuesDownstreamRequest({
@@ -126,16 +128,19 @@ export class QueueMessageReceived {
       SequenceRange: [this.sequence],
     });
 
-    this.responseHandler.write(request);
+    const result = this.responseHandler.write(request);
+    if (!result) {
+      throw new Error('Failed to ack message');
+    }
     this.markTransactionCompleted();
   }
 
   reject(): void {
     if (this.messageCompleted || this.isTransactionCompleted) {
-      throw new Error("Transaction is already completed");
+      throw new Error('Transaction is already completed');
     }
     if (this.isAutoAcked) {
-      throw new Error("Auto-acked message, operations are not allowed");
+      throw new Error('Auto-acked message, operations are not allowed');
     }
 
     const request = new pb.kubemq.QueuesDownstreamRequest({
@@ -146,20 +151,22 @@ export class QueueMessageReceived {
       RefTransactionId: this.transactionId,
       SequenceRange: [this.sequence],
     });
-
-    this.responseHandler.write(request);
+    const result = this.responseHandler.write(request);
+    if (!result) {
+      throw new Error('Failed to reject message');
+    }
     this.markTransactionCompleted();
   }
 
   reQueue(channel: string): void {
     if (!channel || channel.length === 0) {
-      throw new Error("Re-queue channel cannot be empty");
+      throw new Error('Re-queue channel cannot be empty');
     }
     if (this.messageCompleted || this.isTransactionCompleted) {
-      throw new Error("Transaction is already completed");
+      throw new Error('Transaction is already completed');
     }
     if (this.isAutoAcked) {
-      throw new Error("Auto-acked message, operations are not allowed");
+      throw new Error('Auto-acked message, operations are not allowed');
     }
 
     const request = new pb.kubemq.QueuesDownstreamRequest({
@@ -172,7 +179,10 @@ export class QueueMessageReceived {
       ReQueueChannel: channel,
     });
 
-    this.responseHandler.write(request);
+    const result = this.responseHandler.write(request);
+    if (!result) {
+      throw new Error('Failed to re-queue message');
+    }
     this.markTransactionCompleted();
   }
 
@@ -192,13 +202,15 @@ export class QueueMessageReceived {
     receiverClientId: string,
     responseHandler: grpc.ClientWritableStream<pb.kubemq.QueuesDownstreamRequest>,
     visibilitySeconds: number,
-    isAutoAcked: boolean
+    isAutoAcked: boolean,
   ): QueueMessageReceived {
     return new QueueMessageReceived(
       message.MessageID,
       message.Channel,
       message.Metadata,
-      typeof message.Body === 'string' ? new TextEncoder().encode(message.Body) : message.Body,
+      typeof message.Body === 'string'
+        ? new TextEncoder().encode(message.Body)
+        : message.Body,
       message.ClientID,
       new Map(Object.entries(message.Tags)),
       new Date(message.Attributes.Timestamp / 1_000_000_000),
@@ -206,19 +218,21 @@ export class QueueMessageReceived {
       message.Attributes.ReceiveCount,
       message.Attributes.ReRouted,
       message.Attributes.ReRoutedFromQueue,
-      message.Attributes.ExpirationAt ? new Date(message.Attributes.ExpirationAt / 1_000_000) : undefined,
-      message.Attributes.DelayedTo ? new Date(message.Attributes.DelayedTo / 1_000_000) : undefined,
+      message.Attributes.ExpirationAt
+        ? new Date(message.Attributes.ExpirationAt / 1_000_000)
+        : undefined,
+      message.Attributes.DelayedTo
+        ? new Date(message.Attributes.DelayedTo / 1_000_000)
+        : undefined,
       transactionId,
       transactionIsCompleted,
       responseHandler,
       receiverClientId,
       visibilitySeconds,
-      isAutoAcked
+      isAutoAcked,
     );
   }
 }
-
-
 
 /**
  * queue message attributes
@@ -271,7 +285,6 @@ export interface QueueMessage extends BaseMessage {
   policy?: QueueMessagePolicy;
 }
 
-
 /**
  * queue message sending result
  */
@@ -302,59 +315,59 @@ export class QueuesPollRequest {
   autoAckMessages: boolean;
   visibilitySeconds: number;
 
-  constructor(data: { 
-      channel: string, 
-      pollMaxMessages?: number, 
-      pollWaitTimeoutInSeconds?: number, 
-      autoAckMessages?: boolean,
-      visibilitySeconds?: number 
+  constructor(data: {
+    channel: string;
+    pollMaxMessages?: number;
+    pollWaitTimeoutInSeconds?: number;
+    autoAckMessages?: boolean;
+    visibilitySeconds?: number;
   }) {
-      this.channel = data.channel;
-      this.pollMaxMessages = data.pollMaxMessages ?? 1; // Default to 1 if not provided
-      this.pollWaitTimeoutInSeconds = data.pollWaitTimeoutInSeconds ?? 60; // Default to 60 seconds if not provided
-      this.autoAckMessages = data.autoAckMessages ?? false; // Default to false if not provided
-      this.visibilitySeconds = data.visibilitySeconds ?? 0;
+    this.channel = data.channel;
+    this.pollMaxMessages = data.pollMaxMessages ?? 1; // Default to 1 if not provided
+    this.pollWaitTimeoutInSeconds = data.pollWaitTimeoutInSeconds ?? 60; // Default to 60 seconds if not provided
+    this.autoAckMessages = data.autoAckMessages ?? false; // Default to false if not provided
+    this.visibilitySeconds = data.visibilitySeconds ?? 0;
   }
 
   validate() {
-    if (!this.channel || this.channel.trim() === "") {
-        throw new Error("Queue subscription must have a channel.");
+    if (!this.channel || this.channel.trim() === '') {
+      throw new Error('Queue subscription must have a channel.');
     }
     if (this.pollMaxMessages < 1) {
-        throw new Error("pollMaxMessages must be greater than 0.");
+      throw new Error('pollMaxMessages must be greater than 0.');
     }
     if (this.pollWaitTimeoutInSeconds < 1) {
-        throw new Error("pollWaitTimeoutInSeconds must be greater than 0.");
+      throw new Error('pollWaitTimeoutInSeconds must be greater than 0.');
     }
     if (this.visibilitySeconds < 0) {
-        throw new Error("Visibility timeout must be a non-negative integer.");
+      throw new Error('Visibility timeout must be a non-negative integer.');
     }
     if (this.autoAckMessages && this.visibilitySeconds > 0) {
-        throw new Error("autoAckMessages and visibilitySeconds cannot be set together.");
+      throw new Error(
+        'autoAckMessages and visibilitySeconds cannot be set together.',
+      );
     }
-}
-
+  }
 
   encode(clientId: string) {
-      this.validate(); // Perform validation before encoding
+    this.validate(); // Perform validation before encoding
 
-      return new pb.kubemq.QueuesDownstreamRequest({
-          RequestID: Utils.uuid(), // Generate a random UUID
-          ClientID: clientId,
-          Channel: this.channel,
-          MaxItems: this.pollMaxMessages,
-          WaitTimeout: this.pollWaitTimeoutInSeconds * 1000, // Convert seconds to milliseconds
-          AutoAck: this.autoAckMessages,
-          RequestTypeData: pb.kubemq.QueuesDownstreamRequestType.Get, // Assuming this is the correct type
-      });
+    return new pb.kubemq.QueuesDownstreamRequest({
+      RequestID: Utils.uuid(), // Generate a random UUID
+      ClientID: clientId,
+      Channel: this.channel,
+      MaxItems: this.pollMaxMessages,
+      WaitTimeout: this.pollWaitTimeoutInSeconds * 1000, // Convert seconds to milliseconds
+      AutoAck: this.autoAckMessages,
+      RequestTypeData: pb.kubemq.QueuesDownstreamRequestType.Get, // Assuming this is the correct type
+    });
   }
 }
-
 
 /**
  * queue messages pull/peek requests
  */
-export interface QueuesPullWaitngMessagesRequest {
+export interface QueuesPullWaitingMessagesRequest {
   /** pull/peek request id*/
   id?: string;
 
@@ -530,5 +543,3 @@ export interface QueueTransactionSubscriptionResponse {
   /** call unsubscribe*/
   unsubscribe(): void;
 }
-
-
