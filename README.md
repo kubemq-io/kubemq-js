@@ -2,6 +2,37 @@
 
 The **KubeMQ SDK for NodeJS/TS** enables typescript developers to communicate with [KubeMQ](https://kubemq.io/) server.
 
+<!-- TOC -->
+* [KubeMQ Node JS/TS SDK](#kubemq-node-jsts-sdk)
+  * [Prerequisites](#prerequisites)
+  * [General SDK description](#general-sdk-description)
+    * [Installing](#installing)
+  * [Running the examples](#running-the-examples)
+  * [Building from source](#building-from-source)
+  * [Payload Details](#payload-details)
+* [KubeMQ PubSub Client Examples](#kubemq-pubsub-client-examples)
+  * [File Structure](#file-structure)
+      * [Event](#event)
+  * [Getting Started](#getting-started)
+    * [Construct the PubsubClient](#construct-the-pubsubclient)
+    * [PubsubClient Accepted Configuration](#pubsubclient-accepted-configuration)
+    * [PubsubClient connection establishment example code](#pubsubclient-connection-establishment-example-code)
+* [KubeMQ Queues Client Examples](#kubemq-queues-client-examples)
+  * [Project Structure](#project-structure)
+  * [Getting Started](#getting-started-1)
+    * [Construct the QueuesClient](#construct-the-queuesclient)
+    * [QueuesClient Accepted Configuration](#queuesclient-accepted-configuration)
+    * [QueuesClient establishing connection example code](#queuesclient-establishing-connection-example-code)
+      
+* [KubeMQ Command & Query Client Examples](#kubemq-command--query-client-examples)
+  * [Project Structure](#project-structure-1)
+      * [Command](#command)
+  * [Getting Started](#getting-started-2)
+    * [Construct the CQClient](#construct-the-cqclient)
+    * [CQClient Accepted Configuration](#cqclient-accepted-configuration)
+    * [CQClient establishing connection example code](#cqclient-establishing-connection-example-code)
+  * [Support](#support)
+<!-- TOC -->
 ## Prerequisites
 
 - Node.js (Ensure you have a recent version of Node.js installed)
@@ -9,10 +40,6 @@ The **KubeMQ SDK for NodeJS/TS** enables typescript developers to communicate wi
 - TypeScript Compiler
 
 - KubeMQ server running locally or accessible over the network
-
-## Install KubeMQ Community Edition
-
-Please visit [KubeMQ Community](https://github.com/kubemq-io/kubemq-community) for intallation steps.
 
 
 ## General SDK description
@@ -143,19 +170,16 @@ For executing PubSub operation we have to create the instance of PubsubClient, i
 
 ### PubsubClient Accepted Configuration
 
-| Name                     | Type    | Description                                                | Default Value        | Mandatory |
-|--------------------------|---------|------------------------------------------------------------|----------------------|-----------|
-| address                  | String  | The address of the KubeMQ server.                         | None                 | Yes       |
-| clientId                 | String  | The client ID used for authentication.                     | None                 | Yes       |
-| authToken                | String  | The authorization token for secure communication.          | None                 | No        |
-| tls                      | boolean | Indicates if TLS (Transport Layer Security) is enabled.    | None                 | No        |
-| tlsCertFile              | String  | The path to the TLS certificate file.                      | None                 | No (Yes if `tls` is true) |
-| tlsKeyFile               | String  | The path to the TLS key file.                              | None                 | No (Yes if `tls` is true) |
-| maxReceiveSize           | int     | The maximum size of the messages to receive (in bytes).    | 104857600 (100MB)    | No        |
-| reconnectIntervalSeconds | int     | The interval in seconds between reconnection attempts.     | 5                    | No        |
-| keepAlive                | boolean | Indicates if the connection should be kept alive.         | None                 | No        |
-| pingIntervalInSeconds    | int     | The interval in seconds between ping messages.            | None                 | No        |
-| pingTimeoutInSeconds     | int     | The timeout in seconds for ping messages.                 | None                 | No        |
+| Name                     | Type    | Description                                                | Default Value     | Mandatory |
+|--------------------------|---------|------------------------------------------------------------|-------------------|-----------|
+| address                  | String  | The address of the KubeMQ server.                         | None              | Yes       |
+| clientId                 | String  | The client ID used for authentication.                     | None              | Yes       |
+| authToken                | String  | The authorization token for secure communication.          | None              | No        |
+| tls                      | boolean | Indicates if TLS (Transport Layer Security) is enabled.    | None              | No        |
+| tlsCertFile              | String  | The path to the TLS certificate file.                      | None              | No (Yes if `tls` is true) |
+| tlsKeyFile               | String  | The path to the TLS key file.                              | None              | No (Yes if `tls` is true) |
+| maxReceiveSize           | int     | The maximum size of the messages to receive (in bytes).    | 104857600 (100MB) | No        |
+| reconnectInterval | int     | The interval in seconds between reconnection attempts.     | 1                 | No        |
 
 ### PubsubClient connection establishment example code
 
@@ -164,7 +188,7 @@ For executing PubSub operation we have to create the instance of PubsubClient, i
 const  opts: Config = {
 	address:  'localhost:50000',
 	clientId:  Utils.uuid(),
-	reconnectInterval:  1000,
+	reconnectInterval:  1,
 };
 
 const  pubsubClient = new  PubsubClient(opts);
@@ -184,15 +208,8 @@ const  config: Config = {
 	tlsCertFile:  'path/to/tls-cert.pem', // Path to the TLS certificate file
 	tlsKeyFile:  'path/to/tls-key.pem', // Path to the TLS key file
 	maxReceiveSize:  1024 * 1024 * 100, // Maximum size of the messages to receive (100MB)
-	reconnectInterval:  1000, // Interval in milliseconds between reconnect attempts (1 second)
-	keepAlive:  true, // Indicates if the connection should be kept alive
-	pingIntervalInSeconds:  60, // Interval in seconds between ping messages
-	pingTimeoutInSeconds:  30, // Timeout in seconds for ping messages
-	credentials: {
-	cert:  Buffer.from('your-cert-content'), // Optional client cert credentials for talking to KubeMQ
-	key:  Buffer.from('your-key-content'),
-	caCert:  Buffer.from('your-ca-cert-content') // Optional CA certificate
-}
+	reconnectInterval:  1 // Interval in milliseconds between reconnect attempts (1 second)
+};
 
 ```
 
@@ -345,7 +362,7 @@ async  function  listEventsStoreChannel(search: string) {
 ```typescript
 
 await  pubsubClient.sendEventsMessage({
-	id:  `234`
+	id:  `234`,
 	channel: 'events.single',
 	body:  Utils.stringToBytes('event message'),
 });
@@ -372,7 +389,7 @@ await  pubsubClient.sendEventsMessage({
 ```typescript
 
 await  pubsubClient.sendEventStoreMessage({
-	id:  '987'
+	id:  '987',
 	channel: 'events_store.single',
 	body:  Utils.stringToBytes('event store message'),
 });
@@ -587,19 +604,16 @@ For executing Queues operation we have to create the instance of QueuesClient, i
 
 ### QueuesClient Accepted Configuration
 
-| Name                     | Type    | Description                                                | Default Value        | Mandatory |
-|--------------------------|---------|------------------------------------------------------------|----------------------|-----------|
-| address                  | String  | The address of the KubeMQ server.                         | None                 | Yes       |
-| clientId                 | String  | The client ID used for authentication.                     | None                 | Yes       |
-| authToken                | String  | The authorization token for secure communication.          | None                 | No        |
-| tls                      | boolean | Indicates if TLS (Transport Layer Security) is enabled.    | None                 | No        |
-| tlsCertFile              | String  | The path to the TLS certificate file.                      | None                 | No (Yes if `tls` is true) |
-| tlsKeyFile               | String  | The path to the TLS key file.                              | None                 | No (Yes if `tls` is true) |
-| maxReceiveSize           | int     | The maximum size of the messages to receive (in bytes).    | 104857600 (100MB)    | No        |
-| reconnectIntervalSeconds | int     | The interval in seconds between reconnection attempts.     | 5                    | No        |
-| keepAlive                | boolean | Indicates if the connection should be kept alive.         | None                 | No        |
-| pingIntervalInSeconds    | int     | The interval in seconds between ping messages.            | None                 | No        |
-| pingTimeoutInSeconds     | int     | The timeout in seconds for ping messages.                 | None                 | No        |
+| Name                     | Type    | Description                                                | Default Value     | Mandatory |
+|--------------------------|---------|------------------------------------------------------------|-------------------|-----------|
+| address                  | String  | The address of the KubeMQ server.                         | None              | Yes       |
+| clientId                 | String  | The client ID used for authentication.                     | None              | Yes       |
+| authToken                | String  | The authorization token for secure communication.          | None              | No        |
+| tls                      | boolean | Indicates if TLS (Transport Layer Security) is enabled.    | None              | No        |
+| tlsCertFile              | String  | The path to the TLS certificate file.                      | None              | No (Yes if `tls` is true) |
+| tlsKeyFile               | String  | The path to the TLS key file.                              | None              | No (Yes if `tls` is true) |
+| maxReceiveSize           | int     | The maximum size of the messages to receive (in bytes).    | 104857600 (100MB) | No        |
+| reconnectInterval | int     | The interval in seconds between reconnection attempts.     | 1                 | No        |
 
 
 
@@ -619,8 +633,7 @@ const  queuesClient = new  QueuesClient(opts);
 Below example demonstrate to construct PubSubClient with ssl and other configurations:
 
 ```typescript
-
-const  config: Config = {
+const  opts: Config = {
 	address:  'localhost:50000', // KubeMQ gRPC endpoint address
 	clientId:  'your-client-id', // Connection clientId
 	authToken:  'your-jwt-auth-token', // Optional JWT authorization token
@@ -628,18 +641,10 @@ const  config: Config = {
 	tlsCertFile:  'path/to/tls-cert.pem', // Path to the TLS certificate file
 	tlsKeyFile:  'path/to/tls-key.pem', // Path to the TLS key file
 	maxReceiveSize:  1024 * 1024 * 100, // Maximum size of the messages to receive (100MB)
-	reconnectInterval:  1000, // Interval in milliseconds between reconnect attempts (1 second)
-	keepAlive:  true, // Indicates if the connection should be kept alive
-	pingIntervalInSeconds:  60, // Interval in seconds between ping messages
-	pingTimeoutInSeconds:  30, // Timeout in seconds for ping messages
-	credentials: {
-	cert:  Buffer.from('your-cert-content'), // Optional client cert credentials for talking to KubeMQ
-	key:  Buffer.from('your-key-content'),
-	caCert:  Buffer.from('your-ca-cert-content') // Optional CA certificate
-}
+	reconnectInterval:  1 // Interval in milliseconds between reconnect attempts (1 second)
+};
 
 const  queuesClient = new  QueuesClient(opts);
-
 ```
 
 **Ping To KubeMQ server**
@@ -660,7 +665,7 @@ You can ping the server to check connection is established or not.
 
 ```typescript
 
-ServerInfo  pingResult = queuesClient.ping();
+const  pingResult = queuesClient.ping();
 console.log('Ping Response: ' + pingResult);
 
 ```
@@ -1028,19 +1033,16 @@ For executing command & query operation we have to create the instance of CQClie
 
 ### CQClient Accepted Configuration
 
-| Name                     | Type    | Description                                                | Default Value        | Mandatory |
-|--------------------------|---------|------------------------------------------------------------|----------------------|-----------|
-| address                  | String  | The address of the KubeMQ server.                         | None                 | Yes       |
-| clientId                 | String  | The client ID used for authentication.                     | None                 | Yes       |
-| authToken                | String  | The authorization token for secure communication.          | None                 | No        |
-| tls                      | boolean | Indicates if TLS (Transport Layer Security) is enabled.    | None                 | No        |
-| tlsCertFile              | String  | The path to the TLS certificate file.                      | None                 | No (Yes if `tls` is true) |
-| tlsKeyFile               | String  | The path to the TLS key file.                              | None                 | No (Yes if `tls` is true) |
-| maxReceiveSize           | int     | The maximum size of the messages to receive (in bytes).    | 104857600 (100MB)    | No        |
-| reconnectIntervalSeconds | int     | The interval in seconds between reconnection attempts.     | 5                    | No        |
-| keepAlive                | boolean | Indicates if the connection should be kept alive.         | None                 | No        |
-| pingIntervalInSeconds    | int     | The interval in seconds between ping messages.            | None                 | No        |
-| pingTimeoutInSeconds     | int     | The timeout in seconds for ping messages.                 | None                 | No        |
+| Name                     | Type    | Description                                                | Default Value     | Mandatory |
+|--------------------------|---------|------------------------------------------------------------|-------------------|-----------|
+| address                  | String  | The address of the KubeMQ server.                         | None              | Yes       |
+| clientId                 | String  | The client ID used for authentication.                     | None              | Yes       |
+| authToken                | String  | The authorization token for secure communication.          | None              | No        |
+| tls                      | boolean | Indicates if TLS (Transport Layer Security) is enabled.    | None              | No        |
+| tlsCertFile              | String  | The path to the TLS certificate file.                      | None              | No (Yes if `tls` is true) |
+| tlsKeyFile               | String  | The path to the TLS key file.                              | None              | No (Yes if `tls` is true) |
+| maxReceiveSize           | int     | The maximum size of the messages to receive (in bytes).    | 104857600 (100MB) | No        |
+| reconnectInterval | int     | The interval in seconds between reconnection attempts.     | 1                 | No        |
 
 
 ### CQClient establishing connection example code
@@ -1048,6 +1050,7 @@ For executing command & query operation we have to create the instance of CQClie
 ```typescript
 
 const  opts: Config = {
+
     address:  'localhost:50000',
     clientId:  Utils.uuid(),
     reconnectInterval:  1000,
@@ -1062,6 +1065,7 @@ Below example demonstrate to construct CQClient with ssl and other configuration
 ```typescript
 
 const  config: Config = {
+
     address:  'localhost:50000', // KubeMQ gRPC endpoint address
     clientId:  'your-client-id', // Connection clientId
     authToken:  'your-jwt-auth-token', // Optional JWT authorization token
@@ -1078,7 +1082,6 @@ const  config: Config = {
         key:  Buffer.from('your-key-content'),
         caCert:  Buffer.from('your-ca-cert-content') // Optional CA certificate
     }
-}
 const  cqClient = new  CQClient(opts);
 
 ```
@@ -1100,7 +1103,7 @@ You can ping the server to check connection is established or not.
 
 ```typescript
 
-ServerInfo  pingResult = cqClient.ping();
+const  pingResult = cqClient.ping();
 console.log('Ping Response: ' + pingResult);
 
 ```
@@ -1367,14 +1370,6 @@ async  function  deleteQueriesChannel(channel: string) {
 }
 
 ```
-
-## Learn KubeMQ
-
-Visit our [Extensive KubeMQ Documentation](https://docs.kubemq.io/).
-
-## Examples - Cookbook Recipes
-
-Please visit our cookbook [repository](https://github.com/kubemq-io/node-sdk-cookbook)
 
 ## Support
 

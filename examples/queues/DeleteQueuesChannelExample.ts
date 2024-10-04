@@ -1,9 +1,8 @@
-import { Config, Utils, QueuesClient } from '../../src';
+import { Config,  QueuesClient } from 'kubemq-js'
 
 const opts: Config = {
   address: 'localhost:50000',
-  clientId: 'kubeMQClientId-ts',
-  reconnectInterval: 1000,
+  clientId: 'kubeMQClientId-ts'
 };
 const queuesClient = new QueuesClient(opts);
 async function deleteChannel(channel: string) {

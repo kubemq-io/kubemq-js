@@ -1,9 +1,8 @@
-import { Config, Utils, PubsubClient } from '../../src';
+import { Config, PubsubClient } from 'kubemq-js'
 
 const opts: Config = {
   address: 'localhost:50000',
-  clientId: 'kubeMQClientId-ts',
-  reconnectInterval: 1000,
+  clientId: 'kubeMQClientId-ts'
 };
 const pubsubClient = new PubsubClient(opts);
 
@@ -20,8 +19,8 @@ async function listEventsStoreChannel(search: string) {
 }
 
 async function main() {
-  await listEventsChannel('mytest-channel');
-  await listEventsStoreChannel('mytest-channel-eventstore');
+  await listEventsChannel('');
+  await listEventsStoreChannel('');
   // wait for receiver
 }
 main();
