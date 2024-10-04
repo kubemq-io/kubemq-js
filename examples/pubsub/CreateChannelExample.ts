@@ -1,9 +1,8 @@
-import { Config, Utils, PubsubClient } from '../../src';
+import { Config, Utils, PubsubClient } from 'kubemq-js'
 
 const opts: Config = {
   address: 'localhost:50000',
-  clientId: 'kubeMQClientId-ts',
-  reconnectInterval: 1000,
+  clientId: 'kubeMQClientId-ts'
 };
 const pubsubClient = new PubsubClient(opts);
 
