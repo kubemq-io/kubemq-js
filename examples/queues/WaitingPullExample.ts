@@ -1,5 +1,4 @@
-import { Config, QueuesClient, Utils } from '../../src';
-
+import { Config, QueuesClient, Utils } from 'kubemq-js'
 async function main() {
 
   const opts: Config = {

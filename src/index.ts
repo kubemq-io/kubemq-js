@@ -2,7 +2,7 @@ export * from './client/KubeMQClient';
 export * from './client/config';
 export * from './pubsub/PubsubClient';
 export * from './pubsub/eventTypes';
-export * from './queues/QueuesClient';
+export * from './queues/queuesClient';
 export * from './queues/queuesTypes';
 export * from './cq/CQClient';
 export * from './cq/commandTypes';
