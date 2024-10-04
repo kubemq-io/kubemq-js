@@ -1,4 +1,5 @@
 import * as grpc from '@grpc/grpc-js';
+import * as fs from 'fs';
 import * as kubemq from '../protos';
 import { Config } from './config';
 
@@ -35,24 +36,20 @@ export interface BaseMessage {
   tags?: Map<string, string>;
 }
 
-
 /**
  * KubeMQClient - Client for communicating with a KubeMQ server using gRPC.
  * Supports plain and TLS (Transport Layer Security) connections.
  */
 export class KubeMQClient {
-
   protected address: string;
   public clientId: string;
   protected authToken?: string;
   protected tls: boolean;
-  protected tlsCertFile?: Buffer;
-  protected tlsKeyFile?: Buffer;
+  protected tlsCertFile?: string;
+  protected tlsKeyFile?: string;
+  protected tlsCaCertFile?: string;
   protected maxReceiveSize: number;
   protected reconnectIntervalSeconds: number;
-  protected keepAlive?: boolean;
-  protected pingIntervalInSeconds: number;
-  protected pingTimeoutInSeconds: number;
   protected logLevel: string;
   public grpcClient: kubemq.kubemq.kubemqClient;
   private metadata: grpc.Metadata;
@@ -61,16 +58,13 @@ export class KubeMQClient {
     this.address = config.address || 'localhost:50000';
     this.clientId = config.clientId || '';
     this.authToken = config.authToken;
-    this.tls = !!config.credentials;
-    this.tlsCertFile = config.credentials?.cert;
-    this.tlsKeyFile = config.credentials?.key;
+    this.tls = config.tls || false;
+    this.tlsCertFile = config.tlsCertFile;
+    this.tlsKeyFile = config.tlsKeyFile;
+    this.tlsCaCertFile = config.tlsCaCertFile;
     this.maxReceiveSize = config.maxReceiveSize || 1024 * 1024 * 100; // 100MB
-    this.reconnectIntervalSeconds = config.reconnectInterval || 1; // 1 second
-    this.keepAlive = config.keepAlive;
-    this.pingIntervalInSeconds = config.pingIntervalInSeconds || 60;
-    this.pingTimeoutInSeconds = config.pingTimeoutInSeconds || 30;
+    this.reconnectIntervalSeconds = config.reconnectIntervalSeconds || 1; // 1 second
     this.logLevel = config.logLevel || 'INFO';
-
     this.metadata = new grpc.Metadata();
     if (this.authToken) {
       this.metadata.add('authorization', this.authToken);
@@ -80,27 +74,46 @@ export class KubeMQClient {
   }
 
   private init() {
-    const channelCredentials = this.tls
-      ? grpc.credentials.createSsl(
-          this.tlsCertFile!,
-          this.tlsKeyFile!
-        )
-      : grpc.credentials.createInsecure();
+    let channelCredentials: grpc.ChannelCredentials;
+
+    if (this.tls) {
+      // Validate that TLS file paths are provided
+      if (!this.tlsCertFile || !this.tlsKeyFile) {
+        throw new Error(
+          'TLS is enabled, but tlsCertFile or tlsKeyFile is missing in the configuration.',
+        );
+      }
+
+      // Read TLS files
+      const certChain = fs.readFileSync(this.tlsCertFile);
+      const privateKey = fs.readFileSync(this.tlsKeyFile);
+      let rootCerts: Buffer | null = null;
+
+      if (this.tlsCaCertFile) {
+        rootCerts = fs.readFileSync(this.tlsCaCertFile);
+      }
+
+      // Create SSL credentials
+      channelCredentials = grpc.credentials.createSsl(
+        rootCerts,
+        privateKey,
+        certChain,
+      );
+    } else {
+      // Use insecure credentials for non-TLS connections
+      channelCredentials = grpc.credentials.createInsecure();
+    }
 
     const channelOptions: grpc.ChannelOptions = {
       'grpc.max_receive_message_length': this.maxReceiveSize,
-      'grpc.keepalive_time_ms': this.pingIntervalInSeconds * 1000,
-      'grpc.keepalive_timeout_ms': this.pingTimeoutInSeconds * 1000,
-      'grpc.keepalive_permit_without_calls': this.keepAlive ? 1 : 0
+      // Additional channel options can be added here
     };
 
-    //this.channel = new grpc.Channel(this.address, channelCredentials, channelOptions);
-    this.grpcClient = new kubemq.kubemq.kubemqClient(this.address,channelCredentials,channelOptions);
-    this.metadata = new grpc.Metadata();
-    if (this.authToken != null) {
-      this.metadata.add('authorization', this.authToken);
-    }
-
+    this.grpcClient = new kubemq.kubemq.kubemqClient(
+      this.address,
+      channelCredentials,
+      channelOptions,
+    );
   }
 
   protected callOptions(): grpc.CallOptions {
@@ -109,19 +122,16 @@ export class KubeMQClient {
     };
   }
 
-  public async ping(): Promise<ServerInfo> {
-    return new Promise<ServerInfo>((resolve, reject) => {
+  public ping(): Promise<ServerInfo> {
+    return new Promise((resolve, reject) => {
       this.grpcClient.ping(new kubemq.kubemq.Empty(), (error, response) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve({
-            host: response.getHost(),
-            version: response.getVersion(),
-            serverStartTime: response.getServerstarttime(),
-            serverUpTimeSeconds: response.getServeruptimeseconds(),
-          });
-        }
+        if (error) return reject(error);
+        resolve({
+          host: response.getHost(),
+          version: response.getVersion(),
+          serverStartTime: response.getServerstarttime(),
+          serverUpTimeSeconds: response.getServeruptimeseconds(),
+        });
       });
     });
   }
@@ -133,7 +143,6 @@ export class KubeMQClient {
   public getMetadata(): grpc.Metadata {
     return this.metadata;
   }
-
 }
 
 export interface Listener<T> {
