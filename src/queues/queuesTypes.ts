@@ -24,6 +24,13 @@ export class QueueMessageReceived {
   responseHandler: grpc.ClientWritableStream<pb.kubemq.QueuesDownstreamRequest>;
   receiverClientId: string;
 
+  // New fields introduced in Java
+  visibilitySeconds: number;
+  isAutoAcked: boolean;
+  private visibilityTimer?: NodeJS.Timeout;
+  private messageCompleted: boolean = false;
+  private timerExpired: boolean = false;
+
   constructor(
     id: string,
     channel: string,
@@ -40,8 +47,10 @@ export class QueueMessageReceived {
     delayedTo: Date | undefined,
     transactionId: string,
     isTransactionCompleted: boolean,
-    responseHandler:  grpc.ClientWritableStream<pb.kubemq.QueuesDownstreamRequest>,
-    receiverClientId: string
+    responseHandler: grpc.ClientWritableStream<pb.kubemq.QueuesDownstreamRequest>,
+    receiverClientId: string,
+    visibilitySeconds: number,
+    isAutoAcked: boolean
   ) {
     this.id = id;
     this.channel = channel;
@@ -60,11 +69,52 @@ export class QueueMessageReceived {
     this.isTransactionCompleted = isTransactionCompleted;
     this.responseHandler = responseHandler;
     this.receiverClientId = receiverClientId;
+    this.visibilitySeconds = visibilitySeconds;
+    this.isAutoAcked = isAutoAcked;
+
+    if (this.visibilitySeconds > 0) {
+      this.startVisibilityTimer();
+    }
+  }
+
+  private startVisibilityTimer(): void {
+    if (this.visibilitySeconds > 0) {
+      this.visibilityTimer = setTimeout(() => this.onVisibilityExpired(), this.visibilitySeconds * 1000);
+    }
+  }
+
+  private onVisibilityExpired(): void {
+    this.timerExpired = true;
+    this.visibilityTimer = undefined;
+    this.reject();
+    throw new Error("Message visibility expired");
+  }
+
+  public extendVisibilityTimer(additionalSeconds: number): void {
+    if (additionalSeconds <= 0) {
+      throw new Error("additionalSeconds must be greater than 0");
+    }
+    if (!this.visibilityTimer) {
+      throw new Error("Cannot extend, timer not active");
+    }
+    if (this.timerExpired) {
+      throw new Error("Cannot extend, timer has expired");
+    }
+    if (this.messageCompleted) {
+      throw new Error("Message transaction is already completed");
+    }
+
+    clearTimeout(this.visibilityTimer);
+    this.visibilitySeconds += additionalSeconds;
+    this.startVisibilityTimer();
   }
 
   ack(): void {
-    if (this.isTransactionCompleted) {
-      throw new Error('Transaction is already completed');
+    if (this.messageCompleted || this.isTransactionCompleted) {
+      throw new Error("Transaction is already completed");
+    }
+    if (this.isAutoAcked) {
+      throw new Error("Auto-acked message, operations are not allowed");
     }
 
     const request = new pb.kubemq.QueuesDownstreamRequest({
@@ -74,18 +124,18 @@ export class QueueMessageReceived {
       RequestTypeData: pb.kubemq.QueuesDownstreamRequestType.AckRange,
       RefTransactionId: this.transactionId,
       SequenceRange: [this.sequence],
-      MaxItems: 0, // Set default value if not needed
-      WaitTimeout: 0, // Set default value if not needed
-      AutoAck: false, // Set default value if not needed
-      Metadata: new Map(), // Initialize with an empty map if not needed
     });
 
     this.responseHandler.write(request);
+    this.markTransactionCompleted();
   }
 
   reject(): void {
-    if (this.isTransactionCompleted) {
-      throw new Error('Transaction is already completed');
+    if (this.messageCompleted || this.isTransactionCompleted) {
+      throw new Error("Transaction is already completed");
+    }
+    if (this.isAutoAcked) {
+      throw new Error("Auto-acked message, operations are not allowed");
     }
 
     const request = new pb.kubemq.QueuesDownstreamRequest({
@@ -95,18 +145,21 @@ export class QueueMessageReceived {
       RequestTypeData: pb.kubemq.QueuesDownstreamRequestType.NAckRange,
       RefTransactionId: this.transactionId,
       SequenceRange: [this.sequence],
-      MaxItems: 0, // Set default value if not needed
-      WaitTimeout: 0, // Set default value if not needed
-      AutoAck: false, // Set default value if not needed
-      Metadata: new Map(), // Initialize with an empty map if not needed
-    });    
+    });
 
     this.responseHandler.write(request);
+    this.markTransactionCompleted();
   }
 
   reQueue(channel: string): void {
     if (!channel || channel.length === 0) {
-      throw new Error('Re-queue channel cannot be empty');
+      throw new Error("Re-queue channel cannot be empty");
+    }
+    if (this.messageCompleted || this.isTransactionCompleted) {
+      throw new Error("Transaction is already completed");
+    }
+    if (this.isAutoAcked) {
+      throw new Error("Auto-acked message, operations are not allowed");
     }
 
     const request = new pb.kubemq.QueuesDownstreamRequest({
@@ -116,13 +169,20 @@ export class QueueMessageReceived {
       RequestTypeData: pb.kubemq.QueuesDownstreamRequestType.ReQueueRange,
       RefTransactionId: this.transactionId,
       SequenceRange: [this.sequence],
-      MaxItems: 0, // Set default value if not needed
-      WaitTimeout: 0, // Set default value if not needed
-      AutoAck: false, // Set default value if not needed
-      Metadata: new Map(), // Initialize with an empty map if not needed
+      ReQueueChannel: channel,
     });
 
     this.responseHandler.write(request);
+    this.markTransactionCompleted();
+  }
+
+  private markTransactionCompleted(): void {
+    this.messageCompleted = true;
+    this.isTransactionCompleted = true;
+
+    if (this.visibilityTimer) {
+      clearTimeout(this.visibilityTimer);
+    }
   }
 
   static decode(
@@ -130,7 +190,9 @@ export class QueueMessageReceived {
     transactionId: string,
     transactionIsCompleted: boolean,
     receiverClientId: string,
-    responseHandler:  grpc.ClientWritableStream<pb.kubemq.QueuesDownstreamRequest>
+    responseHandler: grpc.ClientWritableStream<pb.kubemq.QueuesDownstreamRequest>,
+    visibilitySeconds: number,
+    isAutoAcked: boolean
   ): QueueMessageReceived {
     return new QueueMessageReceived(
       message.MessageID,
@@ -149,22 +211,13 @@ export class QueueMessageReceived {
       transactionId,
       transactionIsCompleted,
       responseHandler,
-      receiverClientId
+      receiverClientId,
+      visibilitySeconds,
+      isAutoAcked
     );
   }
-
-  toString(): string {
-    return `QueueMessageReceived: id=${this.id}, channel=${this.channel}, metadata=${this.metadata}, body=${Buffer.from(
-      this.body
-    ).toString()}, fromClientId=${this.fromClientId}, timestamp=${this.timestamp.toISOString()}, sequence=${
-      this.sequence
-    }, receiveCount=${this.receiveCount}, isReRouted=${this.isReRouted}, reRouteFromQueue=${this.reRouteFromQueue}, expiredAt=${
-      this.expiredAt?.toISOString() || 'N/A'
-    }, delayedTo=${this.delayedTo?.toISOString() || 'N/A'}, transactionId=${
-      this.transactionId
-    }, isTransactionCompleted=${this.isTransactionCompleted}, tags=${JSON.stringify(Array.from(this.tags.entries()))}`;
-  }
 }
+
 
 
 /**
@@ -247,30 +300,40 @@ export class QueuesPollRequest {
   pollMaxMessages: number;
   pollWaitTimeoutInSeconds: number;
   autoAckMessages: boolean;
+  visibilitySeconds: number;
 
   constructor(data: { 
       channel: string, 
       pollMaxMessages?: number, 
       pollWaitTimeoutInSeconds?: number, 
-      autoAckMessages?: boolean 
+      autoAckMessages?: boolean,
+      visibilitySeconds?: number 
   }) {
       this.channel = data.channel;
       this.pollMaxMessages = data.pollMaxMessages ?? 1; // Default to 1 if not provided
       this.pollWaitTimeoutInSeconds = data.pollWaitTimeoutInSeconds ?? 60; // Default to 60 seconds if not provided
       this.autoAckMessages = data.autoAckMessages ?? false; // Default to false if not provided
+      this.visibilitySeconds = data.visibilitySeconds ?? 0;
   }
 
   validate() {
-      if (!this.channel || this.channel.trim() === "") {
-          throw new Error("Queue subscription must have a channel.");
-      }
-      if (this.pollMaxMessages < 1) {
-          throw new Error("Queue subscription pollMaxMessages must be greater than 0.");
-      }
-      if (this.pollWaitTimeoutInSeconds < 1) {
-          throw new Error("Queue subscription pollWaitTimeoutInSeconds must be greater than 0.");
-      }
-  }
+    if (!this.channel || this.channel.trim() === "") {
+        throw new Error("Queue subscription must have a channel.");
+    }
+    if (this.pollMaxMessages < 1) {
+        throw new Error("pollMaxMessages must be greater than 0.");
+    }
+    if (this.pollWaitTimeoutInSeconds < 1) {
+        throw new Error("pollWaitTimeoutInSeconds must be greater than 0.");
+    }
+    if (this.visibilitySeconds < 0) {
+        throw new Error("Visibility timeout must be a non-negative integer.");
+    }
+    if (this.autoAckMessages && this.visibilitySeconds > 0) {
+        throw new Error("autoAckMessages and visibilitySeconds cannot be set together.");
+    }
+}
+
 
   encode(clientId: string) {
       this.validate(); // Perform validation before encoding
@@ -388,6 +451,10 @@ export interface QueuesMessagesPulledResponse {
 
   /** pull/peek error reason*/
   error: string;
+
+  visibilitySeconds: number;
+
+  isAutoAcked: boolean;
 }
 
 /**

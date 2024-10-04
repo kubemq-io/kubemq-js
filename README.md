@@ -851,6 +851,163 @@ await  queuesClient
 
 ```
 
+### Receive Queue Messages
+
+Receives messages from a Queue channel.
+
+#### Request: `QueuesPollRequest` Class Attributes
+
+| Name                     | Type    | Description                                          | Default Value | Mandatory |
+|--------------------------|---------|------------------------------------------------------|---------------|-----------|
+| channel                  | String  | The channel to poll messages from.                   | None          | Yes       |
+| pollMaxMessages          | int     | The maximum number of messages to poll.              | 1             | No        |
+| pollWaitTimeoutInSeconds | int     | The wait timeout in seconds for polling messages.    | 60            | No        |
+| autoAckMessages             | boolean| Indicates if messages should be auto-acknowledged.  | false         | No        |
+| visibilitySeconds           | int| Add a visibility timeout feature for messages.  | 0         | No        |
+
+#### Response: `QueuesMessagesPulledResponse` Class Attributes
+
+| Name                   | Type                       | Description                                             |
+|------------------------|----------------------------|---------------------------------------------------------|
+| id           | String                     | The reference ID of the request.                        |
+| messages               | QueueMessageReceived[] | The list of received queue messages.                    |
+| messagesReceived | number            | Number of valid messages received.               |
+| messagesExpired | number            | Number of messages expired.               |
+| isPeek           | boolean           | Indicates if the operation is a peek or pull.    |
+| error                  | String                     | The error message, if any error occurred.               |
+| isError                | boolean                    | Indicates if there was an error.                        |
+| visibilitySeconds      | int                        | The visibility timeout for the message in seconds.      |
+| isAutoAcked            | boolean                    | Indicates whether the message was auto-acknowledged.    |
+
+
+##### Response: `QueueMessageReceived` class attributes
+Here's the requested Markdown table for the `QueueMessageReceived` class:
+
+| Name                  | Type                                  | Description                                             |
+|-----------------------|---------------------------------------|---------------------------------------------------------|
+| id                    | String                                | The unique identifier for the message.                  |
+| channel               | String                                | The channel from which the message was received.         |
+| metadata              | String                                | Metadata associated with the message.                   |
+| body                  | byte[]                                | The body of the message in byte array format.           |
+| fromClientId          | String                                | The ID of the client that sent the message.             |
+| tags                  | Map`<String, String>`                 | Key-value pairs representing tags for the message.      |
+| timestamp             | Instant                               | The timestamp when the message was created.             |
+| sequence              | long                                  | The sequence number of the message.                     |
+| receiveCount          | int                                   | The number of times the message has been received.       |
+| isReRouted            | boolean                               | Indicates whether the message was rerouted.             |
+| reRouteFromQueue      | String                                | The name of the queue from which the message was rerouted.|
+| expiredAt             | Instant                               | The expiration time of the message, if applicable.      |
+| delayedTo             | Instant                               | The time the message is delayed until, if applicable.   |
+| transactionId         | String                                | The transaction ID associated with the message.         |
+| isTransactionCompleted| boolean                               | Indicates whether the transaction for the message is completed. |
+| responseHandler       | StreamObserver`<QueuesDownstreamRequest>` | The response handler for processing downstream requests. |
+| receiverClientId      | String                                | The ID of the client receiving the message.             |
+| visibilitySeconds     | int                                   | The visibility timeout for the message in seconds.      |
+| isAutoAcked           | boolean                               | Indicates whether the message was auto-acknowledged.     |
+
+#### Example
+
+```typescript
+async function main() {  
+  const opts: Config = {  
+    address: 'localhost:50000',  
+    clientId: 'kubeMQClientId-ts',  
+  };  
+  const queuesClient = new QueuesClient(opts);  
+  
+  // Receive with message visibility  
+  async function receiveWithVisibility(visibilitySeconds: number) {  
+    console.log("\n============================== Receive with Visibility =============================\n");  
+    try {  
+      const pollRequest = new QueuesPollRequest({  
+        channel: 'visibility_channel',  
+        pollMaxMessages: 1,  
+        pollWaitTimeoutInSeconds: 10,  
+        visibilitySeconds: visibilitySeconds,  
+        autoAckMessages: false,  
+      });  
+  
+      const pollResponse = await queuesClient.receiveQueuesMessages(pollRequest);  
+      console.log("Received Message Response:", pollResponse);  
+        
+      if (pollResponse.isError) {  
+        console.log("Error: " + pollResponse.error);  
+      } else {  
+        pollResponse.messages.forEach(async (msg) => {  
+          console.log(`Message ID: ${msg.id}, Message Body: ${Utils.bytesToString(msg.body)}`);  
+          try {  
+            await new Promise(resolve => setTimeout(resolve, 1000));  
+            await msg.ack();  
+            console.log("Acknowledged message");  
+          } catch (err) {  
+            console.error("Error acknowledging message:", err);  
+          }  
+        });  
+      }  
+    } catch (error) {  
+      console.error('Failed to receive queue messages:', error);  
+    }  
+  }  
+  
+  // Test visibility expiration  
+  async function receiveWithVisibilityExpired() {  
+    console.log("\n============================== Receive with Visibility Expired =============================\n");  
+    await receiveWithVisibility(2);  
+  }  
+  
+  // Test visibility extension  
+  async function receiveWithVisibilityExtension() {  
+    console.log("\n============================== Receive with Visibility Extension =============================\n");  
+    try {  
+      const pollRequest = new QueuesPollRequest({  
+        channel: 'visibility_channel',  
+        pollMaxMessages: 1,  
+        pollWaitTimeoutInSeconds: 10,  
+        visibilitySeconds: 3,  
+        autoAckMessages: false,  
+      });  
+  
+      const pollResponse = await queuesClient.receiveQueuesMessages(pollRequest);  
+      console.log("Received Message Response:", pollResponse);  
+  
+      if (pollResponse.isError) {  
+        console.log("Error: " + pollResponse.error);  
+      } else {  
+        pollResponse.messages.forEach(async (msg) => {  
+          console.log(`Message ID: ${msg.id}, Message Body: ${Utils.bytesToString(msg.body)}`);  
+          try {  
+            await new Promise(resolve => setTimeout(resolve, 1000));  
+            await msg.extendVisibilityTimer(3);  
+            await new Promise(resolve => setTimeout(resolve, 2000));  
+            await msg.ack();  
+            console.log("Acknowledged message after extending visibility");  
+          } catch (err) {  
+            console.error("Error during visibility extension:", err);  
+          }  
+        });  
+      }  
+    } catch (error) {  
+      console.error('Failed to receive queue messages:', error);  
+    }  
+  }  
+  
+  await receiveWithVisibilityExpired();  
+  await receiveWithVisibilityExtension();  
+}  
+  
+main();
+```
+
+This method allows you to receive messages from a specified Queue channel. You can configure the polling behavior, including the maximum number of messages to receive and the wait timeout. The response provides detailed information about the received messages and the transaction.
+
+#### Message Handling Options:
+
+1. **Acknowledge (ack)**: Mark the message as processed and remove it from the queue.
+2. **Reject**: Reject the message. It won't be requeued.
+3. **Requeue**: Send the message back to the queue for later processing.
+
+Choose the appropriate handling option based on your application's logic and requirements.
+
 
 # KubeMQ Command & Query Client Examples
 
@@ -893,9 +1050,10 @@ For executing command & query operation we have to create the instance of CQClie
 ```typescript
 
 const  opts: Config = {
-	address:  'localhost:50000',
-	clientId:  Utils.uuid(),
-	reconnectInterval:  1,
+
+    address:  'localhost:50000',
+    clientId:  Utils.uuid(),
+    reconnectInterval:  1000,
 };
 
 const  cqClient = new  CQClient(opts);
@@ -907,16 +1065,23 @@ Below example demonstrate to construct CQClient with ssl and other configuration
 ```typescript
 
 const  config: Config = {
-	address:  'localhost:50000', // KubeMQ gRPC endpoint address
-	clientId:  'your-client-id', // Connection clientId
-	authToken:  'your-jwt-auth-token', // Optional JWT authorization token
-	tls:  true, // Indicates if TLS is enabled
-	tlsCertFile:  'path/to/tls-cert.pem', // Path to the TLS certificate file
-	tlsKeyFile:  'path/to/tls-key.pem', // Path to the TLS key file
-	maxReceiveSize:  1024 * 1024 * 100, // Maximum size of the messages to receive (100MB)
-	reconnectInterval:  1 // Interval in milliseconds between reconnect attempts (1 second)
-	
-}
+
+    address:  'localhost:50000', // KubeMQ gRPC endpoint address
+    clientId:  'your-client-id', // Connection clientId
+    authToken:  'your-jwt-auth-token', // Optional JWT authorization token
+    tls:  true, // Indicates if TLS is enabled
+    tlsCertFile:  'path/to/tls-cert.pem', // Path to the TLS certificate file
+    tlsKeyFile:  'path/to/tls-key.pem', // Path to the TLS key file
+    maxReceiveSize:  1024 * 1024 * 100, // Maximum size of the messages to receive (100MB)
+    reconnectInterval:  1000, // Interval in milliseconds between reconnect attempts (1 second)
+    keepAlive:  true, // Indicates if the connection should be kept alive
+    pingIntervalInSeconds:  60, // Interval in seconds between ping messages
+    pingTimeoutInSeconds:  30, // Timeout in seconds for ping messages
+    credentials: {
+        cert:  Buffer.from('your-cert-content'), // Optional client cert credentials for talking to KubeMQ
+        key:  Buffer.from('your-key-content'),
+        caCert:  Buffer.from('your-ca-cert-content') // Optional CA certificate
+    }
 const  cqClient = new  CQClient(opts);
 
 ```
@@ -963,7 +1128,7 @@ console.log('Ping Response: ' + pingResult);
 ```typescript
 
 async  function  createCommandsChannel(channel: string) {
-	return  cqClient.createCommandsChannel(channel);
+    return  cqClient.createCommandsChannel(channel);
 }
 ```
 
@@ -988,7 +1153,7 @@ async  function  createCommandsChannel(channel: string) {
 ```typescript
 
 async  function  createQueriesChannel(channel: string) {
-	return  cqClient.createQueriesChannel(channel);
+    return  cqClient.createQueriesChannel(channel);
 }
 
 ```
@@ -1014,8 +1179,8 @@ async  function  createQueriesChannel(channel: string) {
 ```typescript
 
 async  function  listCommandsChannels(search: string) {
-	const  channels = await  cqClient.listCommandsChannels(search);
-	console.log(channels);
+    const  channels = await  cqClient.listCommandsChannels(search);
+    console.log(channels);
 }
 
 ```
@@ -1040,8 +1205,8 @@ async  function  listCommandsChannels(search: string) {
 ```typescript
 
 async  function  listQueriesChannels(search: string) {
-	const  channels = await  cqClient.listQueriesChannels(search);
-	console.log(channels);
+    const  channels = await  cqClient.listQueriesChannels(search);
+    console.log(channels);
 }
 
 ```
@@ -1069,35 +1234,35 @@ async  function  listQueriesChannels(search: string) {
 | error         | String                | The error message if an error occurred.   |
 
 ```typescript
-async function subscribeToCommands(channelName: string) {  
-  //Subscribes to commands from the specified channel with a specific configuration.  
-  const commandSubscriptionRequest = new CommandsSubscriptionRequest(channelName, 'group1');  
-  
-  // Define the callback for receiving commandMessage  
-  commandSubscriptionRequest.onReceiveEventCallback = (commandMessage: CommandMessageReceived) => {  
-      console.log('SubscriberA received commandMessage:', {  
-          id: commandMessage.id,  
-          fromClientId: commandMessage.fromClientId,  
-          timestamp: commandMessage.timestamp,  
-          channel: commandMessage.channel,  
-          metadata: commandMessage.metadata,  
-          body: commandMessage.body,  
-          tags: commandMessage.tags,  
-      });  
-  };  
-    
-  // Define the callback for handling errors  
-  commandSubscriptionRequest.onErrorCallback = (error: string) => {  
-      console.error('SubscriberA error:', error);  
-  };  
-    
-  cqClient.subscribeToCommands(commandSubscriptionRequest)  
-      .then(() => {  
-          console.log('Command Subscription successful');  
-      })  
-      .catch((reason: any) => {  
-          console.error('Command Subscription failed:', reason);  
-      });  
+async function subscribeToCommands(channelName: string) {
+    //Subscribes to commands from the specified channel with a specific configuration.  
+    const commandSubscriptionRequest = new CommandsSubscriptionRequest(channelName, 'group1');
+
+    // Define the callback for receiving commandMessage  
+    commandSubscriptionRequest.onReceiveEventCallback = (commandMessage: CommandMessageReceived) => {
+        console.log('SubscriberA received commandMessage:', {
+            id: commandMessage.id,
+            fromClientId: commandMessage.fromClientId,
+            timestamp: commandMessage.timestamp,
+            channel: commandMessage.channel,
+            metadata: commandMessage.metadata,
+            body: commandMessage.body,
+            tags: commandMessage.tags,
+        });
+    };
+
+    // Define the callback for handling errors  
+    commandSubscriptionRequest.onErrorCallback = (error: string) => {
+        console.error('SubscriberA error:', error);
+    };
+
+    cqClient.subscribeToCommands(commandSubscriptionRequest)
+        .then(() => {
+            console.log('Command Subscription successful');
+        })
+        .catch((reason: any) => {
+            console.error('Command Subscription failed:', reason);
+        });
 }
 ```
 
@@ -1123,36 +1288,36 @@ async function subscribeToCommands(channelName: string) {
 | replyChannel  | String                   | The reply channel for this message.           |
 
 ```typescript
-async function subscribeToQueries(channelName: string) {  
-  
-  //Subscribes to queries from the specified channel with a specific configuration.  
-  const commandSubscriptionRequest = new CommandsSubscriptionRequest(channelName, 'group1');  
-  
-  // Define the callback for receiving queriesMessage  
-  commandSubscriptionRequest.onReceiveEventCallback = (commandMessage: CommandMessageReceived) => {  
-      console.log('SubscriberA received event:', {  
-          id: commandMessage.id,  
-          fromClientId: commandMessage.fromClientId,  
-          timestamp: commandMessage.timestamp,  
-          channel: commandMessage.channel,  
-          metadata: commandMessage.metadata,  
-          body: commandMessage.body,  
-          tags: commandMessage.tags,  
-      });  
-  };  
-    
-  // Define the callback for handling errors  
-  commandSubscriptionRequest.onErrorCallback = (error: string) => {  
-      console.error('SubscriberA error:', error);  
-  };  
-    
-  cqClient.subscribeToQueries(commandSubscriptionRequest)  
-      .then(() => {  
-          console.log('Queries Subscription successful');  
-      })  
-      .catch((reason: any) => {  
-          console.error('Queries Subscription failed:', reason);  
-      });  
+async function subscribeToQueries(channelName: string) {
+
+    //Subscribes to queries from the specified channel with a specific configuration.  
+    const commandSubscriptionRequest = new CommandsSubscriptionRequest(channelName, 'group1');
+
+    // Define the callback for receiving queriesMessage  
+    commandSubscriptionRequest.onReceiveEventCallback = (commandMessage: CommandMessageReceived) => {
+        console.log('SubscriberA received event:', {
+            id: commandMessage.id,
+            fromClientId: commandMessage.fromClientId,
+            timestamp: commandMessage.timestamp,
+            channel: commandMessage.channel,
+            metadata: commandMessage.metadata,
+            body: commandMessage.body,
+            tags: commandMessage.tags,
+        });
+    };
+
+    // Define the callback for handling errors  
+    commandSubscriptionRequest.onErrorCallback = (error: string) => {
+        console.error('SubscriberA error:', error);
+    };
+
+    cqClient.subscribeToQueries(commandSubscriptionRequest)
+        .then(() => {
+            console.log('Queries Subscription successful');
+        })
+        .catch((reason: any) => {
+            console.error('Queries Subscription failed:', reason);
+        });
 }
 ```
 
@@ -1178,7 +1343,7 @@ async function subscribeToQueries(channelName: string) {
 ```typescript
 
 async  function  deleteCommandsChannel(channel: string) {
-	return  cqClient.deleteCommandsChannel(channel);
+    return  cqClient.deleteCommandsChannel(channel);
 }
 
 ```
@@ -1201,7 +1366,7 @@ async  function  deleteCommandsChannel(channel: string) {
 ```typescript
 
 async  function  deleteQueriesChannel(channel: string) {
-	return  cqClient.deleteQueriesChannel(channel);
+    return  cqClient.deleteQueriesChannel(channel);
 }
 
 ```
