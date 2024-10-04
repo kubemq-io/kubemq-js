@@ -32,6 +32,8 @@ export interface Config {
    */
   tlsKeyFile?: string;
 
+  tlsCaCertFile?: string;
+
   /**
    * Maximum size of the messages to receive (in bytes).
    * Defaults to 100MB.
@@ -39,40 +41,14 @@ export interface Config {
   maxReceiveSize?: number;
 
   /**
-   * Interval in milliseconds between reconnect attempts.
-   * Defaults to 1 second (1000ms).
+   * Interval in seconds between reconnect attempts.
+   * Defaults to 1 second .
    */
-  reconnectInterval?: number;
-
-  /**
-   * Indicates if the connection should be kept alive.
-   */
-  keepAlive?: boolean;
-
-  /**
-   * Interval in seconds between ping messages.
-   * Defaults to 60 seconds.
-   */
-  pingIntervalInSeconds?: number;
-
-  /**
-   * Timeout in seconds for ping messages.
-   * Defaults to 30 seconds.
-   */
-  pingTimeoutInSeconds?: number;
+  reconnectIntervalSeconds?: number;
 
   /**
    * Logging level for the client.
    * Defaults to 'INFO'.
    */
   logLevel?: 'TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'OFF';
-
-  /**
-   * Optional client cert credentials for talking to KubeMQ.
-   */
-  credentials?: {
-    cert: Buffer;
-    key: Buffer;
-    caCert?: Buffer;
-  };
 }
