@@ -166,7 +166,6 @@ return pbMessage;
      */
     receiveQueuesMessages(msg: QueuesPollRequest): Promise<QueuesMessagesPulledResponse> {
       return new Promise<QueuesMessagesPulledResponse>((resolve, reject) => {
-          msg.validate();
           // Use the queueStreamHelper to receive the message
           this.queueStreamHelper.receiveMessage(this, msg.encode(this.clientId), msg.visibilitySeconds, msg.autoAckMessages)
               .then(response => {
