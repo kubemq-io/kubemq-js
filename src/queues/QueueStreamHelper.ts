@@ -135,17 +135,24 @@ export class QueueStreamHelper {
     visibilitySeconds: number,
     autoAckMessages: boolean
   ): QueuesMessagesPulledResponse {
-    const pulledResponse: QueuesMessagesPulledResponse = {
-      id: response.RefRequestId,
-      messages: [],
-      messagesReceived: response.Messages.length,
-      messagesExpired: 0,
-      isPeek: false,
-      isError: response.IsError,
-      error: response.Error || '',
-      visibilitySeconds,
-      isAutoAcked: autoAckMessages,
-    };
+
+    const pulledResponse = new QueuesMessagesPulledResponse(
+      response.RefRequestId, // id
+      [], // messages (empty initially, can be set later)
+      response.Messages.length, // messagesReceived
+      0, // messagesExpired
+      false, // isPeek
+      response.IsError, // isError
+      response.Error || '', // error
+      visibilitySeconds, // visibilitySeconds
+      autoAckMessages // isAutoAcked
+    );
+
+    pulledResponse.activeOffsets =response.ActiveOffsets;
+    pulledResponse.responseHandler = this.queuesDownstreamHandler;
+    pulledResponse.receiverClientId = response.TransactionId;
+    pulledResponse.transactionId = response.TransactionId;
+
 
     // Decode the received messages
     for (const message of response.Messages) {
@@ -164,22 +171,23 @@ export class QueueStreamHelper {
     return pulledResponse;
   }
 
-  /**
-   * Creates an error response object for failed downstream messages.
-   * @param errorMessage - The error message from the failed operation.
-   * @returns The constructed `QueuesMessagesPulledResponse` indicating failure.
-   */
-  private createErrorResponse(errorMessage: string): QueuesMessagesPulledResponse {
-    return {
-      id: '',
-      messages: [],
-      messagesReceived: 0,
-      messagesExpired: 0,
-      isPeek: false,
-      isError: true,
-      error: errorMessage,
-      visibilitySeconds: 0,
-      isAutoAcked: false,
-    };
-  }
+/**
+ * Creates an error response object for failed downstream messages.
+ * @param errorMessage - The error message from the failed operation.
+ * @returns The constructed `QueuesMessagesPulledResponse` indicating failure.
+ */
+private createErrorResponse(errorMessage: string): QueuesMessagesPulledResponse {
+  return new QueuesMessagesPulledResponse(
+    '',          // id
+    [],          // messages (empty)
+    0,           // messagesReceived
+    0,           // messagesExpired
+    false,       // isPeek
+    true,        // isError (set to true to indicate failure)
+    errorMessage,// error message from the failed operation
+    0,           // visibilitySeconds
+    false        // isAutoAcked (set to false as it's an error)
+  );
+}
+
 }

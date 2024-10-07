@@ -30,6 +30,18 @@ await queuesClient
   .receiveQueuesMessages(pollRequest)
   .then((response) => {
     console.log(response);
+    // Ack All
+      //response.ackAll();
+      //return;  // Exit if ackAll was called
+      
+    // Reject All
+      //response.rejectAll();
+      //return;  // Exit if ackAll was called
+
+    // Requeue All
+      //response.reQueueAll("queues.requeue.channel");
+      //return;  // Exit if ackAll was called
+
     response.messages.forEach((msg) => {
       console.log(msg);
       // Message handling options:

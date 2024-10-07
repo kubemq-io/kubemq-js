@@ -180,7 +180,7 @@ export class QueueMessageReceived {
     });
   }
 
-  private markTransactionCompleted(): void {
+  public markTransactionCompleted(): void {
     this.messageCompleted = true;
     this.isTransactionCompleted = true;
     this.clearVisibilityTimer();
@@ -460,7 +460,7 @@ export interface QueuesPullWaitingMessagesResponse {
 /**
  * queue messages pull/peek response
  */
-export interface QueuesMessagesPulledResponse {
+export class QueuesMessagesPulledResponse {
   /** pull/peek request id*/
   id?: string;
 
@@ -472,6 +472,11 @@ export interface QueuesMessagesPulledResponse {
 
   /** number of expired messages from the queue */
   messagesExpired: number;
+
+  activeOffsets: number[]
+  responseHandler: grpc.ClientWritableStream<pb.kubemq.QueuesDownstreamRequest>;
+  receiverClientId: string;
+  transactionId: string;
 
   /** is peek or pull */
   isPeek: boolean;
@@ -485,6 +490,112 @@ export interface QueuesMessagesPulledResponse {
   visibilitySeconds: number;
 
   isAutoAcked: boolean;
+
+  constructor(
+    id?: string,
+    messages: QueueMessageReceived[] = [],
+    messagesReceived = 0,
+    messagesExpired = 0,
+    isPeek = false,
+    isError = false,
+    error = '',
+    visibilitySeconds = 0,
+    isAutoAcked = false
+  ) {
+    this.id = id;
+    this.messages = messages;
+    this.messagesReceived = messagesReceived;
+    this.messagesExpired = messagesExpired;
+    this.activeOffsets = [];
+    this.responseHandler = null as any;
+    this.receiverClientId = '';
+    this.transactionId = '';
+    this.isPeek = isPeek;
+    this.isError = isError;
+    this.error = error;
+    this.visibilitySeconds = visibilitySeconds;
+    this.isAutoAcked = isAutoAcked;
+  }
+
+  ackAll(): Promise<void> {
+
+    if (this.isAutoAcked) {
+      return Promise.reject(new Error('Auto-acked message, operations are not allowed'));
+    }
+
+    const request = new pb.kubemq.QueuesDownstreamRequest({
+      RequestID: uuidv4(),
+      ClientID: this.receiverClientId,
+      RequestTypeData: pb.kubemq.QueuesDownstreamRequestType.AckAll,
+      RefTransactionId: this.transactionId,
+      SequenceRange: this.activeOffsets,
+    });
+
+    return this.writeToStream(request);
+  }
+
+  rejectAll(): Promise<void> {
+
+    if (this.isAutoAcked) {
+      return Promise.reject(new Error('Auto-acked message, operations are not allowed'));
+    }
+
+    const request = new pb.kubemq.QueuesDownstreamRequest({
+      RequestID: uuidv4(),
+      ClientID: this.receiverClientId,
+      RequestTypeData: pb.kubemq.QueuesDownstreamRequestType.NAckAll,
+      RefTransactionId: this.transactionId,
+      SequenceRange: this.activeOffsets,
+    });
+
+    return this.writeToStream(request);
+  }
+
+  reQueueAll(newChannel: string): Promise<void> {
+    if (!newChannel) throw new Error('Re-queue channel cannot be empty');
+
+    if (this.isAutoAcked) {
+      return Promise.reject(new Error('Auto-acked message, operations are not allowed'));
+    }
+
+    const request = new pb.kubemq.QueuesDownstreamRequest({
+      RequestID: uuidv4(),
+      ClientID: this.receiverClientId,
+      RequestTypeData: pb.kubemq.QueuesDownstreamRequestType.ReQueueAll,
+      RefTransactionId: this.transactionId,
+      SequenceRange: this.activeOffsets,
+      ReQueueChannel: newChannel,
+    });
+
+    return this.writeToStream(request);
+  }
+
+  private async writeToStream(request: pb.kubemq.QueuesDownstreamRequest): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const success = this.responseHandler.write(request, (err: grpc.ServiceError | null) => {
+        if (err) {
+          reject(err);
+        } else {
+          this.markTransactionCompleted();
+          resolve();
+        }
+      });
+
+      if (!success) {
+        this.responseHandler.once('drain', () => resolve());
+      }
+    });
+  }
+
+   /**
+   * Loops through the messages and marks each transaction as completed.
+   */
+   public markTransactionCompleted(): void {
+    this.messages.forEach((message) => {
+      message.markTransactionCompleted();
+    });
+  }
+
 }
 
 /**
