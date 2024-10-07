@@ -660,7 +660,7 @@ You can ping the server to check connection is established or not.
 
 ```typescript
 
-ServerInfo  pingResult = queuesClient.ping();
+ServerInfo pingResult = queuesClient.ping();
 console.log('Ping Response: ' + pingResult);
 
 ```
@@ -903,6 +903,58 @@ Here's the requested Markdown table for the `QueueMessageReceived` class:
 #### Example
 
 ```typescript
+// Pull message and ackAll, rejectAll, requeuAll function
+
+async function receiveQueueMessage(){
+
+    //Receive Queue Messagece
+    const pollRequest = new QueuesPollRequest({
+        channel: 'queues.single',
+        pollMaxMessages: 1, // Maps to maxNumberOfMessages
+        pollWaitTimeoutInSeconds: 10, // Maps to waitTimeoutSeconds
+        autoAckMessages: false // Optional: add based on your needs
+    });
+
+// Use the properties of QueuesPollRequest in the receiveQueuesMessages function
+    await queuesClient
+        .receiveQueuesMessages(pollRequest)
+        .then((response) => {
+            console.log(response);
+            // Ack All
+            //response.ackAll();
+            //return;  // Exit if ackAll was called
+
+            // Reject All
+            //response.rejectAll();
+            //return;  // Exit if ackAll was called
+
+            // Requeue All
+            //response.reQueueAll("queues.requeue.channel");
+            //return;  // Exit if ackAll was called
+
+            response.messages.forEach((msg) => {
+                console.log(msg);
+                // Message handling options:
+
+                // 1. Acknowledge message (mark as processed)
+                // msg.ack();
+
+                // 2. Reject message (won't be requeued)
+                // msg.reject();
+
+                // 3. Requeue message (send back to queue)
+                // msg.reQueue(channelName);
+            });
+        })
+        .catch((reason) => {
+            console.error(reason);
+        });
+
+}
+
+
+// Message with visibility example
+
 async function main() {  
   const opts: Config = {  
     address: 'localhost:50000',  
