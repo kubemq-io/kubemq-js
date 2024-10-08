@@ -10,7 +10,7 @@ export class QueueMessageReceived {
   metadata: string;
   body: Uint8Array;
   fromClientId: string;
-  tags: Map<string, string> = new Map<string, string>();
+  tags: Map<string, string>;
   timestamp: Date;
   sequence: number;
   receiveCount: number;
@@ -23,12 +23,11 @@ export class QueueMessageReceived {
   responseHandler: grpc.ClientWritableStream<pb.kubemq.QueuesDownstreamRequest>;
   receiverClientId: string;
 
-  // New fields introduced in Java
   visibilitySeconds: number;
   isAutoAcked: boolean;
   private visibilityTimer?: NodeJS.Timeout;
-  private messageCompleted: boolean = false;
-  private timerExpired: boolean = false;
+  private messageCompleted = false;
+  private timerExpired = false;
 
   constructor(
     id: string,
@@ -77,7 +76,11 @@ export class QueueMessageReceived {
   }
 
   private startVisibilityTimer(): void {
-    if (this.visibilitySeconds > 0) {
+    if (
+      this.visibilitySeconds > 0 &&
+      !this.timerExpired &&
+      !this.messageCompleted
+    ) {
       this.visibilityTimer = setTimeout(
         () => this.onVisibilityExpired(),
         this.visibilitySeconds * 1000,
@@ -87,36 +90,34 @@ export class QueueMessageReceived {
 
   private onVisibilityExpired(): void {
     this.timerExpired = true;
-    this.visibilityTimer = undefined;
-    this.reject();
-    throw new Error('Message visibility expired');
+    this.clearVisibilityTimer();
+    this.reject().catch((err) => {
+      console.error('Visibility expired, failed to reject message:', err);
+    });
   }
 
   public extendVisibilityTimer(additionalSeconds: number): void {
-    if (additionalSeconds <= 0) {
-      throw new Error('additionalSeconds must be greater than 0');
-    }
-    if (!this.visibilityTimer) {
+    if (additionalSeconds <= 0)
+      throw new Error('Additional seconds must be greater than 0');
+    if (!this.visibilityTimer)
       throw new Error('Cannot extend, timer not active');
-    }
-    if (this.timerExpired) {
-      throw new Error('Cannot extend, timer has expired');
-    }
-    if (this.messageCompleted) {
+    if (this.timerExpired) throw new Error('Cannot extend, timer has expired');
+    if (this.messageCompleted)
       throw new Error('Message transaction is already completed');
-    }
 
     clearTimeout(this.visibilityTimer);
     this.visibilitySeconds += additionalSeconds;
     this.startVisibilityTimer();
   }
 
-  ack(): void {
+  ack(): Promise<void> {
     if (this.messageCompleted || this.isTransactionCompleted) {
-      throw new Error('Transaction is already completed');
+      return Promise.reject(new Error('Transaction is already completed'));
     }
     if (this.isAutoAcked) {
-      throw new Error('Auto-acked message, operations are not allowed');
+      return Promise.reject(
+        new Error('Auto-acked message, operations are not allowed'),
+      );
     }
 
     const request = new pb.kubemq.QueuesDownstreamRequest({
@@ -128,19 +129,17 @@ export class QueueMessageReceived {
       SequenceRange: [this.sequence],
     });
 
-    const result = this.responseHandler.write(request);
-    if (!result) {
-      throw new Error('Failed to ack message');
-    }
-    this.markTransactionCompleted();
+    return this.writeToStream(request);
   }
 
-  reject(): void {
+  reject(): Promise<void> {
     if (this.messageCompleted || this.isTransactionCompleted) {
-      throw new Error('Transaction is already completed');
+      return Promise.reject(new Error('Transaction is already completed'));
     }
     if (this.isAutoAcked) {
-      throw new Error('Auto-acked message, operations are not allowed');
+      return Promise.reject(
+        new Error('Auto-acked message, operations are not allowed'),
+      );
     }
 
     const request = new pb.kubemq.QueuesDownstreamRequest({
@@ -151,22 +150,19 @@ export class QueueMessageReceived {
       RefTransactionId: this.transactionId,
       SequenceRange: [this.sequence],
     });
-    const result = this.responseHandler.write(request);
-    if (!result) {
-      throw new Error('Failed to reject message');
-    }
-    this.markTransactionCompleted();
+
+    return this.writeToStream(request);
   }
 
-  reQueue(channel: string): void {
-    if (!channel || channel.length === 0) {
-      throw new Error('Re-queue channel cannot be empty');
-    }
+  reQueue(newChannel: string): Promise<void> {
+    if (!newChannel) throw new Error('Re-queue channel cannot be empty');
     if (this.messageCompleted || this.isTransactionCompleted) {
-      throw new Error('Transaction is already completed');
+      return Promise.reject(new Error('Transaction is already completed'));
     }
     if (this.isAutoAcked) {
-      throw new Error('Auto-acked message, operations are not allowed');
+      return Promise.reject(
+        new Error('Auto-acked message, operations are not allowed'),
+      );
     }
 
     const request = new pb.kubemq.QueuesDownstreamRequest({
@@ -176,22 +172,44 @@ export class QueueMessageReceived {
       RequestTypeData: pb.kubemq.QueuesDownstreamRequestType.ReQueueRange,
       RefTransactionId: this.transactionId,
       SequenceRange: [this.sequence],
-      ReQueueChannel: channel,
+      ReQueueChannel: newChannel,
     });
 
-    const result = this.responseHandler.write(request);
-    if (!result) {
-      throw new Error('Failed to re-queue message');
-    }
-    this.markTransactionCompleted();
+    return this.writeToStream(request);
   }
 
-  private markTransactionCompleted(): void {
+  private async writeToStream(
+    request: pb.kubemq.QueuesDownstreamRequest,
+  ): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const success = this.responseHandler.write(
+        request,
+        (err: grpc.ServiceError | null) => {
+          if (err) {
+            reject(err);
+          } else {
+            this.markTransactionCompleted();
+            resolve();
+          }
+        },
+      );
+
+      if (!success) {
+        this.responseHandler.once('drain', () => resolve());
+      }
+    });
+  }
+
+  public markTransactionCompleted(): void {
     this.messageCompleted = true;
     this.isTransactionCompleted = true;
+    this.clearVisibilityTimer();
+  }
 
+  private clearVisibilityTimer(): void {
     if (this.visibilityTimer) {
       clearTimeout(this.visibilityTimer);
+      this.visibilityTimer = undefined;
     }
   }
 
@@ -327,21 +345,32 @@ export class QueuesPollRequest {
     this.pollWaitTimeoutInSeconds = data.pollWaitTimeoutInSeconds ?? 60; // Default to 60 seconds if not provided
     this.autoAckMessages = data.autoAckMessages ?? false; // Default to false if not provided
     this.visibilitySeconds = data.visibilitySeconds ?? 0;
+
+    this.validate(); // Validate inputs during initialization
   }
 
-  validate() {
+  private validate(): void {
+    // Channel validation
     if (!this.channel || this.channel.trim() === '') {
-      throw new Error('Queue subscription must have a channel.');
+      throw new Error('Queue subscription must have a valid channel.');
     }
+
+    // pollMaxMessages validation
     if (this.pollMaxMessages < 1) {
       throw new Error('pollMaxMessages must be greater than 0.');
     }
+
+    // pollWaitTimeoutInSeconds validation
     if (this.pollWaitTimeoutInSeconds < 1) {
       throw new Error('pollWaitTimeoutInSeconds must be greater than 0.');
     }
+
+    // visibilitySeconds validation
     if (this.visibilitySeconds < 0) {
       throw new Error('Visibility timeout must be a non-negative integer.');
     }
+
+    // autoAckMessages and visibilitySeconds should not conflict
     if (this.autoAckMessages && this.visibilitySeconds > 0) {
       throw new Error(
         'autoAckMessages and visibilitySeconds cannot be set together.',
@@ -349,25 +378,35 @@ export class QueuesPollRequest {
     }
   }
 
-  encode(clientId: string) {
-    this.validate(); // Perform validation before encoding
-
+  public encode(clientId: string): pb.kubemq.QueuesDownstreamRequest {
+    // Encodes the request into a protobuf message after validation
     return new pb.kubemq.QueuesDownstreamRequest({
-      RequestID: Utils.uuid(), // Generate a random UUID
+      RequestID: uuidv4(), // Generate a random UUID
       ClientID: clientId,
       Channel: this.channel,
       MaxItems: this.pollMaxMessages,
       WaitTimeout: this.pollWaitTimeoutInSeconds * 1000, // Convert seconds to milliseconds
       AutoAck: this.autoAckMessages,
-      RequestTypeData: pb.kubemq.QueuesDownstreamRequestType.Get, // Assuming this is the correct type
+      RequestTypeData: pb.kubemq.QueuesDownstreamRequestType.Get, // Assuming this is the correct request type
     });
+  }
+
+  // Factory method to create an instance from a plain object, ensuring proper validation
+  static from(data: {
+    channel: string;
+    pollMaxMessages?: number;
+    pollWaitTimeoutInSeconds?: number;
+    autoAckMessages?: boolean;
+    visibilitySeconds?: number;
+  }): QueuesPollRequest {
+    return new QueuesPollRequest(data);
   }
 }
 
 /**
  * queue messages pull/peek requests
  */
-export interface QueuesPullWaitingMessagesRequest {
+export interface QueuesPullWaitngMessagesRequest {
   /** pull/peek request id*/
   id?: string;
 
@@ -443,7 +482,7 @@ export interface QueuesPullWaitingMessagesResponse {
 /**
  * queue messages pull/peek response
  */
-export interface QueuesMessagesPulledResponse {
+export class QueuesMessagesPulledResponse {
   /** pull/peek request id*/
   id?: string;
 
@@ -455,6 +494,11 @@ export interface QueuesMessagesPulledResponse {
 
   /** number of expired messages from the queue */
   messagesExpired: number;
+
+  activeOffsets: number[];
+  responseHandler: grpc.ClientWritableStream<pb.kubemq.QueuesDownstreamRequest>;
+  receiverClientId: string;
+  transactionId: string;
 
   /** is peek or pull */
   isPeek: boolean;
@@ -468,6 +512,120 @@ export interface QueuesMessagesPulledResponse {
   visibilitySeconds: number;
 
   isAutoAcked: boolean;
+
+  constructor(
+    id?: string,
+    messages: QueueMessageReceived[] = [],
+    messagesReceived = 0,
+    messagesExpired = 0,
+    isPeek = false,
+    isError = false,
+    error = '',
+    visibilitySeconds = 0,
+    isAutoAcked = false,
+  ) {
+    this.id = id;
+    this.messages = messages;
+    this.messagesReceived = messagesReceived;
+    this.messagesExpired = messagesExpired;
+    this.activeOffsets = [];
+    this.responseHandler = null as any;
+    this.receiverClientId = '';
+    this.transactionId = '';
+    this.isPeek = isPeek;
+    this.isError = isError;
+    this.error = error;
+    this.visibilitySeconds = visibilitySeconds;
+    this.isAutoAcked = isAutoAcked;
+  }
+
+  ackAll(): Promise<void> {
+    if (this.isAutoAcked) {
+      return Promise.reject(
+        new Error('Auto-acked message, operations are not allowed'),
+      );
+    }
+
+    const request = new pb.kubemq.QueuesDownstreamRequest({
+      RequestID: uuidv4(),
+      ClientID: this.receiverClientId,
+      RequestTypeData: pb.kubemq.QueuesDownstreamRequestType.AckAll,
+      RefTransactionId: this.transactionId,
+      SequenceRange: this.activeOffsets,
+    });
+
+    return this.writeToStream(request);
+  }
+
+  rejectAll(): Promise<void> {
+    if (this.isAutoAcked) {
+      return Promise.reject(
+        new Error('Auto-acked message, operations are not allowed'),
+      );
+    }
+
+    const request = new pb.kubemq.QueuesDownstreamRequest({
+      RequestID: uuidv4(),
+      ClientID: this.receiverClientId,
+      RequestTypeData: pb.kubemq.QueuesDownstreamRequestType.NAckAll,
+      RefTransactionId: this.transactionId,
+      SequenceRange: this.activeOffsets,
+    });
+
+    return this.writeToStream(request);
+  }
+
+  reQueueAll(newChannel: string): Promise<void> {
+    if (!newChannel) throw new Error('Re-queue channel cannot be empty');
+
+    if (this.isAutoAcked) {
+      return Promise.reject(
+        new Error('Auto-acked message, operations are not allowed'),
+      );
+    }
+
+    const request = new pb.kubemq.QueuesDownstreamRequest({
+      RequestID: uuidv4(),
+      ClientID: this.receiverClientId,
+      RequestTypeData: pb.kubemq.QueuesDownstreamRequestType.ReQueueAll,
+      RefTransactionId: this.transactionId,
+      SequenceRange: this.activeOffsets,
+      ReQueueChannel: newChannel,
+    });
+
+    return this.writeToStream(request);
+  }
+
+  private async writeToStream(
+    request: pb.kubemq.QueuesDownstreamRequest,
+  ): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const success = this.responseHandler.write(
+        request,
+        (err: grpc.ServiceError | null) => {
+          if (err) {
+            reject(err);
+          } else {
+            this.markTransactionCompleted();
+            resolve();
+          }
+        },
+      );
+
+      if (!success) {
+        this.responseHandler.once('drain', () => resolve());
+      }
+    });
+  }
+
+  /**
+   * Loops through the messages and marks each transaction as completed.
+   */
+  public markTransactionCompleted(): void {
+    this.messages.forEach((message) => {
+      message.markTransactionCompleted();
+    });
+  }
 }
 
 /**
