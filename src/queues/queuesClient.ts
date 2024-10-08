@@ -14,7 +14,7 @@ import {
   QueueMessageSendResult,
   QueuesMessageAttributes,
   QueuesMessagesPulledResponse,
-  QueuesPullWaitingMessagesRequest,
+  QueuesPullWaitngMessagesRequest,
   QueuesPullWaitingMessagesResponse,
   QueuesPollRequest,
 } from './queuesTypes';
@@ -184,21 +184,20 @@ export class QueuesClient extends KubeMQClient {
 
   /**
    * Send queue message
-   * @param request
-   * @return Promise<QueuesMessagesPulledResponse>
+   * @param msg
+   * @return Promise<QueueMessageSendResult>
    */
   receiveQueuesMessages(
-    request: QueuesPollRequest,
+    msg: QueuesPollRequest,
   ): Promise<QueuesMessagesPulledResponse> {
     return new Promise<QueuesMessagesPulledResponse>((resolve, reject) => {
-      request.validate();
       // Use the queueStreamHelper to receive the message
       this.queueStreamHelper
         .receiveMessage(
           this,
-          request.encode(this.clientId),
-          request.visibilitySeconds,
-          request.autoAckMessages,
+          msg.encode(this.clientId),
+          msg.visibilitySeconds,
+          msg.autoAckMessages,
         )
         .then((response) => {
           // Resolve the promise with the constructed response
@@ -217,7 +216,7 @@ export class QueuesClient extends KubeMQClient {
    * @return Promise<QueuesPullPeekMessagesResponse>
    */
   pull(
-    request: QueuesPullWaitingMessagesRequest,
+    request: QueuesPullWaitngMessagesRequest,
   ): Promise<QueuesPullWaitingMessagesResponse> {
     return this.pullOrWaiting(request, false);
   }
@@ -228,7 +227,7 @@ export class QueuesClient extends KubeMQClient {
    * @return Promise<QueuesPullPeekMessagesResponse>
    */
   waiting(
-    request: QueuesPullWaitingMessagesRequest,
+    request: QueuesPullWaitngMessagesRequest,
   ): Promise<QueuesPullWaitingMessagesResponse> {
     return this.pullOrWaiting(request, true);
   }
@@ -237,7 +236,7 @@ export class QueuesClient extends KubeMQClient {
    * @internal
    */
   private pullOrWaiting(
-    request: QueuesPullWaitingMessagesRequest,
+    request: QueuesPullWaitngMessagesRequest,
     isPeek: boolean,
   ): Promise<QueuesPullWaitingMessagesResponse> {
     const pbPullSubRequest = new pb.kubemq.ReceiveQueueMessagesRequest();
