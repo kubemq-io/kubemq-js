@@ -1,4 +1,4 @@
-import { Config, QueuesClient, QueuesPollRequest, Utils } from 'kubemq-js';
+import { Config, QueuesClient, QueuesPollRequest, Utils } from '../../src';
 
 async function main() {
   const opts: Config = {
@@ -22,7 +22,7 @@ async function main() {
     .then((result) => console.log(result))
     .catch((reason) => console.error(reason));
 
-  //Receive Queue Message
+  //Receive Queue Messagece
   const pollRequest = new QueuesPollRequest({
     channel: 'queues.single',
     pollMaxMessages: 1, // Maps to maxNumberOfMessages
@@ -35,6 +35,18 @@ async function main() {
     .receiveQueuesMessages(pollRequest)
     .then((response) => {
       console.log(response);
+      // Ack All
+      //response.ackAll();
+      //return;  // Exit if ackAll was called
+
+      // Reject All
+      //response.rejectAll();
+      //return;  // Exit if ackAll was called
+
+      // Requeue All
+      //response.reQueueAll("queues.requeue.channel");
+      //return;  // Exit if ackAll was called
+
       response.messages.forEach((msg) => {
         console.log(msg);
         // Message handling options:
