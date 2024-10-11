@@ -1,4 +1,4 @@
-import { Config, QueuesClient, QueuesPollRequest, Utils } from '../../src';
+import { Config, QueuesClient, QueuesPollRequest, Utils } from 'kubemq-js';
 
 async function main() {
   const opts: Config = {
@@ -36,7 +36,7 @@ async function main() {
     .then((response) => {
       console.log(response);
       // Ack All
-      //response.ackAll();
+      response.ackAll();
       //return;  // Exit if ackAll was called
 
       // Reject All
@@ -52,7 +52,7 @@ async function main() {
         // Message handling options:
 
         // 1. Acknowledge message (mark as processed)
-        // msg.ack();
+        msg.ack();
 
         // 2. Reject message (won't be requeued)
         // msg.reject();
