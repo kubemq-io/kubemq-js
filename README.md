@@ -1,38 +1,7 @@
 # KubeMQ Node JS/TS SDK
 
-The **KubeMQ SDK for NodeJS/TS** enables typescript developers to communicate with [KubeMQ](https://kubemq.io/) server.
+The **KubeMQ SDK for Java** enables Java developers to seamlessly communicate with the [KubeMQ](https://kubemq.io/) server, implementing various communication patterns such as Events, EventStore, Commands, Queries, and Queues.
 
-<!-- TOC -->
-* [KubeMQ Node JS/TS SDK](#kubemq-node-jsts-sdk)
-  * [Prerequisites](#prerequisites)
-  * [General SDK description](#general-sdk-description)
-    * [Installing](#installing)
-  * [Running the examples](#running-the-examples)
-  * [Building from source](#building-from-source)
-  * [Payload Details](#payload-details)
-* [KubeMQ PubSub Client Examples](#kubemq-pubsub-client-examples)
-  * [File Structure](#file-structure)
-      * [Event](#event)
-  * [Getting Started](#getting-started)
-    * [Construct the PubsubClient](#construct-the-pubsubclient)
-    * [PubsubClient Accepted Configuration](#pubsubclient-accepted-configuration)
-    * [PubsubClient connection establishment example code](#pubsubclient-connection-establishment-example-code)
-* [KubeMQ Queues Client Examples](#kubemq-queues-client-examples)
-  * [Project Structure](#project-structure)
-  * [Getting Started](#getting-started-1)
-    * [Construct the QueuesClient](#construct-the-queuesclient)
-    * [QueuesClient Accepted Configuration](#queuesclient-accepted-configuration)
-    * [QueuesClient establishing connection example code](#queuesclient-establishing-connection-example-code)
-      
-* [KubeMQ Command & Query Client Examples](#kubemq-command--query-client-examples)
-  * [Project Structure](#project-structure-1)
-      * [Command](#command)
-  * [Getting Started](#getting-started-2)
-    * [Construct the CQClient](#construct-the-cqclient)
-    * [CQClient Accepted Configuration](#cqclient-accepted-configuration)
-    * [CQClient establishing connection example code](#cqclient-establishing-connection-example-code)
-  * [Support](#support)
-<!-- TOC -->
 ## Prerequisites
 
 - Node.js (Ensure you have a recent version of Node.js installed)
@@ -41,24 +10,7 @@ The **KubeMQ SDK for NodeJS/TS** enables typescript developers to communicate wi
 
 - KubeMQ server running locally or accessible over the network
 
-
-## General SDK description
-
-The SDK implements all communication patterns available through the KubeMQ server:
-
-- Events
-
-- EventStore
-
-- Command
-
-- Query
-
-- Queue
-
-
-
-### Installing
+## Installation
 
 The recommended way to use the SDK for Node in your project is to consume it from Node package manager.
 
@@ -68,82 +20,15 @@ npm install kubemq-js
 
 ```
 
-## Running the examples
-
-
-The [examples](https://github.com/kubemq-io/kubemq-js/tree/main/examples)
-
-are standalone projects that showcase the usage of the SDK.
-
-
-To run the examples, you need to have a running instance of KubeMQ.
-
-Import the project in any IDE of choice like Visual Studio Code or IntelliJ .
-
-You will see three directory in example project which contains files to showing
-
-implementation.
-
-Directories are:
-
-`cq`
-
-`pubsub`
-
-`queues`
-
-**cq** directory contains the example related to Command and Query
-
-**pubsub** directory contains the example related to Event and EventStore
-
-**queues** directory contains the example related to Queues
-
-
-## Building from source
-
-Once you check out the code from GitHub, you can build it using Node & Typescript.
-
-``` bash
-
-npx  path/to/example_file.ts
-
-Example:
-
-npx  tsc  examples/cq/CreateExample.ts
-
-```
-
-Above command will compile the .ts file and produce the .js file in same directory where .ts file is, To run the compiled JavaScript file use below command .
-
-```bash
-
-node  path/to/example_file.js
-
-Example:
-
-node  examples/cq/CreateExample.ts
-
-```
-
 ## Payload Details
-
-
-
 -  **Metadata:** The metadata allows us to pass additional information with the event. Can be in any form that can be presented as a string, i.e., struct, JSON, XML and many more.
-
 -  **Body:** The actual content of the event. Can be in any form that is serializable into a byte array, i.e., string, struct, JSON, XML, Collection, binary file and many more.
-
 -  **ClientID:** Displayed in logs, tracing, and KubeMQ dashboard(When using Events Store, it must be unique).
-
 -  **Tags:** Set of Key value pair that help categorize the message
 
-
-
-# KubeMQ PubSub Client Examples
+## KubeMQ PubSub Client Examples
 
 Below examples demonstrating the usage of KubeMQ PubSub (Event and EventStore) client. The examples include creating, deleting, listing channels, and sending/subscribing event messages.
-
-
 
 ## File Structure
 
@@ -162,13 +47,11 @@ Below examples demonstrating the usage of KubeMQ PubSub (Event and EventStore) c
 -  `pubsub\SubscribeToEventStoreExample.ts` Demonstrates example of subscribing event-store channel.
 
 
-## Getting Started
-
 ### Construct the PubsubClient
 
 For executing PubSub operation we have to create the instance of PubsubClient, it's instance can created with minimum two parameter `address` (KubeMQ server address) & `clientId` . With these two parameter plainText connection are established. Below Table Describe the Parameters available for establishing connection.
 
-### PubsubClient Accepted Configuration
+### Pubsub Client Configuration
 
 | Name                     | Type    | Description                                             | Default Value     | Mandatory |
 |--------------------------|---------|---------------------------------------------------------|-------------------|-----------|
@@ -568,10 +451,6 @@ async  function  deleteChannel(channel: string) {
 | isChannelDeleted | boolean | Indicates if the channel is deleted (true/false) |
 
 
-----------------------------------------------------------------------------
-
-
-
 ```typescript
 
 async  function  deleteChannel(channel: string) {
@@ -581,26 +460,11 @@ async  function  deleteChannel(channel: string) {
 ```
 
 
-# KubeMQ Queues Client Examples
+## KubeMQ Queues Operations
 
 Below examples demonstrating the usage of KubeMQ Queues client. The examples include creating, deleting, listing channels, and sending/receiving queues messages.
 
-## Project Structure
-
--  `queues/CreateQueuesChannelExample.ts`: Demonstrates creating queues channels.
-
--  `queues/DeleteQueuesChannelExample.ts`: Demonstrates deleting queues channels.
-
--  `queues/ListQueuesChannelExample.ts`: Demonstrates listing queues channels.
-
--  `queues/Send_ReceiveMessageExample.ts`: Demonstrates example of sending & receiving message.
-
--  `queues/WaitingPullExample.ts`: Demonstrates example of pulling message by waiting and pulling.
-
-
-## Getting Started
-
-### Construct the QueuesClient
+## Construct the QueuesClient
 
 For executing Queues operation we have to create the instance of QueuesClient, it's instance can created with minimum two parameter `address` (KubeMQ server address) & `clientId` . With these two parameter plainText connection are established. Below Table Describe the Parameters available for establishing connection.
 
@@ -1013,29 +877,14 @@ This method allows you to receive messages from a specified Queue channel. You c
 Choose the appropriate handling option based on your application's logic and requirements.
 
 
-# KubeMQ Command & Query Client Examples
+# KubeMQ Command & Query Operations
 
-Below examples demonstrating the usage of KubeMQ CQ (Commands and Queries) Client. The examples include creating, deleting, listing channels, and sending/subscribing to command and query messages.
 
-## Project Structure
-
-#### Command
-
--  `cq\CreateExample.ts`: Demonstrates creating command channels.
--  `cq\DeleteExample.ts`: Demonstrates deleting command channels.
--  `cq\ListExample.ts`: Demonstrates listing command channels.
--  `cq\CommandsExample.ts`: Demonstrates sending to command messages.
-- `cq\SubscribeCommandsExample.ts`: Demonstrates subscribing to command messages.
--  `cq\QueriesExample.ts`: Demonstrates sending to queries messages.
--  `cq\SubscribeQueriesExample.ts`: Demonstrates subscribing to queries messages.
-
-## Getting Started
-
-### Construct the CQClient
+## Construct the CQClient
 
 For executing command & query operation we have to create the instance of CQClient, it's instance can created with minimum two parameter `address` (KubeMQ server address) & `clientId` . With these two parameter plainText connection are established. Below Table Describe the Parameters available for establishing connection.
 
-### CQClient Accepted Configuration
+### CQClient Configuration
 
 | Name                     | Type    | Description                                                | Default Value     | Mandatory |
 |--------------------------|---------|------------------------------------------------------------|-------------------|-----------|
@@ -1369,13 +1218,3 @@ async  function  deleteQueriesChannel(channel: string) {
 }
 
 ```
-
-## Support
-
-if you encounter any issues, please open an issue here,
-
-In addition, you can reach us for support by:
-
-- [**Email**](mailto://support@kubemq.io)
-
-- [**Slack**](https://join.slack.com/t/kubemq/shared_invite/enQtNDk3NjE1Mjg1MDMwLThjMGFmYjU1NTVhZWRjZTRjYTIxM2E5MjA5ZDFkMWUyODI3YTlkOWY2MmYzNGIwZjY3OThlMzYxYjYwMTVmYWM)
