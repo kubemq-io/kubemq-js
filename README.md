@@ -1,8 +1,6 @@
-# KubeMQ Node JS/TS SDK
+The **KubeMQ SDK for NodeJS** enables Node JS/Typescript developers to seamlessly communicate with the [KubeMQ](https://kubemq.io/) server, implementing various communication patterns such as Events, EventStore, Commands, Queries, and Queues.
 
-The **KubeMQ SDK for Java** enables Java developers to seamlessly communicate with the [KubeMQ](https://kubemq.io/) server, implementing various communication patterns such as Events, EventStore, Commands, Queries, and Queues.
-
-## Prerequisites
+# Prerequisites
 
 - Node.js (Ensure you have a recent version of Node.js installed)
 
@@ -10,7 +8,7 @@ The **KubeMQ SDK for Java** enables Java developers to seamlessly communicate wi
 
 - KubeMQ server running locally or accessible over the network
 
-## Installation
+# Installation
 
 The recommended way to use the SDK for Node in your project is to consume it from Node package manager.
 
@@ -20,38 +18,18 @@ npm install kubemq-js
 
 ```
 
-## Payload Details
+# Payload Details
 -  **Metadata:** The metadata allows us to pass additional information with the event. Can be in any form that can be presented as a string, i.e., struct, JSON, XML and many more.
 -  **Body:** The actual content of the event. Can be in any form that is serializable into a byte array, i.e., string, struct, JSON, XML, Collection, binary file and many more.
 -  **ClientID:** Displayed in logs, tracing, and KubeMQ dashboard(When using Events Store, it must be unique).
--  **Tags:** Set of Key value pair that help categorize the message
+-  **Tags:** Set of Key-value pair that help categorize the message
 
-## KubeMQ PubSub Client Examples
-
-Below examples demonstrating the usage of KubeMQ PubSub (Event and EventStore) client. The examples include creating, deleting, listing channels, and sending/subscribing event messages.
-
-## File Structure
-
-#### Event
-
--  `pubsub\CreateChannelExample.ts`: Demonstrates creating event channels.
-
--  `pubsub\DeleteChannelExample.ts`: Demonstrates deleting event channels.
-
--  `pubsub\ListEventsChanneExample.ts`: Demonstrates listing event channels.
-
--  `pubsub\SendEventMessageExample.ts`: Demonstrates to send message to single event & event-store event channel
-
--  `pubsub\SubscribeToEventExample.ts`: Demonstrates Subscribe to event channel
-
--  `pubsub\SubscribeToEventStoreExample.ts` Demonstrates example of subscribing event-store channel.
+# KubeMQ PubSub Client 
 
 
-### Construct the PubsubClient
+For executing PubSub operation we have to create the instance of PubsubClient, its instance can be created with minimum two parameter `address` (KubeMQ server address) & `clientId` . With these two parameter plainText connections are established. The table below describes the Parameters available for establishing a connection.
 
-For executing PubSub operation we have to create the instance of PubsubClient, it's instance can created with minimum two parameter `address` (KubeMQ server address) & `clientId` . With these two parameter plainText connection are established. Below Table Describe the Parameters available for establishing connection.
-
-### Pubsub Client Configuration
+## PubSub Client Configuration
 
 | Name                     | Type    | Description                                             | Default Value     | Mandatory |
 |--------------------------|---------|---------------------------------------------------------|-------------------|-----------|
@@ -65,7 +43,7 @@ For executing PubSub operation we have to create the instance of PubsubClient, i
 | maxReceiveSize           | int     | The maximum size of the messages to receive (in bytes). | 104857600 (100MB) | No        |
 | reconnectIntervalSeconds | int     | The interval in seconds between reconnection attempts.  | 1                 | No        |
 
-### PubsubClient connection establishment example code
+## Pubsub Client connection establishment example code
 
 ```typescript
 
@@ -79,7 +57,7 @@ const  pubsubClient = new  PubsubClient(opts);
 
 ```
 
-Below example demonstrate to construct PubSubClient with ssl and other configurations:
+The example below demonstrates to construct PubSubClient with ssl and other configurations:
 
 ```typescript
 
@@ -119,14 +97,15 @@ ServerInfo  pingResult = pubsubClient.ping();
 console.log('Ping Response: ' + pingResult);
 
 ```
+### Create Channel
 
 **PubSub CreateEventsChannel Example:**
 
 #### Request:
 
-| Name        | Type   | Description                                 | Default Value | Mandatory |
-|-------------|--------|---------------------------------------------|---------------|-----------|
-| channelName | String | Channel name which you want to subscribe to | None          | Yes       |
+| Name        | Type   | Description                           | Default Value | Mandatory |
+|-------------|--------|---------------------------------------|---------------|-----------|
+| channelName | String | Channel name which you want to create | None          | Yes       |
 
 
 #### Response:
@@ -147,9 +126,9 @@ return  pubsubClient.createEventsChannel(channel);
 
 #### Request:
 
-| Name        | Type   | Description                                 | Default Value | Mandatory |
-|-------------|--------|---------------------------------------------|---------------|-----------|
-| channelName | String | Channel name to which you want to subscribe | None          | Yes       |
+| Name        | Type   | Description                              | Default Value | Mandatory |
+|-------------|--------|------------------------------------------|---------------|-----------|
+| channelName | String | Channel name to which you want to create | None          | Yes       |
 
 
 #### Response:
@@ -169,13 +148,62 @@ return  pubsubClient.createEventsStoreChannel(channel);
 
 ```
 
+### Delete Channel
+
+**PubSub DeleteEventsChannel Example:**
+
+#### Request:
+
+| Name        | Type   | Description                             | Default Value | Mandatory |
+|-------------|--------|-----------------------------------------|---------------|-----------|
+| channelName | String | Channel name which you want to delete   | None          | Yes       |
+
+
+#### Response:
+
+| Name | Type          | Description                           |
+|------|---------------|---------------------------------------|
+| void | Promise<void> | Doesn't return a value upon completion |
+
+```typescript
+
+async  function  deleteEventsChannel(channel: string) {
+return  pubsubClient.deleteEventsChannel(channel);
+}
+
+```
+
+**PubSub Delete Events Store Channel Example:**
+
+#### Request:
+
+| Name        | Type   | Description                              | Default Value | Mandatory |
+|-------------|--------|------------------------------------------|---------------|-----------|
+| channelName | String | Channel name to which you want to delete | None          | Yes       |
+
+
+#### Response:
+
+| Name | Type          | Description                            |
+|------|---------------|----------------------------------------|
+| void | Promise<void> | Doesn't return a value upon completion |
+
+```typescript
+
+async  function  deleteEventsStoreChannel(channel: string) {
+return  pubsubClient.deleteEventsStoreChannel(channel);
+}
+
+```
+### List Channels
+
 **PubSub ListEventsChannel Example:**
 
 #### Request:
 
-| Name        | Type   | Description                               | Default Value | Mandatory |
-|-------------|--------|-------------------------------------------|---------------|-----------|
-| channelName | String | Channel name that you want to search for  | None          | No        |
+| Name   | Type   | Description                               | Default Value | Mandatory |
+|--------|--------|-------------------------------------------|---------------|-----------|
+| search | String | Search query to filter channels (optional)  | None          | No        |
 
 
 #### Response: `PubSubChannel[]`  `PubSubChannel` interface Attributes
@@ -204,7 +232,7 @@ async  function  listEventsChannel(search: string) {
 
 | Name        | Type   | Description                               | Default Value | Mandatory |
 |-------------|--------|-------------------------------------------|---------------|-----------|
-| channelName | String | Channel name that you want to search for  | None          | No        |
+| search | String | Search query to filter channels (optional)  | None          | No        |
 
 #### Response: `PubSubChannel[]`  `PubSubChannel` interface Attributes
 
@@ -226,6 +254,7 @@ async  function  listEventsStoreChannel(search: string) {
 
 ```
 
+### PubSub Send & Receive
 **PubSub SendEventMessage Example:**
 
 #### Request: `EventMessage` Interface Attributes
@@ -400,75 +429,23 @@ async function subscribeToEventStore() {
   pubsubClient  
   .subscribeToEvents(eventsSubscriptionRequest)  
     .then(() => {  
-      console.log('Eventstore Subscription successful');  
+      console.log('Events Subscription successful');  
     })  
     .catch((reason: any) => {  
-      console.error('Eventstore Subscription failed:', reason);  
+      console.error('Event Subscription failed:', reason);  
     });  
 }
 ```
 
-**PubSub DeleteEventsChannel Example:**
+# KubeMQ Queues Operations
 
+The examples below demonstrate the usage of KubeMQ Queues client. The examples include creating, deleting, listing channels, and sending/receiving queues messages.
 
+## Construct the Queues Client
 
-#### Request:
+For executing Queues operation we have to create the instance of QueuesClient, its instance can be created with minimum two parameter `address` (KubeMQ server address) & `clientId` . With these two parameter plainText connections are established. The table below describes the Parameters available for establishing a connection.
 
-| Name        | Type   | Description                                   | Default Value | Mandatory |
-|-------------|--------|-----------------------------------------------|---------------|-----------|
-| channelName | String | Channel name that you want to delete         | None          | Yes       |
-
-#### Response:
-
-| Name | Type          | Description    |
-|------|---------------|----------------|
-| void | Promise<void> | Returns nothing |
-
-
-----------------------------------------------------------------------------
-
-```typescript
-
-async  function  deleteChannel(channel: string) {
-	return  pubsubClient.deleteEventsChannel(channel);
-}
-
-```
-
-**PubSub DeleteEventsStoreChannel Example:**
-
-#### Request:
-
-| Name        | Type   | Description                               | Default Value | Mandatory |
-|-------------|--------|-------------------------------------------|---------------|-----------|
-| channelName | String | The name of the channel you want to delete | None          | Yes       |
-
-
-#### Response:
-
-| Name             | Type    | Description                   |
-|------------------|---------|-------------------------------|
-| isChannelDeleted | boolean | Indicates if the channel is deleted (true/false) |
-
-
-```typescript
-
-async  function  deleteChannel(channel: string) {
-	return  pubsubClient.deleteEventsStoreChannel(channel);
-}
-
-```
-
-
-## KubeMQ Queues Operations
-
-Below examples demonstrating the usage of KubeMQ Queues client. The examples include creating, deleting, listing channels, and sending/receiving queues messages.
-
-## Construct the QueuesClient
-
-For executing Queues operation we have to create the instance of QueuesClient, it's instance can created with minimum two parameter `address` (KubeMQ server address) & `clientId` . With these two parameter plainText connection are established. Below Table Describe the Parameters available for establishing connection.
-
-### QueuesClient Accepted Configuration
+### QueuesClient Configuration
 
 | Name                     | Type    | Description                                                | Default Value     | Mandatory |
 |--------------------------|---------|------------------------------------------------------------|-------------------|-----------|
@@ -482,9 +459,7 @@ For executing Queues operation we have to create the instance of QueuesClient, i
 | maxReceiveSize           | int     | The maximum size of the messages to receive (in bytes).    | 104857600 (100MB) | No        |
 | reconnectIntervalSeconds | int     | The interval in seconds between reconnection attempts.     | 1                 | No        |
 
-
-
-### QueuesClient establishing connection example code
+### Queues Client establishing a connection example code
 
 ```typescript
 
@@ -497,7 +472,7 @@ const  queuesClient = new  QueuesClient(opts);
 
 ```
 
-Below example demonstrate to construct PubSubClient with ssl and other configurations:
+The example below demonstrates to construct PubSubClient with ssl and other configurations:
 
 ```typescript
 const  opts: Config = {
@@ -508,7 +483,7 @@ const  opts: Config = {
 	tlsCertFile:  'path/to/tls-cert.pem', // Path to the TLS certificate file
 	tlsKeyFile:  'path/to/tls-key.pem', // Path to the TLS key file
 	tlsCaCertFile:  'path/to/tls-ca-cert.pem', // Path to the TLS CA cert file
-	maxReceiveSize:  1024 * 1024 * 100, // Maximum size of the messages to receive (100MB)
+	maxReceiveSize:  1024 * 1024 * 100, // The Maximum size of the messages to receive (100MB)
 	reconnectIntervalSeconds:  1 // Interval in milliseconds between reconnect attempts (1 second)
 };
 
@@ -537,6 +512,7 @@ const  pingResult = queuesClient.ping();
 console.log('Ping Response: ' + pingResult);
 
 ```
+### Create Channel
 
 **Queues CreateQueueChannel Example:**
 
@@ -548,11 +524,9 @@ console.log('Ping Response: ' + pingResult);
 
 #### Response:
 
-| Name             | Type    | Description                                    |
-|------------------|---------|------------------------------------------------|
-| isChannelCreated | boolean | Indicates whether the channel was created (true/false) |
-
-----------------------------------------------------------------------------
+| Name | Type          | Description                           |
+|------|---------------|---------------------------------------|
+| void | Promise<void> | Doesn't return a value upon completion |
 
 ```typescript
 
@@ -561,6 +535,32 @@ async  function  createQueueChannel(channel: string) {
 }
 
 ```
+
+### Delete Channel
+
+**Queues DeleteQueueChannel Example:**
+
+#### Request:
+| Name         | Type   | Description                                | Default Value | Mandatory |
+|--------------|--------|--------------------------------------------|---------------|-----------|
+| channelName  | String | The name of the channel you want to delete | None          | Yes       |
+
+
+#### Response:
+
+| Name | Type          | Description                           |
+|------|---------------|---------------------------------------|
+| void | Promise<void> | Doesn't return a value upon completion |
+
+```typescript
+
+async  function  createQueueChannel(channel: string) {
+	return  queuesClient.deleteQueuesChannel(channel);
+}
+
+```
+
+### List Channels
 
 **Queues listQueueChannels Example:**
 
@@ -591,8 +591,7 @@ async  function  listQueueChannels(search: string) {
 }
 
 ```
-
-
+### Send & Receive Queue Messages
 
 **Queues SendSingleMessage Example:**
 
@@ -634,7 +633,7 @@ await  queuesClient.sendQueuesMessage({
 
 **Queues Pulls messages from a queue. Example:**
 
-#### Request: `QueuesPullWaitngMessagesRequest` class attributes
+#### Request: `QueuesPullWaitingMessagesRequest` class attributes
 
 | Name                | Type   | Description                                | Default Value | Mandatory |
 |---------------------|--------|--------------------------------------------|---------------|-----------|
@@ -719,7 +718,7 @@ await  queuesClient
 
 ```
 
-### Receive Queue Messages
+### Poll Queue Messages
 
 Receives messages from a Queue channel.
 
@@ -879,10 +878,9 @@ Choose the appropriate handling option based on your application's logic and req
 
 # KubeMQ Command & Query Operations
 
-
 ## Construct the CQClient
 
-For executing command & query operation we have to create the instance of CQClient, it's instance can created with minimum two parameter `address` (KubeMQ server address) & `clientId` . With these two parameter plainText connection are established. Below Table Describe the Parameters available for establishing connection.
+For executing command & query operation we have to create the instance of CQClient, its instance can be created with minimum two parameter `address` (KubeMQ server address) & `clientId` . With these two parameter plainText connections are established. The table below describes the Parameters available for establishing a connection.
 
 ### CQClient Configuration
 
@@ -899,7 +897,7 @@ For executing command & query operation we have to create the instance of CQClie
 | reconnectIntervalSeconds | int     | The interval in seconds between reconnection attempts.     | 1                 | No        |
 
 
-### CQClient establishing connection example code
+### CQClient establishing a connection example code
 
 ```typescript
 
@@ -914,7 +912,7 @@ const  cqClient = new  CQClient(opts);
 
 ```
 
-Below example demonstrate to construct CQClient with ssl and other configurations:
+The example below demonstrates to construct CQClient with ssl and other configurations:
 
 ```typescript
 
@@ -955,6 +953,7 @@ const  pingResult = cqClient.ping();
 console.log('Ping Response: ' + pingResult);
 
 ```
+### Create Channel
 
 **Command CreateCommandsChannel Example:**
 
@@ -967,11 +966,9 @@ console.log('Ping Response: ' + pingResult);
 
 #### Response:
 
-| Name              | Type    | Description                        |
-|-------------------|---------|------------------------------------|
-| isChannelCreated  | boolean | Indicates if the channel was created (true/false) |
-
-----------------------------------------------------------------------------
+| Name | Type          | Description                           |
+|------|---------------|---------------------------------------|
+| void | Promise<void> | Doesn't return a value upon completion |
 
 ```typescript
 
@@ -991,13 +988,9 @@ async  function  createCommandsChannel(channel: string) {
 
 #### Response:
 
-| Name              | Type    | Description                              |
-|-------------------|---------|------------------------------------------|
-| isChannelCreated  | boolean | Indicates whether the channel was created (true/false) |
-
-
-----------------------------------------------------------------------------
-
+| Name | Type          | Description                           |
+|------|---------------|---------------------------------------|
+| void | Promise<void> | Doesn't return a value upon completion |
 ```typescript
 
 async  function  createQueriesChannel(channel: string) {
@@ -1005,6 +998,54 @@ async  function  createQueriesChannel(channel: string) {
 }
 
 ```
+
+### Delete Channel
+
+**Command DeleteCommandsChannel Example:**
+
+#### Request:
+
+| Name        | Type   | Description                           | Default Value | Mandatory |
+|-------------|--------|---------------------------------------|---------------|-----------|
+| channelName | String | Channel name which you want to delete | None          | Yes       |
+
+
+#### Response:
+
+| Name | Type          | Description                           |
+|------|---------------|---------------------------------------|
+| void | Promise<void> | Doesn't return a value upon completion |
+
+```typescript
+
+async  function  deleteCommandsChannel(channel: string) {
+    return  cqClient.deleteCommandsChannel(channel);
+}
+```
+
+**Queries DeleteQueriesChannel Example:**
+
+#### Request:
+
+| Name        | Type   | Description                       | Default Value | Mandatory |
+|-------------|--------|-----------------------------------|---------------|-----------|
+| channelName | String | The name of the channel to delete | None          | Yes       |
+
+#### Response:
+
+| Name | Type          | Description                           |
+|------|---------------|---------------------------------------|
+| void | Promise<void> | Doesn't return a value upon completion |
+
+```typescript
+
+async  function  deleteQueriesChannel(channel: string) {
+    return  cqClient.deleteQueriesChannel(channel);
+}
+
+```
+
+### List Channels
 
 **Command ListCommandsChannel Example:**
 
@@ -1058,6 +1099,7 @@ async  function  listQueriesChannels(search: string) {
 }
 
 ```
+### Send & Receive Command & Query Messages
 
 **Command SubscribeToCommandsChannel Example:**
 
@@ -1167,54 +1209,4 @@ async function subscribeToQueries(channelName: string) {
             console.error('Queries Subscription failed:', reason);
         });
 }
-```
-
-
-**Command DeleteCommandsChannel Example:**
-
-#### Request:
-
-
-| Name         | Type   | Description                                | Default Value | Mandatory |
-|--------------|--------|--------------------------------------------|---------------|-----------|
-| channelName  | String | The name of the channel you want to delete. | None          | Yes       |
-
-
-#### Response:
-
-| Name  | Type         | Description                           |
-|-------|--------------|---------------------------------------|
-| void  | Promise<void> | Indicates no result is returned after deletion. |
-
-----------------------------------------------------------------------------
-
-```typescript
-
-async  function  deleteCommandsChannel(channel: string) {
-    return  cqClient.deleteCommandsChannel(channel);
-}
-
-```
-
-**Queries DeleteQueriesChannel Example:**
-
-#### Request:
-| Name         | Type   | Description                          | Default Value | Mandatory |
-|--------------|--------|--------------------------------------|---------------|-----------|
-| channelName  | String | Channel name which you want to delete | None          | Yes       |
-
-
-#### Response:
-| Name | Type         | Description                      |
-|------|--------------|----------------------------------|
-| void | Promise<void> | Channel deletion returns no result |
-
-----------------------------------------------------------------------------
-
-```typescript
-
-async  function  deleteQueriesChannel(channel: string) {
-    return  cqClient.deleteQueriesChannel(channel);
-}
-
 ```
