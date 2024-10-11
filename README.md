@@ -97,18 +97,18 @@ ServerInfo  pingResult = pubsubClient.ping();
 console.log('Ping Response: ' + pingResult);
 
 ```
-### Create Channel
+## Create Channel
 
 **PubSub CreateEventsChannel Example:**
 
-#### Request:
+### Request:
 
 | Name        | Type   | Description                           | Default Value | Mandatory |
 |-------------|--------|---------------------------------------|---------------|-----------|
 | channelName | String | Channel name which you want to create | None          | Yes       |
 
 
-#### Response:
+### Response:
 
 | Name | Type          | Description                           |
 |------|---------------|---------------------------------------|
@@ -124,14 +124,14 @@ return  pubsubClient.createEventsChannel(channel);
 
 **PubSub Create Events Store Channel Example:**
 
-#### Request:
+### Request:
 
 | Name        | Type   | Description                              | Default Value | Mandatory |
 |-------------|--------|------------------------------------------|---------------|-----------|
 | channelName | String | Channel name to which you want to create | None          | Yes       |
 
 
-#### Response:
+### Response:
 
 | Name | Type          | Description                            |
 |------|---------------|----------------------------------------|
@@ -148,18 +148,18 @@ return  pubsubClient.createEventsStoreChannel(channel);
 
 ```
 
-### Delete Channel
+## Delete Channel
 
 **PubSub DeleteEventsChannel Example:**
 
-#### Request:
+### Request:
 
 | Name        | Type   | Description                             | Default Value | Mandatory |
 |-------------|--------|-----------------------------------------|---------------|-----------|
 | channelName | String | Channel name which you want to delete   | None          | Yes       |
 
 
-#### Response:
+### Response:
 
 | Name | Type          | Description                           |
 |------|---------------|---------------------------------------|
@@ -175,14 +175,14 @@ return  pubsubClient.deleteEventsChannel(channel);
 
 **PubSub Delete Events Store Channel Example:**
 
-#### Request:
+### Request:
 
 | Name        | Type   | Description                              | Default Value | Mandatory |
 |-------------|--------|------------------------------------------|---------------|-----------|
 | channelName | String | Channel name to which you want to delete | None          | Yes       |
 
 
-#### Response:
+### Response:
 
 | Name | Type          | Description                            |
 |------|---------------|----------------------------------------|
@@ -195,18 +195,18 @@ return  pubsubClient.deleteEventsStoreChannel(channel);
 }
 
 ```
-### List Channels
+## List Channels
 
 **PubSub ListEventsChannel Example:**
 
-#### Request:
+### Request:
 
 | Name   | Type   | Description                               | Default Value | Mandatory |
 |--------|--------|-------------------------------------------|---------------|-----------|
 | search | String | Search query to filter channels (optional)  | None          | No        |
 
 
-#### Response: `PubSubChannel[]`  `PubSubChannel` interface Attributes
+### Response: `PubSubChannel[]`  `PubSubChannel` interface Attributes
 
 | Name        | Type        | Description                                                                                      |
 |-------------|-------------|--------------------------------------------------------------------------------------------------|
@@ -228,13 +228,13 @@ async  function  listEventsChannel(search: string) {
 
 **PubSub ListEventsStoreChannel Example:**
 
-#### Request:
+### Request:
 
 | Name        | Type   | Description                               | Default Value | Mandatory |
 |-------------|--------|-------------------------------------------|---------------|-----------|
 | search | String | Search query to filter channels (optional)  | None          | No        |
 
-#### Response: `PubSubChannel[]`  `PubSubChannel` interface Attributes
+### Response: `PubSubChannel[]`  `PubSubChannel` interface Attributes
 
 | Name         | Type        | Description                                                                                  |
 |--------------|-------------|----------------------------------------------------------------------------------------------|
@@ -254,10 +254,10 @@ async  function  listEventsStoreChannel(search: string) {
 
 ```
 
-### PubSub Send & Receive
+## PubSub Send & Receive
 **PubSub SendEventMessage Example:**
 
-#### Request: `EventMessage` Interface Attributes
+### Request: `EventMessage` Interface Attributes
 
 
 | Name     | Type                  | Description                                              | Default Value    | Mandatory |
@@ -271,7 +271,7 @@ async  function  listEventsStoreChannel(search: string) {
 
 **Note:-**  `metadata` or `body` or `tags` any one is required
 
-#### Response: `NONE`
+### Response: `NONE`
 
 ```typescript
 
@@ -285,7 +285,7 @@ await  pubsubClient.sendEventsMessage({
 
 **PubSub SendEventStoreMessage Example:**
 
-#### Request: `EventStoreMessage` Class Attributes
+### Request: `EventStoreMessage` Class Attributes
 
 | Name     | Type                  | Description                                              | Default Value    | Mandatory |
 |----------|-----------------------|----------------------------------------------------------|------------------|-----------|
@@ -298,7 +298,7 @@ await  pubsubClient.sendEventsMessage({
 
 **Note:-**  `metadata` or `body` or `tags` any one is required
 
-#### Response: `NONE`
+### Response: `NONE`
 
 ```typescript
 
@@ -312,7 +312,7 @@ await  pubsubClient.sendEventStoreMessage({
 
 **PubSub SubscribeEvents Example:**
 
-#### Request: `EventsSubscription` Class Attributes
+### Request: `EventsSubscription` Class Attributes
 
 
 | Name                    | Type                               | Description                                                               | Default Value | Mandatory |
@@ -323,9 +323,9 @@ await  pubsubClient.sendEventStoreMessage({
 | onErrorCallback         | Consumer<String>                   | Callback function to be called when an error occurs.                       | None          | No        |
 
 
-#### Response: `NONE`
+### Response: `NONE`
 
-#### Callback: `EventMessageReceived` class details
+## Callback: `EventMessageReceived` class details
 
 | Name        | Type                  | Description                                                        |
 |-------------|-----------------------|--------------------------------------------------------------------|
@@ -375,7 +375,7 @@ async function subscribeToEvent() {
 
 **PubSub SubscribeEventsStore Example:**
 
-#### Request: `EventsStoreSubscription` Interface Attributes
+### Request: `EventsStoreSubscription` Interface Attributes
 
 
 | Name                     | Type                                    | Description                                                             | Default Value | Mandatory |
@@ -385,9 +385,9 @@ async function subscribeToEvent() {
 | onReceiveEventCallback    | Consumer<EventStoreMessageReceived>    | Callback function to be called when an event message is received.       | None          | Yes       |
 | onErrorCallback          | Consumer<String>                       | Callback function to be called when an error occurs.                    | None          | No        |
 
-#### Response: `None`
+### Response: `None`
 
-#### Callback: `EventStoreMessageReceived` class details
+## Callback: `EventStoreMessageReceived` class details
 
 | Name        | Type                  | Description                                                        |
 |-------------|-----------------------|--------------------------------------------------------------------|
@@ -445,7 +445,7 @@ The examples below demonstrate the usage of KubeMQ Queues client. The examples i
 
 For executing Queues operation we have to create the instance of QueuesClient, its instance can be created with minimum two parameter `address` (KubeMQ server address) & `clientId` . With these two parameter plainText connections are established. The table below describes the Parameters available for establishing a connection.
 
-### QueuesClient Configuration
+## QueuesClient Configuration
 
 | Name                     | Type    | Description                                                | Default Value     | Mandatory |
 |--------------------------|---------|------------------------------------------------------------|-------------------|-----------|
@@ -459,7 +459,7 @@ For executing Queues operation we have to create the instance of QueuesClient, i
 | maxReceiveSize           | int     | The maximum size of the messages to receive (in bytes).    | 104857600 (100MB) | No        |
 | reconnectIntervalSeconds | int     | The interval in seconds between reconnection attempts.     | 1                 | No        |
 
-### Queues Client establishing a connection example code
+## Queues Client establishing a connection example code
 
 ```typescript
 
@@ -494,9 +494,9 @@ const  queuesClient = new  QueuesClient(opts);
 
 You can ping the server to check connection is established or not.
 
-#### Request: `NONE`
+### Request: `NONE`
 
-#### Response: `ServerInfo` Class Attributes
+### Response: `ServerInfo` Class Attributes
 
 
 | Name             | Type  | Description                                          |
@@ -512,17 +512,17 @@ const  pingResult = queuesClient.ping();
 console.log('Ping Response: ' + pingResult);
 
 ```
-### Create Channel
+## Create Channel
 
 **Queues CreateQueueChannel Example:**
 
-#### Request:
+### Request:
 | Name         | Type   | Description                              | Default Value | Mandatory |
 |--------------|--------|------------------------------------------|---------------|-----------|
 | channelName  | String | The name of the channel you want to create | None          | Yes       |
 
 
-#### Response:
+### Response:
 
 | Name | Type          | Description                           |
 |------|---------------|---------------------------------------|
@@ -536,17 +536,17 @@ async  function  createQueueChannel(channel: string) {
 
 ```
 
-### Delete Channel
+## Delete Channel
 
 **Queues DeleteQueueChannel Example:**
 
-#### Request:
+### Request:
 | Name         | Type   | Description                                | Default Value | Mandatory |
 |--------------|--------|--------------------------------------------|---------------|-----------|
 | channelName  | String | The name of the channel you want to delete | None          | Yes       |
 
 
-#### Response:
+### Response:
 
 | Name | Type          | Description                           |
 |------|---------------|---------------------------------------|
@@ -560,18 +560,18 @@ async  function  createQueueChannel(channel: string) {
 
 ```
 
-### List Channels
+## List Channels
 
 **Queues listQueueChannels Example:**
 
-#### Request:
+### Request:
 
 | Name          | Type   | Description                              | Default Value | Mandatory |
 |---------------|--------|------------------------------------------|---------------|-----------|
 | searchString  | String | The channel name you want to search for | None          | No        |
 
 
-#### Response: `QueuesChannel[]` QueuesChannel interface Attributes
+### Response: `QueuesChannel[]` QueuesChannel interface Attributes
 
 | Name            | Type          | Description                                              |
 |-----------------|---------------|----------------------------------------------------------|
@@ -591,11 +591,11 @@ async  function  listQueueChannels(search: string) {
 }
 
 ```
-### Send & Receive Queue Messages
+## Send & Receive Queue Messages
 
 **Queues SendSingleMessage Example:**
 
-#### Request: `QueueMessage` class attributes
+### Request: `QueueMessage` class attributes
 
 | Name                          | Type                 | Description                                                                                 | Default Value    | Mandatory |
 |-------------------------------|----------------------|---------------------------------------------------------------------------------------------|------------------|-----------|
@@ -610,7 +610,7 @@ async  function  listQueueChannels(search: string) {
 | deadLetterQueue                | String               | The dead letter queue where the message will be moved after reaching max receive attempts.   | None             | No        |
 
 
-#### Response: `QueueSendResult` class attributes
+### Response: `QueueSendResult` class attributes
 
 | Name      | Type           | Description                                                     |
 |-----------|----------------|-----------------------------------------------------------------|
@@ -633,7 +633,7 @@ await  queuesClient.sendQueuesMessage({
 
 **Queues Pulls messages from a queue. Example:**
 
-#### Request: `QueuesPullWaitingMessagesRequest` class attributes
+### Request: `QueuesPullWaitingMessagesRequest` class attributes
 
 | Name                | Type   | Description                                | Default Value | Mandatory |
 |---------------------|--------|--------------------------------------------|---------------|-----------|
@@ -643,7 +643,7 @@ await  queuesClient.sendQueuesMessage({
 
 
 
-#### Response: `QueuesPullWaitingMessagesResponse` class attributes
+### Response: `QueuesPullWaitingMessagesResponse` class attributes
 | Name             | Type              | Description                                         |
 |------------------|-------------------|-----------------------------------------------------|
 | id               | String            | The reference ID of the request.                    |
@@ -678,7 +678,7 @@ await  queuesClient
 
 **Queues Get waiting messages from a queue Example:**
 
-#### Request: `QueuesPullWaitngMessagesRequest` class attributes
+### Request: `QueuesPullWaitngMessagesRequest` class attributes
 | Name               | Type   | Description                                        | Default Value | Mandatory |
 |--------------------|--------|----------------------------------------------------|---------------|-----------|
 | channel            | String | The channel to poll messages from.                 | None          | Yes       |
@@ -686,7 +686,7 @@ await  queuesClient
 | waitTimeoutSeconds | int    | The wait timeout in seconds for polling messages.  | 60            | No        |
 
 
-#### Response: `QueuesPullWaitingMessagesResponse` class attributes
+### Response: `QueuesPullWaitingMessagesResponse` class attributes
 
 | Name             | Type              | Description                                      |
 |------------------|-------------------|--------------------------------------------------|
@@ -718,11 +718,11 @@ await  queuesClient
 
 ```
 
-### Poll Queue Messages
+## Poll Queue Messages
 
 Receives messages from a Queue channel.
 
-#### Request: `QueuesPollRequest` Class Attributes
+### Request: `QueuesPollRequest` Class Attributes
 
 | Name                     | Type    | Description                                          | Default Value | Mandatory |
 |--------------------------|---------|------------------------------------------------------|---------------|-----------|
@@ -732,7 +732,7 @@ Receives messages from a Queue channel.
 | autoAckMessages             | boolean| Indicates if messages should be auto-acknowledged.  | false         | No        |
 | visibilitySeconds           | int| Add a visibility timeout feature for messages.  | 0         | No        |
 
-#### Response: `QueuesMessagesPulledResponse` Class Attributes
+### Response: `QueuesMessagesPulledResponse` Class Attributes
 
 | Name                   | Type                       | Description                                             |
 |------------------------|----------------------------|---------------------------------------------------------|
@@ -747,7 +747,7 @@ Receives messages from a Queue channel.
 | isAutoAcked            | boolean                    | Indicates whether the message was auto-acknowledged.    |
 
 
-##### Response: `QueueMessageReceived` class attributes
+#### Response: `QueueMessageReceived` class attributes
 Here's the requested Markdown table for the `QueueMessageReceived` class:
 
 | Name                  | Type                                  | Description                                             |
@@ -772,7 +772,7 @@ Here's the requested Markdown table for the `QueueMessageReceived` class:
 | visibilitySeconds     | int                                   | The visibility timeout for the message in seconds.      |
 | isAutoAcked           | boolean                               | Indicates whether the message was auto-acknowledged.     |
 
-#### Example
+## Example
 
 ```typescript
 async function main() {  
@@ -867,7 +867,7 @@ main();
 
 This method allows you to receive messages from a specified Queue channel. You can configure the polling behavior, including the maximum number of messages to receive and the wait timeout. The response provides detailed information about the received messages and the transaction.
 
-#### Message Handling Options:
+### Message Handling Options:
 
 1. **Acknowledge (ack)**: Mark the message as processed and remove it from the queue.
 2. **Reject**: Reject the message. It won't be requeued.
@@ -882,7 +882,7 @@ Choose the appropriate handling option based on your application's logic and req
 
 For executing command & query operation we have to create the instance of CQClient, its instance can be created with minimum two parameter `address` (KubeMQ server address) & `clientId` . With these two parameter plainText connections are established. The table below describes the Parameters available for establishing a connection.
 
-### CQClient Configuration
+## CQClient Configuration
 
 | Name                     | Type    | Description                                                | Default Value     | Mandatory |
 |--------------------------|---------|------------------------------------------------------------|-------------------|-----------|
@@ -897,7 +897,7 @@ For executing command & query operation we have to create the instance of CQClie
 | reconnectIntervalSeconds | int     | The interval in seconds between reconnection attempts.     | 1                 | No        |
 
 
-### CQClient establishing a connection example code
+## CQClient establishing a connection example code
 
 ```typescript
 
@@ -953,7 +953,7 @@ const  pingResult = cqClient.ping();
 console.log('Ping Response: ' + pingResult);
 
 ```
-### Create Channel
+## Create Channel
 
 **Command CreateCommandsChannel Example:**
 
@@ -999,7 +999,7 @@ async  function  createQueriesChannel(channel: string) {
 
 ```
 
-### Delete Channel
+## Delete Channel
 
 **Command DeleteCommandsChannel Example:**
 
@@ -1045,7 +1045,7 @@ async  function  deleteQueriesChannel(channel: string) {
 
 ```
 
-### List Channels
+## List Channels
 
 **Command ListCommandsChannel Example:**
 
@@ -1099,7 +1099,7 @@ async  function  listQueriesChannels(search: string) {
 }
 
 ```
-### Send & Receive Command & Query Messages
+## Send & Receive Command & Query Messages
 
 **Command SubscribeToCommandsChannel Example:**
 
@@ -1113,7 +1113,7 @@ async  function  listQueriesChannels(search: string) {
 
 #### Response: `None`
 
-#### Callback: `CommandsReceiveMessage` interface attributes
+### Callback: `CommandsReceiveMessage` interface attributes
 | Name          | Type                  | Description                                |
 |---------------|-----------------------|--------------------------------------------|
 | commandReceived | `CommandsReceiveMessage` | The command message that was received.   |
@@ -1167,7 +1167,7 @@ async function subscribeToCommands(channelName: string) {
 
 #### Response: `None`
 
-#### Callback: `QueriesReceiveMessage` interface attributes
+### Callback: `QueriesReceiveMessage` interface attributes
 | Name          | Type                     | Description                                    |
 |---------------|--------------------------|------------------------------------------------|
 | id            | String                   | The ID of the request.                        |
