@@ -4,7 +4,10 @@ import * as pb from '../protos';
 import * as grpc from '@grpc/grpc-js';
 
 export class EventStreamHelper {
-  private queuesUpStreamHandler: grpc.ClientDuplexStream<pb.kubemq.Event, pb.kubemq.Result> | null = null;
+  private queuesUpStreamHandler: grpc.ClientDuplexStream<
+    pb.kubemq.Event,
+    pb.kubemq.Result
+  > | null = null;
   private futureResponse: Promise<EventsSendResult>;
   private resolveResponse!: (result: EventsSendResult) => void;
   private rejectResponse!: (error: EventsSendResult) => void;
@@ -16,13 +19,15 @@ export class EventStreamHelper {
     });
   }
 
-  public async sendEventMessage(kubeMQClient: KubeMQClient, event: pb.kubemq.Event): Promise<void> {
+  public async sendEventMessage(
+    kubeMQClient: KubeMQClient,
+    event: pb.kubemq.Event,
+  ): Promise<void> {
     if (!this.queuesUpStreamHandler) {
       this.queuesUpStreamHandler = kubeMQClient.grpcClient.SendEventsStream();
 
       // Setup handlers for the duplex stream
       this.queuesUpStreamHandler.on('data', (result: pb.kubemq.Result) => {
-        console.log(`Received EventSendResult: '${result}'`);
         this.resolveResponse(EventsSendResult.decode(result));
       });
 
@@ -40,16 +45,17 @@ export class EventStreamHelper {
 
     // Send the event
     this.queuesUpStreamHandler.write(event);
-    console.log('Event Message sent');
   }
 
-  public async sendEventStoreMessage(kubeMQClient: KubeMQClient, event: pb.kubemq.Event): Promise<EventsSendResult> {
+  public async sendEventStoreMessage(
+    kubeMQClient: KubeMQClient,
+    event: pb.kubemq.Event,
+  ): Promise<EventsSendResult> {
     if (!this.queuesUpStreamHandler) {
       this.queuesUpStreamHandler = kubeMQClient.grpcClient.SendEventsStream();
 
       // Setup handlers for the duplex stream
       this.queuesUpStreamHandler.on('data', (result: pb.kubemq.Result) => {
-        console.log(`Received EventSendResult: '${result}'`);
         this.resolveResponse(EventsSendResult.decode(result));
       });
 
@@ -67,7 +73,6 @@ export class EventStreamHelper {
 
     // Send the event
     this.queuesUpStreamHandler.write(event);
-    console.log('Event store Message sent, waiting for response');
 
     try {
       return await this.futureResponse;
