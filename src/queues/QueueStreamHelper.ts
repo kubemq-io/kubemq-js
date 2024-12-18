@@ -29,8 +29,6 @@ export class QueueStreamHelper {
         duplexStream.on(
           'data',
           (response: pb.kubemq.QueuesUpstreamResponse) => {
-            console.log(`QueuesUpstreamResponse Received: ${response}`);
-
             const result = this.createQueueMessageSendResult(response);
             resolve(result);
           },
@@ -75,8 +73,6 @@ export class QueueStreamHelper {
         duplexStream.on(
           'data',
           (response: pb.kubemq.QueuesDownstreamResponse) => {
-            console.log(`QueuesDownstreamResponse Received: ${response}`);
-
             const qpResp = this.createQueuesMessagesPulledResponse(
               response,
               visibilitySeconds,
