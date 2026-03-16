@@ -1,0 +1,11 @@
+[**KubeMQ JS/TS SDK v3.0.0**](../README.md)
+
+---
+
+[KubeMQ JS/TS SDK](../README.md) / DEFAULT_MAX_CONCURRENT_RETRIES
+
+# Variable: DEFAULT_MAX_CONCURRENT_RETRIES
+
+> `const` **DEFAULT_MAX_CONCURRENT_RETRIES**: `10` = `10`
+
+Defined in: options.ts:45
