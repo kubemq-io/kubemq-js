@@ -46,3 +46,9 @@ async function main(): Promise<void> {
 }
 
 main().catch(console.error);
+
+// Expected output:
+// Sent message: <message-id>
+// Received: Resize image: /uploads/photo-001.jpg
+//   Tags: { format: 'jpeg', width: '800' }
+//   Acknowledged

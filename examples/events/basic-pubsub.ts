@@ -53,3 +53,9 @@ async function main(): Promise<void> {
 }
 
 main().catch(console.error);
+
+// Expected output:
+// Received event: New user registered: alice@example.com
+//   Channel: js-events.basic-pubsub
+//   Timestamp: <timestamp>
+// Event published successfully

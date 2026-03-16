@@ -64,7 +64,7 @@
     "url": "https://github.com/kubemq-io/kubemq-js/issues",
     "email": "support@kubemq.io"
   },
-  "homepage": "https://kubemq.io",
+  "homepage": "https://github.com/kubemq-io/kubemq-js#readme",
   "keywords": [
     "kubemq",
     "message-broker",
