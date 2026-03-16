@@ -68,3 +68,16 @@ async function main(): Promise<void> {
 }
 
 main().catch(console.error);
+
+// Expected output:
+// === Minimal Connection ===
+// Client ID: js-connection-connect-client
+// Address: localhost:50000
+// State: <connection-state>
+// Server version: <version>
+// Server uptime: <seconds> seconds
+// === Connection with Options ===
+// State after create: <connection-state>
+// State changed to: <connection-state>
+// Server host: <host>
+// State after close: <connection-state>
