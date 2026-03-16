@@ -36,3 +36,6 @@ async function main(): Promise<void> {
 }
 
 main().catch(console.error);
+
+// Expected output:
+// Inventory response: { sku: 'WIDGET-42', inStock: 150, price: 12.99, warehouse: 'east' }

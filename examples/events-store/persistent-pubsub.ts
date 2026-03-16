@@ -48,3 +48,11 @@ async function main(): Promise<void> {
 }
 
 main().catch(console.error);
+
+// Expected output:
+// Published event #1
+// Published event #2
+// Published event #3
+// Received [seq=<sequence>]: User action #1: login from 192.168.1.1
+// Received [seq=<sequence>]: User action #2: login from 192.168.1.2
+// Received [seq=<sequence>]: User action #3: login from 192.168.1.3

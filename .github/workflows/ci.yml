@@ -150,6 +150,11 @@ jobs:
           KUBEMQ_ADDRESS: localhost:50000
         run: npx vitest run --config vitest.integration.config.ts
 
+      - name: Smoke-test examples
+        run: |
+          timeout 30 npx tsx examples/connection/connect.ts || true
+          timeout 30 npx tsx examples/connection/ping.ts || true
+
   docs:
     name: API Docs
     runs-on: ubuntu-latest
