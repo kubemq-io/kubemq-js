@@ -1,0 +1,11 @@
+[**KubeMQ JS/TS SDK v3.0.0**](../README.md)
+
+---
+
+[KubeMQ JS/TS SDK](../README.md) / DEFAULT_RECONNECT_BUFFER_SIZE
+
+# Variable: DEFAULT_RECONNECT_BUFFER_SIZE
+
+> `const` **DEFAULT_RECONNECT_BUFFER_SIZE**: `8388608` = `8_388_608`
+
+Defined in: options.ts:38

@@ -1,0 +1,14 @@
+services:
+  kubemq:
+    image: kubemq/kubemq-community:latest
+    ports:
+      - '50000:50000'
+      - '8080:8080'
+      - '9090:9090'
+    environment:
+      - KUBEMQ_TOKEN=${KUBEMQ_TOKEN:-}
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:8080/health']
+      interval: 5s
+      timeout: 3s
+      retries: 10

@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "outDir": "dist/esm/protos",
+    "rootDir": "src/protos"
+  },
+  "include": ["src/protos/**/*"],
+  "exclude": []
+}
