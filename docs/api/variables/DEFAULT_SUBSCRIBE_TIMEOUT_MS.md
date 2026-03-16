@@ -1,0 +1,11 @@
+[**KubeMQ JS/TS SDK v3.0.0**](../README.md)
+
+---
+
+[KubeMQ JS/TS SDK](../README.md) / DEFAULT_SUBSCRIBE_TIMEOUT_MS
+
+# Variable: DEFAULT_SUBSCRIBE_TIMEOUT_MS
+
+> `const` **DEFAULT_SUBSCRIBE_TIMEOUT_MS**: `10000` = `10_000`
+
+Defined in: options.ts:41
