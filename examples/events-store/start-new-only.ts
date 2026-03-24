@@ -1,4 +1,4 @@
-import { KubeMQClient, EventStoreType, createEventStoreMessage } from '../../src/index.js';
+import { KubeMQClient, EventStoreStartPosition, createEventStoreMessage } from '../../src/index.js';
 
 async function main() {
   const client = await KubeMQClient.create({
@@ -9,8 +9,8 @@ async function main() {
   try {
     const sub = client.subscribeToEventsStore({
       channel: 'js-events-store.start-new-only',
-      startFrom: EventStoreType.StartNewOnly,
-      onMessage: (event) => {
+      startFrom: EventStoreStartPosition.StartFromNew,
+      onEvent: (event) => {
         console.log(`[seq=${event.sequence}]`, new TextDecoder().decode(event.body));
       },
       onError: (err) => {
@@ -21,8 +21,11 @@ async function main() {
     // Allow subscription to fully establish on the server.
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    await client.publishEventStore(
-      createEventStoreMessage({ channel: 'js-events-store.start-new-only', body: 'hello from StartNewOnly' }),
+    await client.sendEventStore(
+      createEventStoreMessage({
+        channel: 'js-events-store.start-new-only',
+        body: 'hello from StartFromNew',
+      }),
     );
 
     await new Promise((r) => setTimeout(r, 1000));

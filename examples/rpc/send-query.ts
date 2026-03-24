@@ -13,14 +13,17 @@
 import { KubeMQClient, createQuery } from '../../src/index.js';
 
 async function main(): Promise<void> {
-  const client = await KubeMQClient.create({ address: 'localhost:50000', clientId: 'js-rpc-send-query-client' });
+  const client = await KubeMQClient.create({
+    address: 'localhost:50000',
+    clientId: 'js-rpc-send-query-client',
+  });
 
   try {
     const response = await client.sendQuery(
       createQuery({
         channel: 'js-rpc.send-query',
         body: JSON.stringify({ sku: 'WIDGET-42', warehouse: 'east' }),
-        timeoutMs: 10_000,
+        timeoutInSeconds: 10,
       }),
     );
 

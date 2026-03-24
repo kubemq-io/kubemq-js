@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { KubeMQClient } from '../../src/client.js';
 import { createTestClientOptions, uniqueChannel } from '../fixtures/test-helpers.js';
-import { EventStoreType } from '../../src/messages/events-store.js';
-import type { ReceivedEventStore } from '../../src/messages/events-store.js';
+import { EventStoreStartPosition } from '../../src/messages/events-store.js';
+import type { EventStoreReceived } from '../../src/messages/events-store.js';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -21,18 +21,18 @@ describe('Events Store integration', () => {
   it('publishes and receives events store message', async () => {
     client = await KubeMQClient.create(createTestClientOptions());
     const channel = uniqueChannel('es-pubsub');
-    const received: ReceivedEventStore[] = [];
+    const received: EventStoreReceived[] = [];
 
     const sub = client.subscribeToEventsStore({
       channel,
       group: '',
-      startFrom: EventStoreType.StartNewOnly,
-      onMessage: (msg) => received.push(msg),
+      startFrom: EventStoreStartPosition.StartFromNew,
+      onEvent: (msg) => received.push(msg),
       onError: () => {},
     });
     await sleep(500);
 
-    await client.publishEventStore({ channel, body: new TextEncoder().encode('store-msg') });
+    await client.sendEventStore({ channel, body: new TextEncoder().encode('store-msg') });
     await sleep(1000);
 
     expect(received.length).toBeGreaterThanOrEqual(1);
@@ -45,16 +45,16 @@ describe('Events Store integration', () => {
     client = await KubeMQClient.create(createTestClientOptions());
     const channel = uniqueChannel('es-first');
 
-    await client.publishEventStore({ channel, body: new TextEncoder().encode('msg-1') });
-    await client.publishEventStore({ channel, body: new TextEncoder().encode('msg-2') });
+    await client.sendEventStore({ channel, body: new TextEncoder().encode('msg-1') });
+    await client.sendEventStore({ channel, body: new TextEncoder().encode('msg-2') });
     await sleep(500);
 
-    const received: ReceivedEventStore[] = [];
+    const received: EventStoreReceived[] = [];
     const sub = client.subscribeToEventsStore({
       channel,
       group: '',
-      startFrom: EventStoreType.StartFromFirst,
-      onMessage: (msg) => received.push(msg),
+      startFrom: EventStoreStartPosition.StartFromFirst,
+      onEvent: (msg) => received.push(msg),
       onError: () => {},
     });
     await sleep(1500);
@@ -69,20 +69,20 @@ describe('Events Store integration', () => {
     client = await KubeMQClient.create(createTestClientOptions());
     const channel = uniqueChannel('es-new');
 
-    await client.publishEventStore({ channel, body: new TextEncoder().encode('old-msg') });
+    await client.sendEventStore({ channel, body: new TextEncoder().encode('old-msg') });
     await sleep(500);
 
-    const received: ReceivedEventStore[] = [];
+    const received: EventStoreReceived[] = [];
     const sub = client.subscribeToEventsStore({
       channel,
       group: '',
-      startFrom: EventStoreType.StartNewOnly,
-      onMessage: (msg) => received.push(msg),
+      startFrom: EventStoreStartPosition.StartFromNew,
+      onEvent: (msg) => received.push(msg),
       onError: () => {},
     });
     await sleep(500);
 
-    await client.publishEventStore({ channel, body: new TextEncoder().encode('new-msg') });
+    await client.sendEventStore({ channel, body: new TextEncoder().encode('new-msg') });
     await sleep(1000);
 
     expect(received.length).toBe(1);
@@ -96,19 +96,19 @@ describe('Events Store integration', () => {
     const count = 5;
 
     for (let i = 0; i < count; i++) {
-      await client.publishEventStore({
+      await client.sendEventStore({
         channel,
         body: new TextEncoder().encode(`order-${i}`),
       });
     }
     await sleep(500);
 
-    const received: ReceivedEventStore[] = [];
+    const received: EventStoreReceived[] = [];
     const sub = client.subscribeToEventsStore({
       channel,
       group: '',
-      startFrom: EventStoreType.StartFromFirst,
-      onMessage: (msg) => received.push(msg),
+      startFrom: EventStoreStartPosition.StartFromFirst,
+      onEvent: (msg) => received.push(msg),
       onError: () => {},
     });
     await sleep(2000);

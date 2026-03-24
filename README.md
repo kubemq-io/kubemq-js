@@ -50,12 +50,12 @@ const client = await KubeMQClient.create({ address: 'localhost:50000' });
 // Subscribe
 client.subscribeToEvents({
   channel: 'events.hello',
-  onMessage: (msg) => console.log('Received:', new TextDecoder().decode(msg.body)),
+  onEvent: (msg) => console.log('Received:', new TextDecoder().decode(msg.body)),
   onError: (err) => console.error('Error:', err.message),
 });
 
 // Publish
-await client.publishEvent(createEventMessage({ channel: 'events.hello', body: 'Hello KubeMQ!' }));
+await client.sendEvent(createEventMessage({ channel: 'events.hello', body: 'Hello KubeMQ!' }));
 ```
 
 ### Queues (guaranteed delivery)
@@ -73,7 +73,6 @@ await client.sendQueueMessage(
 // Receive
 const messages = await client.receiveQueueMessages({
   channel: 'queues.tasks',
-  visibilitySeconds: 30,
   waitTimeoutSeconds: 5,
 });
 for (const msg of messages) {
@@ -98,7 +97,7 @@ client.subscribeToCommands({
 
 // Send command
 const response = await client.sendCommand(
-  createCommand({ channel: 'commands.greet', body: 'Hi', timeoutMs: 5000 }),
+  createCommand({ channel: 'commands.greet', body: 'Hi', timeoutInSeconds: 5 }),
 );
 console.log('Executed:', response.isExecuted);
 ```
@@ -127,17 +126,17 @@ See the [examples directory](https://github.com/kubemq-io/kubemq-js/tree/main/ex
 
 The `KubeMQClient.create()` factory accepts a `ClientOptions` object:
 
-| Option                | Type                           | Default                  | Description                                        |
-| --------------------- | ------------------------------ | ------------------------ | -------------------------------------------------- |
-| `address`             | `string`                       | _(required)_             | KubeMQ server address (`host:port`)                |
-| `clientId`            | `string`                       | Auto-generated UUID      | Unique client identifier                           |
-| `credentials`         | `CredentialProvider \| string` | `undefined`              | Authentication token or provider                   |
-| `tls`                 | `TlsOptions \| boolean`        | Smart default            | TLS configuration (auto-enabled for non-localhost) |
-| `retry`               | `RetryPolicy`                  | 3 retries, 500ms initial | Auto-retry policy for transient errors             |
-| `reconnect`           | `ReconnectionPolicy`           | Unlimited, 500ms initial | Auto-reconnection policy                           |
-| `connectionTimeoutMs` | `number`                       | `10000`                  | Connection establishment timeout (ms)              |
-| `logger`              | `Logger`                       | `noopLogger`             | Structured logging interface                       |
-| `tracerProvider`      | `TracerProvider`               | No-op                    | OpenTelemetry tracer for distributed tracing       |
+| Option                     | Type                           | Default                  | Description                                        |
+| -------------------------- | ------------------------------ | ------------------------ | -------------------------------------------------- |
+| `address`                  | `string`                       | _(required)_             | KubeMQ server address (`host:port`)                |
+| `clientId`                 | `string`                       | Auto-generated UUID      | Unique client identifier                           |
+| `credentials`              | `CredentialProvider \| string` | `undefined`              | Authentication token or provider                   |
+| `tls`                      | `TlsOptions \| boolean`        | Smart default            | TLS configuration (auto-enabled for non-localhost) |
+| `retry`                    | `RetryPolicy`                  | 3 retries, 500ms initial | Auto-retry policy for transient errors             |
+| `reconnect`                | `ReconnectionPolicy`           | Unlimited, 500ms initial | Auto-reconnection policy                           |
+| `connectionTimeoutSeconds` | `number`                       | `10`                     | Connection establishment timeout (seconds)         |
+| `logger`                   | `Logger`                       | `noopLogger`             | Structured logging interface                       |
+| `tracerProvider`           | `TracerProvider`               | No-op                    | OpenTelemetry tracer for distributed tracing       |
 
 ```typescript
 import { KubeMQClient, createConsoleLogger } from 'kubemq-js';
@@ -165,7 +164,7 @@ All SDK errors extend `KubeMQError` with a typed hierarchy of 19 subclasses. Eve
 import { KubeMQError, ConnectionError, ValidationError } from 'kubemq-js';
 
 try {
-  await client.publishEvent(msg);
+  await client.sendEvent(msg);
 } catch (err) {
   if (err instanceof ConnectionError) {
     console.log('Server unreachable, will auto-retry');
@@ -181,13 +180,13 @@ See the [Error Handling Guide](https://github.com/kubemq-io/kubemq-js/blob/main/
 
 ## Troubleshooting
 
-| Problem                            | Solution                                                                     |
-| ---------------------------------- | ---------------------------------------------------------------------------- |
-| **Connection refused**             | Verify KubeMQ server is running on the configured address                    |
-| **Authentication failed**          | Check your auth token or TLS certificates                                    |
-| **Message too large**              | Default limit is 100 MB; configure `maxSendMessageSize`                      |
-| **No messages received**           | Ensure subscriber is connected before publisher sends                        |
-| **Queue message not acknowledged** | Messages reappear after visibility timeout expires — always call `msg.ack()` |
+| Problem                            | Solution                                                          |
+| ---------------------------------- | ----------------------------------------------------------------- |
+| **Connection refused**             | Verify KubeMQ server is running on the configured address         |
+| **Authentication failed**          | Check your auth token or TLS certificates                         |
+| **Message too large**              | Default limit is 100 MB; configure `maxSendMessageSize`           |
+| **No messages received**           | Ensure subscriber is connected before publisher sends             |
+| **Queue message not acknowledged** | Messages reappear when not acknowledged — always call `msg.ack()` |
 
 See the [Troubleshooting Guide](https://github.com/kubemq-io/kubemq-js/blob/main/docs/TROUBLESHOOTING.md) for 11 detailed problem/solution entries with exact error messages.
 

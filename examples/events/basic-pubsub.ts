@@ -14,12 +14,15 @@ import { KubeMQClient, createEventMessage } from '../../src/index.js';
 
 async function main(): Promise<void> {
   // TODO: Replace with your KubeMQ server address
-  const client = await KubeMQClient.create({ address: 'localhost:50000', clientId: 'js-events-basic-pubsub-client' });
+  const client = await KubeMQClient.create({
+    address: 'localhost:50000',
+    clientId: 'js-events-basic-pubsub-client',
+  });
 
   try {
     const subscription = client.subscribeToEvents({
       channel: 'js-events.basic-pubsub',
-      onMessage: (event) => {
+      onEvent: (event) => {
         console.log('Received event:', new TextDecoder().decode(event.body));
         console.log('  Channel:', event.channel);
         console.log('  Timestamp:', event.timestamp);
@@ -32,7 +35,7 @@ async function main(): Promise<void> {
     // Allow subscription to fully establish on the server.
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    await client.publishEvent(
+    await client.sendEvent(
       createEventMessage({
         channel: 'js-events.basic-pubsub',
         body: 'New user registered: alice@example.com',

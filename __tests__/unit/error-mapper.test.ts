@@ -91,11 +91,11 @@ describe('mapGrpcError — all gRPC status codes', () => {
 
   it('includes operation and channel from context', () => {
     const err = mapGrpcError(makeTransportError(GrpcStatus.INTERNAL), {
-      operation: 'publishEvent',
+      operation: 'sendEvent',
       channel: 'orders',
       serverAddress: 'host:50000',
     });
-    expect(err.operation).toBe('publishEvent');
+    expect(err.operation).toBe('sendEvent');
     expect(err.channel).toBe('orders');
     expect(err.serverAddress).toBe('host:50000');
   });

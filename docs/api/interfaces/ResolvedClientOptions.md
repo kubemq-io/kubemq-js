@@ -70,9 +70,9 @@ Defined in: internal/config-defaults.ts:37
 
 ---
 
-### connectionTimeoutMs
+### connectionTimeoutSeconds
 
-> `readonly` **connectionTimeoutMs**: `number`
+> `readonly` **connectionTimeoutSeconds**: `number`
 
 Defined in: internal/config-defaults.ts:38
 
@@ -150,40 +150,40 @@ Defined in: internal/config-defaults.ts:47
 
 ---
 
-### defaultSendTimeoutMs
+### defaultSendTimeoutSeconds
 
-> `readonly` **defaultSendTimeoutMs**: `number`
+> `readonly` **defaultSendTimeoutSeconds**: `number`
 
 Defined in: internal/config-defaults.ts:48
 
 ---
 
-### defaultSubscribeTimeoutMs
+### defaultSubscribeTimeoutSeconds
 
-> `readonly` **defaultSubscribeTimeoutMs**: `number`
+> `readonly` **defaultSubscribeTimeoutSeconds**: `number`
 
 Defined in: internal/config-defaults.ts:49
 
 ---
 
-### defaultRpcTimeoutMs
+### defaultRpcTimeoutSeconds
 
-> `readonly` **defaultRpcTimeoutMs**: `number`
+> `readonly` **defaultRpcTimeoutSeconds**: `number`
 
 Defined in: internal/config-defaults.ts:50
 
 ---
 
-### defaultQueueReceiveTimeoutMs
+### defaultQueueReceiveTimeoutSeconds
 
-> `readonly` **defaultQueueReceiveTimeoutMs**: `number`
+> `readonly` **defaultQueueReceiveTimeoutSeconds**: `number`
 
 Defined in: internal/config-defaults.ts:51
 
 ---
 
-### defaultQueuePollTimeoutMs
+### defaultQueuePollTimeoutSeconds
 
-> `readonly` **defaultQueuePollTimeoutMs**: `number`
+> `readonly` **defaultQueuePollTimeoutSeconds**: `number`
 
 Defined in: internal/config-defaults.ts:52

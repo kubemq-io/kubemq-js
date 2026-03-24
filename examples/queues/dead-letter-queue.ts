@@ -13,7 +13,10 @@
 import { KubeMQClient, createQueueMessage } from '../../src/index.js';
 
 async function main(): Promise<void> {
-  const client = await KubeMQClient.create({ address: 'localhost:50000', clientId: 'js-queues-dead-letter-queue-client' });
+  const client = await KubeMQClient.create({
+    address: 'localhost:50000',
+    clientId: 'js-queues-dead-letter-queue-client',
+  });
 
   try {
     // Send a message with a dead-letter policy: after 3 failed deliveries,
@@ -35,7 +38,6 @@ async function main(): Promise<void> {
     // After 3 total receives, it moves to 'js-queues.dead-letter-queue-dlq'.
     const messages = await client.receiveQueueMessages({
       channel: 'js-queues.dead-letter-queue',
-      visibilitySeconds: 5,
       waitTimeoutSeconds: 5,
     });
 

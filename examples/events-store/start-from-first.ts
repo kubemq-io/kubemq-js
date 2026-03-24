@@ -9,16 +9,19 @@
  *
  * Run: npx tsx examples/events-store/start-from-first.ts
  */
-import { KubeMQClient, createEventStoreMessage, EventStoreType } from '../../src/index.js';
+import { KubeMQClient, createEventStoreMessage, EventStoreStartPosition } from '../../src/index.js';
 
 async function main(): Promise<void> {
-  const client = await KubeMQClient.create({ address: 'localhost:50000', clientId: 'js-events-store-start-from-first-client' });
+  const client = await KubeMQClient.create({
+    address: 'localhost:50000',
+    clientId: 'js-events-store-start-from-first-client',
+  });
 
   try {
     // Publish some events first.
     const events = ['User created', 'Profile updated', 'Email verified'];
     for (const action of events) {
-      await client.publishEventStore(
+      await client.sendEventStore(
         createEventStoreMessage({
           channel: 'js-events-store.start-from-first',
           body: action,
@@ -29,8 +32,8 @@ async function main(): Promise<void> {
     // Replay all events from the very first one.
     const subscription = client.subscribeToEventsStore({
       channel: 'js-events-store.start-from-first',
-      startFrom: EventStoreType.StartFromFirst,
-      onMessage: (event) => {
+      startFrom: EventStoreStartPosition.StartFromFirst,
+      onEvent: (event) => {
         console.log(`[seq=${event.sequence}] ${new TextDecoder().decode(event.body)}`);
       },
       onError: (err) => {

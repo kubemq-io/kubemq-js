@@ -1,4 +1,4 @@
-import { KubeMQClient, EventStoreType, createEventStoreMessage } from '../../src/index.js';
+import { KubeMQClient, EventStoreStartPosition, createEventStoreMessage } from '../../src/index.js';
 
 async function main() {
   const client = await KubeMQClient.create({
@@ -10,8 +10,8 @@ async function main() {
     const sub = client.subscribeToEventsStore({
       channel: 'js-events-store.consumer-group',
       group: 'workers',
-      startFrom: EventStoreType.StartNewOnly,
-      onMessage: (event) => {
+      startFrom: EventStoreStartPosition.StartFromNew,
+      onEvent: (event) => {
         console.log(`[group=workers] seq=${event.sequence}`, new TextDecoder().decode(event.body));
       },
       onError: (err) => {
@@ -20,8 +20,11 @@ async function main() {
     });
 
     for (let i = 1; i <= 3; i++) {
-      await client.publishEventStore(
-        createEventStoreMessage({ channel: 'js-events-store.consumer-group', body: `group-msg-${i}` }),
+      await client.sendEventStore(
+        createEventStoreMessage({
+          channel: 'js-events-store.consumer-group',
+          body: `group-msg-${i}`,
+        }),
       );
     }
 

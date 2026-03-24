@@ -28,7 +28,7 @@ beforeEach(() => {
 
 describe('validateCertificates — expired certificate', () => {
   it('throws AuthenticationError for expired certificate', async () => {
-    mockX509.mockImplementation(function(this: any) {
+    mockX509.mockImplementation(function (this: any) {
       Object.assign(this, {
         validTo: '2020-01-01T00:00:00.000Z',
         validFrom: '2019-01-01T00:00:00.000Z',
@@ -48,7 +48,7 @@ describe('validateCertificates — expired certificate', () => {
   });
 
   it('error message includes "expired"', async () => {
-    mockX509.mockImplementation(function(this: any) {
+    mockX509.mockImplementation(function (this: any) {
       Object.assign(this, {
         validTo: '2020-06-15T00:00:00.000Z',
         validFrom: '2019-06-15T00:00:00.000Z',
@@ -74,7 +74,7 @@ describe('validateCertificates — expired certificate', () => {
 
 describe('validateCertificates — not yet valid certificate', () => {
   it('throws AuthenticationError for not-yet-valid certificate', async () => {
-    mockX509.mockImplementation(function(this: any) {
+    mockX509.mockImplementation(function (this: any) {
       Object.assign(this, {
         validTo: '2099-01-01T00:00:00.000Z',
         validFrom: '2099-01-01T00:00:00.000Z',
@@ -94,7 +94,7 @@ describe('validateCertificates — not yet valid certificate', () => {
   });
 
   it('error message includes "not yet valid"', async () => {
-    mockX509.mockImplementation(function(this: any) {
+    mockX509.mockImplementation(function (this: any) {
       Object.assign(this, {
         validTo: '2099-12-31T00:00:00.000Z',
         validFrom: '2099-01-01T00:00:00.000Z',
@@ -118,7 +118,7 @@ describe('validateCertificates — not yet valid certificate', () => {
   });
 
   it('error suggestion mentions system clock', async () => {
-    mockX509.mockImplementation(function(this: any) {
+    mockX509.mockImplementation(function (this: any) {
       Object.assign(this, {
         validTo: '2099-12-31T00:00:00.000Z',
         validFrom: '2099-01-01T00:00:00.000Z',
@@ -143,7 +143,7 @@ describe('validateCertificates — not yet valid certificate', () => {
 
 describe('validateCertificates — valid cert passes', () => {
   it('valid cert with good dates logs debug and does not throw', async () => {
-    mockX509.mockImplementation(function(this: any) {
+    mockX509.mockImplementation(function (this: any) {
       Object.assign(this, {
         validTo: '2099-12-31T00:00:00.000Z',
         validFrom: '2020-01-01T00:00:00.000Z',
@@ -167,7 +167,7 @@ describe('validateCertificates — valid cert passes', () => {
 
 describe('validateCertificates — non-PEM key', () => {
   it('throws AuthenticationError for non-PEM encoded key', async () => {
-    mockX509.mockImplementation(function(this: any) {
+    mockX509.mockImplementation(function (this: any) {
       Object.assign(this, {
         validTo: '2099-12-31T00:00:00.000Z',
         validFrom: '2020-01-01T00:00:00.000Z',
@@ -187,7 +187,7 @@ describe('validateCertificates — non-PEM key', () => {
   });
 
   it('error message mentions PEM-encoded', async () => {
-    mockX509.mockImplementation(function(this: any) {
+    mockX509.mockImplementation(function (this: any) {
       Object.assign(this, {
         validTo: '2099-12-31T00:00:00.000Z',
         validFrom: '2020-01-01T00:00:00.000Z',

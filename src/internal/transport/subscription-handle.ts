@@ -37,9 +37,11 @@ export class GrpcSubscriptionHandle implements Subscription {
 
   /**
    * Replace the underlying stream after a successful reconnection.
-   * Removes old listeners to prevent ghost callbacks (MAJ-R2 fix).
+   * H2 fix: removes old listeners to prevent ghost callbacks and memory leaks.
    */
   rebind(newStream: StreamHandle<never, unknown>): void {
+    // H2 fix: remove all listeners from old stream before cancelling
+    this._stream.removeAllListeners();
     this._stream.cancel();
     this._stream = newStream;
     this._isActive = true;

@@ -11,17 +11,25 @@
  *
  * Run: npx tsx examples/rpc/send-command.ts
  */
-import { KubeMQClient, createCommand, ConnectionError, KubeMQTimeoutError } from '../../src/index.js';
+import {
+  KubeMQClient,
+  createCommand,
+  ConnectionError,
+  KubeMQTimeoutError,
+} from '../../src/index.js';
 
 async function main(): Promise<void> {
-  const client = await KubeMQClient.create({ address: 'localhost:50000', clientId: 'js-rpc-send-command-client' });
+  const client = await KubeMQClient.create({
+    address: 'localhost:50000',
+    clientId: 'js-rpc-send-command-client',
+  });
 
   try {
     const response = await client.sendCommand(
       createCommand({
         channel: 'js-rpc.send-command',
         body: JSON.stringify({ action: 'set-temperature', value: 22 }),
-        timeoutMs: 5000,
+        timeoutInSeconds: 5,
         tags: { device: 'thermostat-living-room' },
       }),
     );

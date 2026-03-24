@@ -134,10 +134,10 @@ try {
 
 ## Troubleshooting
 
-| Symptom | Cause | Fix |
-|---|---|---|
-| `UNAVAILABLE: Connection refused` | Server not running or wrong port | Verify server address and port |
-| `UNAVAILABLE: failed to connect` with TLS | CA cert doesn't match server cert | Use the CA that signed the server certificate |
-| `ERR_TLS_CERT_ALTNAME_INVALID` | Hostname mismatch | Use `serverNameOverride` or fix the cert |
-| Connection hangs | TLS disabled for TLS-required server | Set `tls: { enabled: true }` |
-| `ENOENT: no such file` | Wrong certificate file path | Verify paths exist and are readable |
+| Symptom                                   | Cause                                | Fix                                           |
+| ----------------------------------------- | ------------------------------------ | --------------------------------------------- |
+| `UNAVAILABLE: Connection refused`         | Server not running or wrong port     | Verify server address and port                |
+| `UNAVAILABLE: failed to connect` with TLS | CA cert doesn't match server cert    | Use the CA that signed the server certificate |
+| `ERR_TLS_CERT_ALTNAME_INVALID`            | Hostname mismatch                    | Use `serverNameOverride` or fix the cert      |
+| Connection hangs                          | TLS disabled for TLS-required server | Set `tls: { enabled: true }`                  |
+| `ENOENT: no such file`                    | Wrong certificate file path          | Verify paths exist and are readable           |

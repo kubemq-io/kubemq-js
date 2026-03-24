@@ -66,9 +66,9 @@ Defined in: options.ts:145
 
 ---
 
-### connectionTimeoutMs?
+### connectionTimeoutSeconds?
 
-> `optional` **connectionTimeoutMs**: `number`
+> `optional` **connectionTimeoutSeconds**: `number`
 
 Defined in: options.ts:146
 
@@ -146,40 +146,40 @@ Defined in: options.ts:155
 
 ---
 
-### defaultSendTimeoutMs?
+### defaultSendTimeoutSeconds?
 
-> `optional` **defaultSendTimeoutMs**: `number`
+> `optional` **defaultSendTimeoutSeconds**: `number`
 
 Defined in: options.ts:156
 
 ---
 
-### defaultSubscribeTimeoutMs?
+### defaultSubscribeTimeoutSeconds?
 
-> `optional` **defaultSubscribeTimeoutMs**: `number`
+> `optional` **defaultSubscribeTimeoutSeconds**: `number`
 
 Defined in: options.ts:157
 
 ---
 
-### defaultRpcTimeoutMs?
+### defaultRpcTimeoutSeconds?
 
-> `optional` **defaultRpcTimeoutMs**: `number`
+> `optional` **defaultRpcTimeoutSeconds**: `number`
 
 Defined in: options.ts:158
 
 ---
 
-### defaultQueueReceiveTimeoutMs?
+### defaultQueueReceiveTimeoutSeconds?
 
-> `optional` **defaultQueueReceiveTimeoutMs**: `number`
+> `optional` **defaultQueueReceiveTimeoutSeconds**: `number`
 
 Defined in: options.ts:159
 
 ---
 
-### defaultQueuePollTimeoutMs?
+### defaultQueuePollTimeoutSeconds?
 
-> `optional` **defaultQueuePollTimeoutMs**: `number`
+> `optional` **defaultQueuePollTimeoutSeconds**: `number`
 
 Defined in: options.ts:160

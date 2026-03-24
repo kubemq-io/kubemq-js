@@ -20,6 +20,9 @@ function createMockStream(): StreamHandle<never, unknown> & {
     }),
     cancel: vi.fn(),
     end: vi.fn(),
+    pause: vi.fn(),
+    resume: vi.fn(),
+    removeAllListeners: vi.fn(),
     triggerEnd() {
       endHandler?.();
     },

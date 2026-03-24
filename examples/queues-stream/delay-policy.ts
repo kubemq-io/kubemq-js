@@ -36,9 +36,10 @@ async function main(): Promise<void> {
 
     console.log('Sent', result.results.length, 'delayed messages');
     for (const r of result.results) {
-      const delayed = r.delayedTo instanceof Date && !isNaN(r.delayedTo.getTime())
-        ? r.delayedTo.toISOString()
-        : 'N/A';
+      const delayed =
+        r.delayedTo instanceof Date && !isNaN(r.delayedTo.getTime())
+          ? r.delayedTo.toISOString()
+          : 'N/A';
       console.log(`  ${r.messageId}: delayedTo=${delayed}`);
     }
 

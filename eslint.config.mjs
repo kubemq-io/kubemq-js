@@ -11,6 +11,7 @@ export default tseslint.config(
       'src/protos/**',
       'coverage/**',
       'benchmarks/**',
+      'burnin/**',
       'docs/**',
       'examples/**',
       'scripts/**',

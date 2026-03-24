@@ -1,4 +1,4 @@
-import { KubeMQClient, EventStoreType, createEventStoreMessage } from '../../src/index.js';
+import { KubeMQClient, EventStoreStartPosition, createEventStoreMessage } from '../../src/index.js';
 
 async function main() {
   const client = await KubeMQClient.create({
@@ -10,8 +10,8 @@ async function main() {
     let count = 0;
     const sub = client.subscribeToEventsStore({
       channel: 'js-events-store.cancel-subscription',
-      startFrom: EventStoreType.StartNewOnly,
-      onMessage: (event) => {
+      startFrom: EventStoreStartPosition.StartFromNew,
+      onEvent: (event) => {
         count++;
         console.log(`Received #${count}:`, new TextDecoder().decode(event.body));
         if (count >= 2) sub.cancel();
@@ -22,8 +22,11 @@ async function main() {
     });
 
     for (let i = 1; i <= 5; i++) {
-      await client.publishEventStore(
-        createEventStoreMessage({ channel: 'js-events-store.cancel-subscription', body: `msg-${i}` }),
+      await client.sendEventStore(
+        createEventStoreMessage({
+          channel: 'js-events-store.cancel-subscription',
+          body: `msg-${i}`,
+        }),
       );
     }
 

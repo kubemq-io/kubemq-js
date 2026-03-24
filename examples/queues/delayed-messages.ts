@@ -13,7 +13,10 @@
 import { KubeMQClient, createQueueMessage } from '../../src/index.js';
 
 async function main(): Promise<void> {
-  const client = await KubeMQClient.create({ address: 'localhost:50000', clientId: 'js-queues-delayed-messages-client' });
+  const client = await KubeMQClient.create({
+    address: 'localhost:50000',
+    clientId: 'js-queues-delayed-messages-client',
+  });
 
   try {
     // Send a message delayed by 10 seconds.
@@ -33,7 +36,6 @@ async function main(): Promise<void> {
     // Immediate poll returns nothing — message is still delayed.
     const immediate = await client.receiveQueueMessages({
       channel: 'js-queues.delayed-messages',
-      visibilitySeconds: 30,
       waitTimeoutSeconds: 2,
     });
     console.log('Immediate poll received:', immediate.length, 'messages');
@@ -44,7 +46,6 @@ async function main(): Promise<void> {
 
     const delayed = await client.receiveQueueMessages({
       channel: 'js-queues.delayed-messages',
-      visibilitySeconds: 30,
       waitTimeoutSeconds: 5,
     });
 

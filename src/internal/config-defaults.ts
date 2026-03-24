@@ -86,7 +86,10 @@ export function applyDefaults(options: ClientOptions): ResolvedClientOptions {
       jitter: 'full' as const,
       ...options.reconnect,
     },
-    connectionTimeoutMs: options.connectionTimeoutMs ?? DEFAULT_CONNECTION_TIMEOUT_MS,
+    connectionTimeoutMs:
+      options.connectionTimeoutSeconds != null
+        ? options.connectionTimeoutSeconds * 1000
+        : DEFAULT_CONNECTION_TIMEOUT_MS,
     maxReceiveMessageSize: options.maxReceiveMessageSize ?? DEFAULT_MAX_MESSAGE_SIZE,
     maxSendMessageSize: options.maxSendMessageSize ?? DEFAULT_MAX_MESSAGE_SIZE,
     waitForReady: options.waitForReady ?? true,
@@ -96,12 +99,26 @@ export function applyDefaults(options: ClientOptions): ResolvedClientOptions {
     reconnectBufferSize: options.reconnectBufferSize ?? DEFAULT_RECONNECT_BUFFER_SIZE,
     reconnectBufferMode: options.reconnectBufferMode ?? 'error',
     maxConcurrentRetries: options.maxConcurrentRetries ?? DEFAULT_MAX_CONCURRENT_RETRIES,
-    defaultSendTimeoutMs: options.defaultSendTimeoutMs ?? DEFAULT_SEND_TIMEOUT_MS,
-    defaultSubscribeTimeoutMs: options.defaultSubscribeTimeoutMs ?? DEFAULT_SUBSCRIBE_TIMEOUT_MS,
-    defaultRpcTimeoutMs: options.defaultRpcTimeoutMs ?? DEFAULT_RPC_TIMEOUT_MS,
+    defaultSendTimeoutMs:
+      options.defaultSendTimeoutSeconds != null
+        ? options.defaultSendTimeoutSeconds * 1000
+        : DEFAULT_SEND_TIMEOUT_MS,
+    defaultSubscribeTimeoutMs:
+      options.defaultSubscribeTimeoutSeconds != null
+        ? options.defaultSubscribeTimeoutSeconds * 1000
+        : DEFAULT_SUBSCRIBE_TIMEOUT_MS,
+    defaultRpcTimeoutMs:
+      options.defaultRpcTimeoutSeconds != null
+        ? options.defaultRpcTimeoutSeconds * 1000
+        : DEFAULT_RPC_TIMEOUT_MS,
     defaultQueueReceiveTimeoutMs:
-      options.defaultQueueReceiveTimeoutMs ?? DEFAULT_QUEUE_RECEIVE_TIMEOUT_MS,
-    defaultQueuePollTimeoutMs: options.defaultQueuePollTimeoutMs ?? DEFAULT_QUEUE_POLL_TIMEOUT_MS,
+      options.defaultQueueReceiveTimeoutSeconds != null
+        ? options.defaultQueueReceiveTimeoutSeconds * 1000
+        : DEFAULT_QUEUE_RECEIVE_TIMEOUT_MS,
+    defaultQueuePollTimeoutMs:
+      options.defaultQueuePollTimeoutSeconds != null
+        ? options.defaultQueuePollTimeoutSeconds * 1000
+        : DEFAULT_QUEUE_POLL_TIMEOUT_MS,
   };
 }
 
