@@ -22,8 +22,11 @@ async function withConsoleLogger(): Promise<void> {
   });
 
   try {
-    await client.publishEvent(
-      createEventMessage({ channel: 'js-configuration.custom-logger', body: 'Hello with console logger' }),
+    await client.sendEvent(
+      createEventMessage({
+        channel: 'js-configuration.custom-logger',
+        body: 'Hello with console logger',
+      }),
     );
   } finally {
     await client.close();
@@ -68,8 +71,11 @@ async function withCustomLogger(): Promise<void> {
   });
 
   try {
-    await client.publishEvent(
-      createEventMessage({ channel: 'js-configuration.custom-logger', body: 'Hello with JSON logger' }),
+    await client.sendEvent(
+      createEventMessage({
+        channel: 'js-configuration.custom-logger',
+        body: 'Hello with JSON logger',
+      }),
     );
   } finally {
     await client.close();

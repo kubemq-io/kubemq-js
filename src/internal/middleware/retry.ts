@@ -15,6 +15,7 @@ export type OperationType =
   | 'events'
   | 'eventsStore'
   | 'queueSend'
+  | 'queueReceive'
   | 'command'
   | 'query'
   | 'subscribe';
@@ -90,6 +91,9 @@ export interface RetryContext {
 /**
  * Compose an AbortSignal from OperationOptions and a default timeout.
  * Used by client-layer methods to create a unified signal for withRetry.
+ *
+ * L1 fix: prefer reusing caller's signal when available to reduce
+ * AbortSignal.timeout() timer allocations under high throughput.
  */
 export function resolveSignal(
   defaultTimeoutMs: number,
@@ -100,7 +104,37 @@ export function resolveSignal(
   }
   if (opts?.signal) return opts.signal;
   if (opts?.timeout != null) return AbortSignal.timeout(opts.timeout);
+  if (defaultTimeoutMs <= 0) return new AbortController().signal;
   return AbortSignal.timeout(defaultTimeoutMs);
+}
+
+/**
+ * Resolve an AbortSignal only when the caller provides an explicit signal or timeout.
+ * Returns `undefined` for the default-timeout-only case so callers can use a
+ * gRPC deadline instead, avoiding OS timer allocations on the hot path.
+ */
+export function resolveSignalOptional(
+  opts?: { signal?: AbortSignal; timeout?: number },
+): AbortSignal | undefined {
+  if (opts?.signal && opts.timeout != null) {
+    return AbortSignal.any([opts.signal, AbortSignal.timeout(opts.timeout)]);
+  }
+  if (opts?.signal) return opts.signal;
+  if (opts?.timeout != null) return AbortSignal.timeout(opts.timeout);
+  return undefined;
+}
+
+/**
+ * Compute a gRPC deadline Date for the given timeout configuration.
+ * Used alongside resolveSignalOptional to avoid AbortSignal.timeout()
+ * allocations when only the default timeout applies.
+ */
+export function resolveDeadline(
+  defaultTimeoutMs: number,
+  opts?: { timeout?: number },
+): Date {
+  const timeoutMs = opts?.timeout ?? defaultTimeoutMs;
+  return new Date(Date.now() + (timeoutMs > 0 ? timeoutMs : 30_000));
 }
 
 // ─── Sleep with AbortSignal ─────────────────────────────────────────
@@ -151,6 +185,33 @@ export async function withRetry<T>(
   parentSignal?: AbortSignal,
   hooks?: RetryHooks,
 ): Promise<T> {
+  // Fast path: when no retries are configured, skip retry loop overhead
+  // but preserve error semantics (non-retryable errors pass through,
+  // retryable errors become RetryExhaustedError).
+  if (policy.maxRetries === 0) {
+    const t0 = Date.now();
+    try {
+      return await fn(parentSignal ?? new AbortController().signal);
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      if (!(error instanceof KubeMQError) || !error.isRetryable) {
+        throw error;
+      }
+      hooks?.onExhausted?.();
+      throw new RetryExhaustedError({
+        message: `${ctx.operation} failed after 0 retries`,
+        operation: ctx.operation,
+        channel: ctx.channel,
+        serverAddress: ctx.serverAddress,
+        cause: error,
+        suggestion: 'Increase maxRetries or check server health.',
+        attempts: 0,
+        totalDuration: Date.now() - t0,
+        lastError: error,
+      });
+    }
+  }
+
   const startTime = Date.now();
   let lastError: Error | undefined;
   const fallbackSignal = parentSignal ?? new AbortController().signal;

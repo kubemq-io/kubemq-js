@@ -26,7 +26,7 @@ async function main(): Promise<void> {
     await KubeMQClient.create({
       address: 'localhost:59999',
       clientId: 'js-error-handling-connection-error-client',
-      connectionTimeoutMs: 3000,
+      connectionTimeoutSeconds: 3,
     });
   } catch (err) {
     if (err instanceof ConnectionError) {
@@ -70,7 +70,7 @@ async function main(): Promise<void> {
       address: 'localhost:59999',
       clientId: 'js-error-handling-connection-error-auth-client',
       credentials: 'invalid-token',
-      connectionTimeoutMs: 3000,
+      connectionTimeoutSeconds: 3,
     });
   } catch (err) {
     if (err instanceof AuthenticationError) {

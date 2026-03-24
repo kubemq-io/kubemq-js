@@ -2,9 +2,9 @@
 
 ---
 
-[KubeMQ JS/TS SDK](../README.md) / ReceivedEvent
+[KubeMQ JS/TS SDK](../README.md) / EventReceived
 
-# Interface: ReceivedEvent
+# Interface: EventReceived
 
 Defined in: messages/events.ts:35
 

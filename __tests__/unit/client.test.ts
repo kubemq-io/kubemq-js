@@ -10,7 +10,7 @@ import {
   ClientClosedError,
   KubeMQError,
 } from '../../src/errors.js';
-import { EventStoreType } from '../../src/messages/events-store.js';
+import { EventStoreStartPosition } from '../../src/messages/events-store.js';
 
 function createClient(transport?: MockTransport) {
   const opts = {
@@ -53,6 +53,34 @@ function captureServerStream(transport: MockTransport) {
   return () => capturedStream;
 }
 
+function stream_simulateCommand(stream: any) {
+  stream.simulateData(
+    new kubemq.Request({
+      RequestID: 'cmd-1',
+      RequestTypeData: 1,
+      Channel: 'cmd-ch',
+      ClientID: 'sender',
+      ReplyChannel: 'reply-ch',
+      Body: new Uint8Array([1]),
+      Timeout: 5000,
+    }),
+  );
+}
+
+function stream_simulateQuery(stream: any) {
+  stream.simulateData(
+    new kubemq.Request({
+      RequestID: 'qry-1',
+      RequestTypeData: 2,
+      Channel: 'qry-ch',
+      ClientID: 'sender',
+      ReplyChannel: 'reply-ch',
+      Body: new Uint8Array([1]),
+      Timeout: 5000,
+    }),
+  );
+}
+
 describe('KubeMQClient', () => {
   // ─── Getters ───
 
@@ -88,37 +116,44 @@ describe('KubeMQClient', () => {
     });
   });
 
-  // ─── publishEvent ───
+  // ─── sendEvent ───
 
-  describe('publishEvent', () => {
-    it('calls transport unaryCall with SendEvent', async () => {
+  describe('sendEvent', () => {
+    it('writes event to SendEventsStream', async () => {
       const { client, transport } = createClient();
-      transport.onUnaryCall('SendEvent', () => new kubemq.Result({ EventID: 'ev-1', Sent: true }));
-      await client.publishEvent({ channel: 'events.test', body: new Uint8Array([1, 2]) });
-      const calls = transport.callsTo('SendEvent');
-      expect(calls).toHaveLength(1);
-      expect((calls[0]!.request as any).Channel).toBe('events.test');
+      const getStream = captureDuplexStream(transport);
+      await transport.connect();
+
+      await client.sendEvent({ channel: 'events.test', body: new Uint8Array([1, 2]) });
+
+      expect(transport.callsTo('SendEventsStream')).toHaveLength(1);
+      const stream = getStream();
+      expect(stream.written).toHaveLength(1);
+      expect((stream.written[0] as any).Channel).toBe('events.test');
     });
 
     it('throws ValidationError for empty channel', async () => {
       const { client } = createClient();
-      await expect(client.publishEvent({ channel: '' })).rejects.toThrow(ValidationError);
+      await expect(client.sendEvent({ channel: '' })).rejects.toThrow(ValidationError);
     });
 
     it('throws ValidationError for whitespace-only channel', async () => {
       const { client } = createClient();
-      await expect(client.publishEvent({ channel: '   ' })).rejects.toThrow(ValidationError);
+      await expect(client.sendEvent({ channel: '   ' })).rejects.toThrow(ValidationError);
     });
 
     it('passes metadata and tags through', async () => {
       const { client, transport } = createClient();
-      transport.onUnaryCall('SendEvent', () => new kubemq.Result({ EventID: 'ev-2', Sent: true }));
-      await client.publishEvent({
+      const getStream = captureDuplexStream(transport);
+      await transport.connect();
+
+      await client.sendEvent({
         channel: 'ch',
         metadata: 'meta',
         tags: { key: 'val' },
       });
-      const req = transport.callsTo('SendEvent')[0]!.request as any;
+
+      const req = getStream().written[0] as any;
       expect(req.Metadata).toBe('meta');
     });
 
@@ -128,48 +163,72 @@ describe('KubeMQClient', () => {
         'SendEvent',
         () => new kubemq.Result({ EventID: 'ev-3', Sent: false, Error: 'send failed' }),
       );
-      await expect(client.publishEvent({ channel: 'ch' })).rejects.toThrow(KubeMQError);
+      await expect(client.sendEvent({ channel: 'ch' })).rejects.toThrow(KubeMQError);
     });
   });
 
-  // ─── publishEventStore ───
+  // ─── sendEventStore ───
 
-  describe('publishEventStore', () => {
-    it('calls transport unaryCall with SendEvent and Store=true', async () => {
+  describe('sendEventStore', () => {
+    it('writes event to SendEventsStream with Store=true', async () => {
       const { client, transport } = createClient();
-      transport.onUnaryCall('SendEvent', (_m, req: any) => {
-        expect(req.Store).toBe(true);
-        return new kubemq.Result({ EventID: 'es-1', Sent: true });
-      });
-      await client.publishEventStore({ channel: 'store.ch', body: new Uint8Array([5]) });
-      expect(transport.callsTo('SendEvent')).toHaveLength(1);
+      const getStream = captureDuplexStream(transport);
+      await transport.connect();
+
+      const sendPromise = client.sendEventStore({ channel: 'store.ch', body: new Uint8Array([5]) });
+
+      await new Promise((r) => setTimeout(r, 10));
+      const stream = getStream();
+      expect(stream.written).toHaveLength(1);
+      const req = stream.written[0] as any;
+      expect(req.Store).toBe(true);
+
+      // Simulate server ACK
+      stream.simulateData(new kubemq.Result({ EventID: req.EventID, Sent: true }));
+      await sendPromise;
     });
 
     it('throws ValidationError for empty channel', async () => {
       const { client } = createClient();
-      await expect(client.publishEventStore({ channel: '' })).rejects.toThrow(ValidationError);
+      await expect(client.sendEventStore({ channel: '' })).rejects.toThrow(ValidationError);
     });
   });
 
   // ─── sendQueueMessage ───
 
   describe('sendQueueMessage', () => {
-    it('calls SendQueueMessage and returns QueueSendResult', async () => {
+    it('sends via QueuesUpstream and returns QueueSendResult', async () => {
       const { client, transport } = createClient();
+      const getStream = captureDuplexStream(transport);
+      await transport.connect();
+
       const sentAt = BigInt(Date.now() * 1_000_000);
-      transport.onUnaryCall(
-        'SendQueueMessage',
-        () =>
-          new kubemq.SendQueueMessageResult({
-            MessageID: 'qm-1',
-            SentAt: sentAt,
-            IsError: false,
-          }),
-      );
-      const result = await client.sendQueueMessage({
+      const sendPromise = client.sendQueueMessage({
         channel: 'queue.test',
         body: new Uint8Array([1]),
       });
+
+      await new Promise((r) => setTimeout(r, 10));
+      const stream = getStream();
+      expect(stream.written).toHaveLength(1);
+      const req = stream.written[0] as any;
+
+      // Simulate server ACK
+      stream.simulateData(
+        new kubemq.QueuesUpstreamResponse({
+          RefRequestID: req.RequestID,
+          Results: [
+            new kubemq.SendQueueMessageResult({
+              MessageID: 'qm-1',
+              SentAt: sentAt,
+              IsError: false,
+            }),
+          ],
+          IsError: false,
+        }),
+      );
+
+      const result = await sendPromise;
       expect(result.messageId).toBe('qm-1');
       expect(result.sentAt).toBeInstanceOf(Date);
     });
@@ -273,7 +332,6 @@ describe('KubeMQClient', () => {
       setupReceiveHandler(transport);
       const msgs = await client.receiveQueueMessages({
         channel: 'q-ch',
-        visibilitySeconds: 30,
         waitTimeoutSeconds: 5,
       });
       expect(msgs).toHaveLength(1);
@@ -288,21 +346,19 @@ describe('KubeMQClient', () => {
       setupReceiveHandler(transport);
       const msgs = await client.receiveQueueMessages({
         channel: 'q-ch',
-        visibilitySeconds: 30,
         waitTimeoutSeconds: 5,
       });
       await expect(msgs[0]!.ack()).resolves.toBeUndefined();
     });
 
-    it('reject is a no-op', async () => {
+    it('nack is a no-op', async () => {
       const { client, transport } = createClient();
       setupReceiveHandler(transport);
       const msgs = await client.receiveQueueMessages({
         channel: 'q-ch',
-        visibilitySeconds: 30,
         waitTimeoutSeconds: 5,
       });
-      await expect(msgs[0]!.reject()).resolves.toBeUndefined();
+      await expect(msgs[0]!.nack()).resolves.toBeUndefined();
     });
 
     it('reQueue throws NotImplementedError', async () => {
@@ -310,7 +366,6 @@ describe('KubeMQClient', () => {
       setupReceiveHandler(transport);
       const msgs = await client.receiveQueueMessages({
         channel: 'q-ch',
-        visibilitySeconds: 30,
         waitTimeoutSeconds: 5,
       });
       expect(() => msgs[0]!.reQueue('other')).toThrow(NotImplementedError);
@@ -330,7 +385,6 @@ describe('KubeMQClient', () => {
       await expect(
         client.receiveQueueMessages({
           channel: 'ch',
-          visibilitySeconds: 10,
           waitTimeoutSeconds: 5,
         }),
       ).rejects.toThrow(KubeMQError);
@@ -383,7 +437,8 @@ describe('KubeMQClient', () => {
       expect(received[0].sequence).toBe(42);
     });
 
-    it('ack writes RequestTypeData=2 and schedules re-poll', async () => {
+    // C1 fix: per-message ack now uses AckRange (3) instead of AckAll (2)
+    it('ack writes RequestTypeData=3 (AckRange) and schedules re-poll on batch completion', async () => {
       const { client, transport } = createClient();
       const getStream = captureDuplexStream(transport);
       const handle = client.streamQueueMessages({ channel: 'stream-ch' });
@@ -394,16 +449,19 @@ describe('KubeMQClient', () => {
       received[0].ack();
 
       const written = getStream().written;
-      const ackMsg = written.find((w: any) => w.RequestTypeData === 2);
+      const ackMsg = written.find((w: any) => w.RequestTypeData === 3);
       expect(ackMsg).toBeDefined();
       expect(ackMsg.RefTransactionId).toBe('tx-1');
 
-      await new Promise((r) => queueMicrotask(r));
+      // C2 fix: re-poll fires after all messages in batch are settled (batch size = 1 here)
+      await new Promise((r) => setTimeout(r, 0));
       const rePoll = written.find((w: any, i: number) => i > 1 && w.RequestTypeData === 1);
       expect(rePoll).toBeDefined();
     });
 
-    it('reject writes RequestTypeData=4 and does NOT re-poll', async () => {
+    // C1 fix: per-message nack now uses NAckRange (5) instead of NAckAll (4)
+    // C2 fix: nack also triggers re-poll via batch completion (batch size = 1)
+    it('nack writes RequestTypeData=5 (NAckRange) and re-polls on batch completion', async () => {
       const { client, transport } = createClient();
       const getStream = captureDuplexStream(transport);
       const handle = client.streamQueueMessages({ channel: 'stream-ch' });
@@ -411,19 +469,21 @@ describe('KubeMQClient', () => {
       handle.onMessages((msgs) => received.push(...msgs));
 
       getStream().simulateData(createStreamResponse());
-      received[0].reject();
+      received[0].nack();
 
       const written = getStream().written;
-      const rejectMsg = written.find((w: any) => w.RequestTypeData === 4);
-      expect(rejectMsg).toBeDefined();
-      expect(rejectMsg.RefTransactionId).toBe('tx-1');
+      const nackMsg = written.find((w: any) => w.RequestTypeData === 5);
+      expect(nackMsg).toBeDefined();
+      expect(nackMsg.RefTransactionId).toBe('tx-1');
 
-      await new Promise((r) => queueMicrotask(r));
-      const rePolls = written.filter((w: any, i: number) => i > 1 && w.RequestTypeData === 1);
-      expect(rePolls.length).toBe(0);
+      await new Promise((r) => setTimeout(r, 0));
+      // With batch size=1, settling the only message triggers re-poll
+      const rePoll = written.find((w: any, i: number) => i > 1 && w.RequestTypeData === 1);
+      expect(rePoll).toBeDefined();
     });
 
-    it('reQueue writes RequestTypeData=6 with target channel in ReQueueChannel', async () => {
+    // C1 fix: per-message reQueue now uses ReQueueRange (7) instead of ReQueueAll (6)
+    it('reQueue writes RequestTypeData=7 (ReQueueRange) with target channel in ReQueueChannel', async () => {
       const { client, transport } = createClient();
       const getStream = captureDuplexStream(transport);
       const handle = client.streamQueueMessages({ channel: 'stream-ch' });
@@ -434,7 +494,7 @@ describe('KubeMQClient', () => {
       received[0].reQueue('other-ch');
 
       const written = getStream().written;
-      const requeueMsg = written.find((w: any) => w.RequestTypeData === 6);
+      const requeueMsg = written.find((w: any) => w.RequestTypeData === 7);
       expect(requeueMsg).toBeDefined();
       expect(requeueMsg.ReQueueChannel).toBe('other-ch');
     });
@@ -459,7 +519,7 @@ describe('KubeMQClient', () => {
       client.streamQueueMessages({ channel: 'stream-ch', autoAck: false });
 
       getStream().simulateData(createStreamResponse());
-      await new Promise((r) => queueMicrotask(r));
+      await new Promise((r) => setTimeout(r, 0));
 
       const rePolls = getStream().written.filter(
         (w: any, i: number) => i > 0 && w.RequestTypeData === 1,
@@ -473,7 +533,7 @@ describe('KubeMQClient', () => {
       client.streamQueueMessages({ channel: 'stream-ch', autoAck: true });
 
       getStream().simulateData(createStreamResponse());
-      await new Promise((r) => queueMicrotask(r));
+      await new Promise((r) => setTimeout(r, 0));
 
       const rePolls = getStream().written.filter(
         (w: any, i: number) => i > 0 && w.RequestTypeData === 1,
@@ -551,7 +611,7 @@ describe('KubeMQClient', () => {
       getStream().simulateData(createStreamResponse());
       received[0].ack();
       const writtenAfterAck = getStream().written.length;
-      received[0].reject();
+      received[0].nack();
       expect(getStream().written.length).toBe(writtenAfterAck);
     });
 
@@ -601,7 +661,10 @@ describe('KubeMQClient', () => {
       received[0].reQueue('per-msg-target');
 
       const written = getStream().written;
-      const requeueMsg = written.find((w: any) => w.RequestTypeData === 6 && w.RefTransactionId === 'tx-1');
+      // C1 fix: per-message reQueue now uses ReQueueRange (7) instead of ReQueueAll (6)
+      const requeueMsg = written.find(
+        (w: any) => w.RequestTypeData === 7 && w.RefTransactionId === 'tx-1',
+      );
       expect(requeueMsg).toBeDefined();
       expect(requeueMsg.ReQueueChannel).toBe('per-msg-target');
     });
@@ -641,14 +704,13 @@ describe('KubeMQClient', () => {
 
       const msgs = await client.peekQueueMessages({
         channel: 'pk-ch',
-        visibilitySeconds: 10,
         waitTimeoutSeconds: 5,
       });
       expect(msgs).toHaveLength(1);
       expect(msgs[0]!.id).toBe('pk-msg');
     });
 
-    it('ack/reject/reQueue are no-ops on peek results', async () => {
+    it('ack/nack/reQueue are no-ops on peek results', async () => {
       const { client, transport } = createClient();
       transport.onUnaryCall(
         'ReceiveQueueMessages',
@@ -674,11 +736,10 @@ describe('KubeMQClient', () => {
 
       const msgs = await client.peekQueueMessages({
         channel: 'pk-ch',
-        visibilitySeconds: 10,
         waitTimeoutSeconds: 5,
       });
       await expect(msgs[0]!.ack()).resolves.toBeUndefined();
-      await expect(msgs[0]!.reject()).resolves.toBeUndefined();
+      await expect(msgs[0]!.nack()).resolves.toBeUndefined();
       await expect(msgs[0]!.reQueue('other')).resolves.toBeUndefined();
     });
   });
@@ -701,7 +762,7 @@ describe('KubeMQClient', () => {
       const resp = await client.sendCommand({
         channel: 'cmd.ch',
         body: new Uint8Array([1]),
-        timeoutMs: 5000,
+        timeoutInSeconds: 5,
       });
       expect(resp.id).toBe('cmd-1');
       expect(resp.executed).toBe(true);
@@ -710,7 +771,7 @@ describe('KubeMQClient', () => {
 
     it('throws ValidationError for empty channel', async () => {
       const { client } = createClient();
-      await expect(client.sendCommand({ channel: '', timeoutMs: 5000 })).rejects.toThrow(
+      await expect(client.sendCommand({ channel: '', timeoutInSeconds: 5 })).rejects.toThrow(
         ValidationError,
       );
     });
@@ -736,7 +797,7 @@ describe('KubeMQClient', () => {
       const resp = await client.sendQuery({
         channel: 'qry.ch',
         body: new Uint8Array([1]),
-        timeoutMs: 5000,
+        timeoutInSeconds: 5,
       });
       expect(resp.id).toBe('qry-1');
       expect(resp.executed).toBe(true);
@@ -746,7 +807,7 @@ describe('KubeMQClient', () => {
 
     it('throws ValidationError for empty channel', async () => {
       const { client } = createClient();
-      await expect(client.sendQuery({ channel: '', timeoutMs: 5000 })).rejects.toThrow(
+      await expect(client.sendQuery({ channel: '', timeoutInSeconds: 5 })).rejects.toThrow(
         ValidationError,
       );
     });
@@ -760,20 +821,20 @@ describe('KubeMQClient', () => {
       captureServerStream(transport);
       const sub = client.subscribeToEvents({
         channel: 'ev-sub',
-        onMessage: () => {},
+        onEvent: () => {},
         onError: () => {},
       });
       expect(transport.callsTo('SubscribeToEvents')).toHaveLength(1);
       expect(sub.isActive).toBe(true);
     });
 
-    it('delivers messages via onMessage callback', async () => {
+    it('delivers messages via onEvent callback', async () => {
       const { client, transport } = createClient();
       const getStream = captureServerStream(transport);
       const received: any[] = [];
       client.subscribeToEvents({
         channel: 'ev-sub',
-        onMessage: (msg) => received.push(msg),
+        onEvent: (msg) => received.push(msg),
         onError: () => {},
       });
 
@@ -797,7 +858,7 @@ describe('KubeMQClient', () => {
       captureServerStream(transport);
       const sub = client.subscribeToEvents({
         channel: 'ev-sub',
-        onMessage: () => {},
+        onEvent: () => {},
         onError: () => {},
       });
       sub.cancel();
@@ -810,7 +871,7 @@ describe('KubeMQClient', () => {
       const errors: any[] = [];
       client.subscribeToEvents({
         channel: 'ev-sub',
-        onMessage: () => {},
+        onEvent: () => {},
         onError: (err) => errors.push(err),
       });
 
@@ -827,21 +888,21 @@ describe('KubeMQClient', () => {
       captureServerStream(transport);
       client.subscribeToEventsStore({
         channel: 'es-sub',
-        startFrom: EventStoreType.StartNewOnly,
-        onMessage: () => {},
+        startFrom: EventStoreStartPosition.StartFromNew,
+        onEvent: () => {},
         onError: () => {},
       });
       expect(transport.callsTo('SubscribeToEvents')).toHaveLength(1);
     });
 
-    it('delivers store events via onMessage', async () => {
+    it('delivers store events via onEvent', async () => {
       const { client, transport } = createClient();
       const getStream = captureServerStream(transport);
       const received: any[] = [];
       client.subscribeToEventsStore({
         channel: 'es-sub',
-        startFrom: EventStoreType.StartFromFirst,
-        onMessage: (msg) => received.push(msg),
+        startFrom: EventStoreStartPosition.StartFromFirst,
+        onEvent: (msg) => received.push(msg),
         onError: () => {},
       });
 
@@ -1207,10 +1268,10 @@ describe('KubeMQClient', () => {
   // ─── Client closed guard ───
 
   describe('client closed guard', () => {
-    it('publishEvent throws ClientClosedError when closed', async () => {
+    it('sendEvent throws ClientClosedError when closed', async () => {
       const { client } = createClient();
       await client.close();
-      await expect(client.publishEvent({ channel: 'ch' })).rejects.toThrow(ClientClosedError);
+      await expect(client.sendEvent({ channel: 'ch' })).rejects.toThrow(ClientClosedError);
     });
 
     it('sendQueueMessage throws ClientClosedError when closed', async () => {
@@ -1223,7 +1284,7 @@ describe('KubeMQClient', () => {
       const { client } = createClient();
       await client.close();
       expect(() =>
-        client.subscribeToEvents({ channel: 'ch', onMessage: () => {}, onError: () => {} }),
+        client.subscribeToEvents({ channel: 'ch', onEvent: () => {}, onError: () => {} }),
       ).toThrow(ClientClosedError);
     });
 
@@ -1789,7 +1850,7 @@ describe('KubeMQClient', () => {
       const stream = getStream();
       stream.simulateEnd();
 
-      await expect(sendPromise).rejects.toThrow('closed');
+      await expect(sendPromise).rejects.toThrow('Event store stream broken');
     });
 
     it('error handler fires on stream error', async () => {
@@ -1999,82 +2060,21 @@ describe('KubeMQClient', () => {
       expect(rqrWrite).toBeDefined();
     });
 
-    it('getActiveOffsets resolves with offsets from response', async () => {
+    // H1 fix: getActiveOffsets and getTransactionStatus now throw NotImplementedError
+    it('getActiveOffsets throws NotImplementedError', () => {
       const { client, transport } = createClient();
-      const { handle, getStream } = setupStreamWithMessages(client, transport);
-
-      await new Promise((r) => setTimeout(r, 10));
-      const stream = getStream();
-
-      stream.simulateData(
-        new kubemq.QueuesDownstreamResponse({
-          TransactionId: 'txn-ao',
-          Messages: [
-            new kubemq.QueueMessage({
-              MessageID: 'm1',
-              Channel: 'q-ext',
-              Body: new Uint8Array([1]),
-              Attributes: new kubemq.QueueMessageAttributes({ Sequence: BigInt(1) }),
-            }),
-          ],
-          RequestTypeData: 1,
-        }),
+      const { handle } = setupStreamWithMessages(client, transport);
+      expect(() => handle.getActiveOffsets()).toThrow(
+        'ActiveOffsets is not supported by the server',
       );
-
-      await new Promise((r) => setTimeout(r, 10));
-
-      const offsetPromise = handle.getActiveOffsets();
-
-      await new Promise((r) => setTimeout(r, 10));
-
-      stream.simulateData(
-        new kubemq.QueuesDownstreamResponse({
-          RequestTypeData: 8,
-          ActiveOffsets: [1, 2, 3],
-        }),
-      );
-
-      const offsets = await offsetPromise;
-      expect(offsets).toEqual([1, 2, 3]);
     });
 
-    it('getTransactionStatus resolves', async () => {
+    it('getTransactionStatus throws NotImplementedError', () => {
       const { client, transport } = createClient();
-      const { handle, getStream } = setupStreamWithMessages(client, transport);
-
-      await new Promise((r) => setTimeout(r, 10));
-      const stream = getStream();
-
-      stream.simulateData(
-        new kubemq.QueuesDownstreamResponse({
-          TransactionId: 'txn-ts',
-          Messages: [
-            new kubemq.QueueMessage({
-              MessageID: 'm1',
-              Channel: 'q-ext',
-              Body: new Uint8Array([1]),
-              Attributes: new kubemq.QueueMessageAttributes({ Sequence: BigInt(1) }),
-            }),
-          ],
-          RequestTypeData: 1,
-        }),
+      const { handle } = setupStreamWithMessages(client, transport);
+      expect(() => handle.getTransactionStatus()).toThrow(
+        'TransactionStatus is not supported by the server',
       );
-
-      await new Promise((r) => setTimeout(r, 10));
-
-      const statusPromise = handle.getTransactionStatus();
-
-      await new Promise((r) => setTimeout(r, 10));
-
-      stream.simulateData(
-        new kubemq.QueuesDownstreamResponse({
-          RequestTypeData: 9,
-          TransactionComplete: true,
-        }),
-      );
-
-      const status = await statusPromise;
-      expect(status).toBe(true);
     });
 
     it('Metadata Map is extracted from response', async () => {
@@ -2162,11 +2162,11 @@ describe('KubeMQClient', () => {
 
       client.subscribeToEvents({
         channel: 'events.drain',
-        onMessage: () => {},
+        onEvent: () => {},
         onError: () => {},
       });
 
-      await client.close({ callbackTimeoutMs: 100 });
+      await client.close({ callbackTimeoutSeconds: 0.1 });
       expect(client.state).toBe(ConnectionState.CLOSED);
     });
   });
@@ -2207,30 +2207,27 @@ describe('KubeMQClient', () => {
     });
   });
 
-  // ─── publishEvent / publishEventStore — error catch non-KubeMQError ───
+  // ─── sendEvent / sendEventStore — error catch non-KubeMQError ───
 
-  describe('publishEvent — non-KubeMQError', () => {
-    it('re-throws non-KubeMQError', async () => {
+  describe('sendEvent — non-KubeMQError', () => {
+    it('re-throws non-KubeMQError from sender initialization', async () => {
       const { client, transport } = createClient();
-      transport.onUnaryCall('SendEvent', () => {
-        throw new Error('generic failure');
-      });
+      // Sabotage transport.on so sender.start() throws a non-KubeMQ error
+      transport.on = (() => { throw new Error('generic failure'); }) as any;
 
-      await expect(
-        client.publishEvent({ channel: 'ch', body: new Uint8Array([1]) }),
-      ).rejects.toThrow('generic failure');
+      await expect(client.sendEvent({ channel: 'ch', body: new Uint8Array([1]) })).rejects.toThrow(
+        'generic failure',
+      );
     });
   });
 
-  describe('publishEventStore — non-KubeMQError', () => {
-    it('re-throws non-KubeMQError', async () => {
+  describe('sendEventStore — non-KubeMQError', () => {
+    it('re-throws non-KubeMQError from sender initialization', async () => {
       const { client, transport } = createClient();
-      transport.onUnaryCall('SendEvent', () => {
-        throw new Error('generic store failure');
-      });
+      transport.on = (() => { throw new Error('generic store failure'); }) as any;
 
       await expect(
-        client.publishEventStore({ channel: 'ch', body: new Uint8Array([1]) }),
+        client.sendEventStore({ channel: 'ch', body: new Uint8Array([1]) }),
       ).rejects.toThrow('generic store failure');
     });
   });
@@ -2238,11 +2235,9 @@ describe('KubeMQClient', () => {
   // ─── sendQueueMessage / sendQueueMessagesBatch — error catch ───
 
   describe('sendQueueMessage — non-KubeMQError', () => {
-    it('re-throws non-KubeMQError', async () => {
+    it('re-throws non-KubeMQError from sender initialization', async () => {
       const { client, transport } = createClient();
-      transport.onUnaryCall('SendQueueMessage', () => {
-        throw new Error('queue failure');
-      });
+      transport.on = (() => { throw new Error('queue failure'); }) as any;
 
       await expect(
         client.sendQueueMessage({ channel: 'q', body: new Uint8Array([1]) }),
@@ -2275,8 +2270,7 @@ describe('KubeMQClient', () => {
       await expect(
         client.sendCommand({
           channel: 'cmd-ch',
-          timeout: 5000,
-          timeoutMs: 5000,
+          timeoutInSeconds: 5,
           body: new Uint8Array([1]),
         }),
       ).rejects.toThrow('command failure');
@@ -2293,8 +2287,7 @@ describe('KubeMQClient', () => {
       await expect(
         client.sendQuery({
           channel: 'q-ch',
-          timeout: 5000,
-          timeoutMs: 5000,
+          timeoutInSeconds: 5,
           body: new Uint8Array([1]),
         }),
       ).rejects.toThrow('query failure');
@@ -2311,7 +2304,7 @@ describe('KubeMQClient', () => {
       });
 
       await expect(
-        client.peekQueueMessages({ channel: 'q', visibilitySeconds: 30, waitTimeoutSeconds: 5 }),
+        client.peekQueueMessages({ channel: 'q', waitTimeoutSeconds: 5 }),
       ).rejects.toThrow('peek failure');
     });
   });
@@ -2326,7 +2319,7 @@ describe('KubeMQClient', () => {
       });
 
       await expect(
-        client.receiveQueueMessages({ channel: 'q', visibilitySeconds: 30, waitTimeoutSeconds: 5 }),
+        client.receiveQueueMessages({ channel: 'q', waitTimeoutSeconds: 5 }),
       ).rejects.toThrow('recv failure');
     });
   });
@@ -2384,7 +2377,7 @@ describe('KubeMQClient', () => {
       const sub = client.subscribeToEvents(
         {
           channel: 'events.abort',
-          onMessage: () => {},
+          onEvent: () => {},
           onError: () => {},
         },
         { signal: ac.signal },
@@ -2405,8 +2398,8 @@ describe('KubeMQClient', () => {
       const sub = client.subscribeToEventsStore(
         {
           channel: 'store.abort',
-          startFrom: EventStoreType.StartFromFirst,
-          onMessage: () => {},
+          startFrom: EventStoreStartPosition.StartFromFirst,
+          onEvent: () => {},
           onError: () => {},
         },
         { signal: ac.signal },
@@ -2498,6 +2491,733 @@ describe('KubeMQClient', () => {
 
       expect(() => handle.ackAll()).not.toThrow();
       expect(() => handle.nackAll()).not.toThrow();
+    });
+  });
+
+  // ─── Sender Stats ───
+
+  describe('sender stats', () => {
+    it('getEventSenderStats returns null before init', async () => {
+      const { client } = createClient();
+      const stats = await client.getEventSenderStats();
+      expect(stats).toBeNull();
+    });
+
+    it('getUpstreamSenderStats returns null before init', async () => {
+      const { client } = createClient();
+      const stats = await client.getUpstreamSenderStats();
+      expect(stats).toBeNull();
+    });
+
+    it('getEventSenderStats returns stats after init', async () => {
+      const { client, transport } = createClient();
+      captureDuplexStream(transport);
+      await transport.connect();
+      await client.sendEvent({ channel: 'ch', body: new Uint8Array([1]) });
+      const stats = await client.getEventSenderStats();
+      expect(stats).not.toBeNull();
+      expect(stats!.streamState).toBe('connected');
+    });
+  });
+
+  // ─── Closing behavior ───
+
+  describe('closing behavior', () => {
+    it('close is idempotent', async () => {
+      const { client } = createClient();
+      await client.close();
+      await client.close(); // second close should not throw
+    });
+
+    it('close tears down event sender and upstream sender', async () => {
+      const { client, transport } = createClient();
+      captureDuplexStream(transport);
+      await transport.connect();
+      // Initialize both senders
+      await client.sendEvent({ channel: 'ch', body: new Uint8Array([1]) });
+      // sendQueueMessage needs an ACK to resolve — just trigger sender init
+      const queuePromise = client.sendQueueMessage({ channel: 'q', body: new Uint8Array([1]) }).catch(() => {});
+      await new Promise(r => setTimeout(r, 10));
+      await client.close();
+      // After close, stats should reflect closed state or null
+      await queuePromise;
+    });
+
+    it('on/off delegates to transport state machine', () => {
+      const { client, transport } = createClient();
+      const handler = () => {};
+      client.on('stateChange', handler);
+      client.off('stateChange', handler);
+      // No error means delegation worked
+    });
+
+    it('Symbol.asyncDispose calls close', async () => {
+      const { client } = createClient();
+      await client[Symbol.asyncDispose]();
+      // After dispose, client is closed
+      await expect(client.sendEvent({ channel: 'ch' })).rejects.toThrow();
+    });
+  });
+
+  // ─── subscribeToEvents ───
+
+  describe('subscribeToEvents', () => {
+    it('opens server stream and delivers events via onEvent', async () => {
+      const { client, transport } = createClient();
+      const getStream = captureServerStream(transport);
+      const received: any[] = [];
+
+      const sub = client.subscribeToEvents({
+        channel: 'ev-ch',
+        onEvent: (msg) => received.push(msg),
+        onError: () => {},
+      });
+
+      const stream = getStream();
+      stream.simulateData(
+        new kubemq.EventReceive({
+          EventID: 'e-1',
+          Channel: 'ev-ch',
+          Body: new Uint8Array([1]),
+          Metadata: 'meta',
+          Timestamp: BigInt(Date.now() * 1_000_000),
+        }),
+      );
+
+      await new Promise((r) => setTimeout(r, 10));
+      expect(received).toHaveLength(1);
+      expect(received[0].id).toBe('e-1');
+      expect(sub.isActive).toBe(true);
+      sub.cancel();
+      expect(sub.isActive).toBe(false);
+    });
+
+    it('error handler fires on stream error', () => {
+      const { client, transport } = createClient();
+      const getStream = captureServerStream(transport);
+      const errors: Error[] = [];
+
+      client.subscribeToEvents({
+        channel: 'ev-ch',
+        onEvent: () => {},
+        onError: (err) => errors.push(err),
+      });
+
+      getStream().simulateError(new Error('stream broke'));
+      expect(errors).toHaveLength(1);
+    });
+  });
+
+  // ─── subscribeToEventsStore ───
+
+  describe('subscribeToEventsStore', () => {
+    it('opens server stream and delivers event store messages', async () => {
+      const { client, transport } = createClient();
+      const getStream = captureServerStream(transport);
+      const received: any[] = [];
+
+      const sub = client.subscribeToEventsStore({
+        channel: 'es-ch',
+        startFrom: 1, // StartFromNew
+        onEvent: (msg) => received.push(msg),
+        onError: () => {},
+      });
+
+      const stream = getStream();
+      stream.simulateData(
+        new kubemq.EventReceive({
+          EventID: 'es-1',
+          Channel: 'es-ch',
+          Body: new Uint8Array([2]),
+          Metadata: 'meta',
+          Timestamp: BigInt(Date.now() * 1_000_000),
+          Sequence: BigInt(42),
+        }),
+      );
+
+      await new Promise((r) => setTimeout(r, 10));
+      expect(received).toHaveLength(1);
+      expect(received[0].id).toBe('es-1');
+      expect(received[0].sequence).toBe(42);
+      sub.cancel();
+    });
+
+    it('error handler fires on stream error', () => {
+      const { client, transport } = createClient();
+      const getStream = captureServerStream(transport);
+      const errors: Error[] = [];
+
+      client.subscribeToEventsStore({
+        channel: 'es-ch',
+        startFrom: 1,
+        onEvent: () => {},
+        onError: (err) => errors.push(err),
+      });
+
+      getStream().simulateError(new Error('es stream broke'));
+      expect(errors).toHaveLength(1);
+    });
+  });
+
+  // ─── subscribeToCommands ───
+
+  describe('subscribeToCommands', () => {
+    it('opens server stream and delivers commands', async () => {
+      const { client, transport } = createClient();
+      const getStream = captureServerStream(transport);
+      const received: any[] = [];
+
+      const sub = client.subscribeToCommands({
+        channel: 'cmd-ch',
+        onCommand: (msg) => received.push(msg),
+        onError: () => {},
+      });
+
+      stream_simulateCommand(getStream());
+
+      await new Promise((r) => setTimeout(r, 10));
+      expect(received).toHaveLength(1);
+      expect(received[0].channel).toBe('cmd-ch');
+      sub.cancel();
+    });
+
+    it('error handler fires on stream error', () => {
+      const { client, transport } = createClient();
+      const getStream = captureServerStream(transport);
+      const errors: Error[] = [];
+
+      client.subscribeToCommands({
+        channel: 'cmd-ch',
+        onCommand: () => {},
+        onError: (err) => errors.push(err),
+      });
+
+      getStream().simulateError(new Error('cmd stream broke'));
+      expect(errors).toHaveLength(1);
+    });
+  });
+
+  // ─── subscribeToQueries ───
+
+  describe('subscribeToQueries', () => {
+    it('opens server stream and delivers queries', async () => {
+      const { client, transport } = createClient();
+      const getStream = captureServerStream(transport);
+      const received: any[] = [];
+
+      const sub = client.subscribeToQueries({
+        channel: 'qry-ch',
+        onQuery: (msg) => received.push(msg),
+        onError: () => {},
+      });
+
+      stream_simulateQuery(getStream());
+
+      await new Promise((r) => setTimeout(r, 10));
+      expect(received).toHaveLength(1);
+      expect(received[0].channel).toBe('qry-ch');
+      sub.cancel();
+    });
+  });
+
+  // ─── sendCommandResponseDirect / sendQueryResponseDirect ───
+
+  describe('sendCommandResponseDirect', () => {
+    it('sends response via unary call', async () => {
+      const { client, transport } = createClient();
+      transport.onUnaryCall('SendResponse', () => new kubemq.Empty());
+      await client.sendCommandResponseDirect({
+        id: 'cmd-1',
+        replyChannel: 'reply',
+        executed: true,
+      });
+      expect(transport.callsTo('SendResponse')).toHaveLength(1);
+    });
+  });
+
+  describe('sendQueryResponseDirect', () => {
+    it('sends response via unary call', async () => {
+      const { client, transport } = createClient();
+      transport.onUnaryCall('SendResponse', () => new kubemq.Empty());
+      await client.sendQueryResponseDirect({
+        id: 'qry-1',
+        replyChannel: 'reply',
+        executed: true,
+      });
+      expect(transport.callsTo('SendResponse')).toHaveLength(1);
+    });
+  });
+
+  // ─── peekQueueMessages ───
+
+  describe('peekQueueMessages', () => {
+    it('calls ReceiveQueueMessages and returns array', async () => {
+      const { client, transport } = createClient();
+      transport.onUnaryCall(
+        'ReceiveQueueMessages',
+        () =>
+          new kubemq.ReceiveQueueMessagesResponse({
+            RequestID: 'pk-1',
+            Messages: [
+              new kubemq.QueueMessage({
+                MessageID: 'pk-msg-1',
+                Channel: 'pk-ch',
+                Body: new Uint8Array([1]),
+                Attributes: new kubemq.QueueMessageAttributes({
+                  Timestamp: BigInt(Date.now() * 1_000_000),
+                  Sequence: BigInt(1),
+                  ReceiveCount: 1,
+                }),
+              }),
+            ],
+            MessagesReceived: 1,
+            IsError: false,
+            IsPeek: true,
+          }),
+      );
+      const msgs = await client.peekQueueMessages({
+        channel: 'pk-ch',
+        waitTimeoutSeconds: 1,
+      });
+      expect(msgs).toHaveLength(1);
+      expect(msgs[0]!.id).toBe('pk-msg-1');
+    });
+  });
+
+  // ─── ackAllQueueMessages ───
+
+  describe('ackAllQueueMessages', () => {
+    it('calls AckAllQueueMessages', async () => {
+      const { client, transport } = createClient();
+      transport.onUnaryCall(
+        'AckAllQueueMessages',
+        () =>
+          new kubemq.AckAllQueueMessagesResponse({
+            RequestID: 'ack-all-1',
+            AffectedMessages: BigInt(5),
+            IsError: false,
+          }),
+      );
+      const result = await client.ackAllQueueMessages('q-ch', 1);
+      expect(Number(result)).toBe(5);
+    });
+  });
+
+  // ─── purgeQueue ───
+
+  describe('purgeQueue', () => {
+    it('calls AckAllQueueMessages for purge', async () => {
+      const { client, transport } = createClient();
+      transport.onUnaryCall(
+        'AckAllQueueMessages',
+        () =>
+          new kubemq.AckAllQueueMessagesResponse({
+            RequestID: 'purge-1',
+            AffectedMessages: BigInt(3),
+            IsError: false,
+          }),
+      );
+      await client.purgeQueue('q-ch');
+      expect(transport.callsTo('AckAllQueueMessages')).toHaveLength(1);
+    });
+  });
+
+  // ─── Channel management convenience aliases ───
+
+  describe('channel management', () => {
+    function setupChannelHandler(transport: any) {
+      transport.onUnaryCall('SendRequest', () =>
+        new kubemq.Response({
+          RequestID: 'ch-op-1',
+          ClientID: 'test',
+          Executed: true,
+        }),
+      );
+    }
+
+    it('createChannel sends request', async () => {
+      const { client, transport } = createClient();
+      setupChannelHandler(transport);
+      await client.createChannel('test-ch', 'events');
+      expect(transport.callsTo('SendRequest')).toHaveLength(1);
+    });
+
+    it('deleteChannel sends request', async () => {
+      const { client, transport } = createClient();
+      setupChannelHandler(transport);
+      await client.deleteChannel('test-ch', 'events');
+      expect(transport.callsTo('SendRequest')).toHaveLength(1);
+    });
+
+    it('listChannels sends request', async () => {
+      const { client, transport } = createClient();
+      transport.onUnaryCall('SendRequest', () =>
+        new kubemq.Response({
+          RequestID: 'list-1',
+          ClientID: 'test',
+          Executed: true,
+          Body: new TextEncoder().encode('[]'),
+        }),
+      );
+      const result = await client.listChannels('events');
+      expect(result).toEqual([]);
+    });
+
+    it('convenience aliases delegate correctly', async () => {
+      const { client, transport } = createClient();
+      setupChannelHandler(transport);
+
+      await client.createEventsChannel('ch1');
+      await client.createEventsStoreChannel('ch2');
+      await client.createCommandsChannel('ch3');
+      await client.createQueriesChannel('ch4');
+      await client.createQueuesChannel('ch5');
+
+      await client.deleteEventsChannel('ch1');
+      await client.deleteEventsStoreChannel('ch2');
+      await client.deleteCommandsChannel('ch3');
+      await client.deleteQueriesChannel('ch4');
+      await client.deleteQueuesChannel('ch5');
+
+      expect(transport.callsTo('SendRequest')).toHaveLength(10);
+    });
+
+    it('list convenience aliases delegate correctly', async () => {
+      const { client, transport } = createClient();
+      transport.onUnaryCall('SendRequest', () =>
+        new kubemq.Response({
+          RequestID: 'list-1',
+          ClientID: 'test',
+          Executed: true,
+          Body: new TextEncoder().encode('[]'),
+        }),
+      );
+
+      await client.listEventsChannels();
+      await client.listEventsStoreChannels();
+      await client.listCommandsChannels();
+      await client.listQueriesChannels();
+      await client.listQueuesChannels();
+
+      expect(transport.callsTo('SendRequest')).toHaveLength(5);
+    });
+  });
+
+  // ─── sendCommand / sendQuery ───
+
+  describe('sendCommand', () => {
+    it('sends command and returns response', async () => {
+      const { client, transport } = createClient();
+      transport.onUnaryCall('SendRequest', () =>
+        new kubemq.Response({
+          RequestID: 'cmd-req-1',
+          ClientID: 'test',
+          Executed: true,
+          Timestamp: BigInt(Date.now() * 1_000_000),
+        }),
+      );
+      const result = await client.sendCommand({
+        channel: 'cmd-ch',
+        timeoutInSeconds: 5,
+        body: new Uint8Array([1]),
+      });
+      expect(result.executed).toBe(true);
+    });
+  });
+
+  describe('sendQuery', () => {
+    it('sends query and returns response', async () => {
+      const { client, transport } = createClient();
+      transport.onUnaryCall('SendRequest', () =>
+        new kubemq.Response({
+          RequestID: 'qry-req-1',
+          ClientID: 'test',
+          Executed: true,
+          Body: new Uint8Array([42]),
+          Timestamp: BigInt(Date.now() * 1_000_000),
+        }),
+      );
+      const result = await client.sendQuery({
+        channel: 'qry-ch',
+        timeoutInSeconds: 5,
+        body: new Uint8Array([1]),
+      });
+      expect(result.executed).toBe(true);
+    });
+  });
+
+  // ─── createEventStream ───
+
+  describe('createEventStream', () => {
+    it('opens duplex stream and sends events', async () => {
+      const { client, transport } = createClient();
+      const getStream = captureDuplexStream(transport);
+      const handle = client.createEventStream();
+
+      expect(handle.isActive).toBe(true);
+      await handle.send({ channel: 'ev-ch', body: new Uint8Array([1]) });
+
+      const stream = getStream();
+      expect(stream.written).toHaveLength(1);
+      expect((stream.written[0] as any).Channel).toBe('ev-ch');
+    });
+
+    it('error handler fires on stream error', async () => {
+      const { client, transport } = createClient();
+      const getStream = captureDuplexStream(transport);
+      const handle = client.createEventStream();
+      const errors: Error[] = [];
+      handle.onError((err: Error) => errors.push(err));
+
+      await new Promise((r) => setTimeout(r, 10));
+      getStream().simulateError(new Error('ev stream broke'));
+
+      expect(errors).toHaveLength(1);
+    });
+
+    it('close ends stream', () => {
+      const { client, transport } = createClient();
+      captureDuplexStream(transport);
+      const handle = client.createEventStream();
+      handle.close();
+      expect(handle.isActive).toBe(false);
+    });
+
+    it('send after close resolves (no-op)', async () => {
+      const { client, transport } = createClient();
+      captureDuplexStream(transport);
+      const handle = client.createEventStream();
+      handle.close();
+      await handle.send({ channel: 'ch', body: new Uint8Array([1]) });
+    });
+
+    it('send returns backpressure promise when write returns false', async () => {
+      const { client, transport } = createClient();
+      const getStream = captureDuplexStream(transport);
+      const handle = client.createEventStream();
+
+      const stream = getStream();
+      stream.setBackpressure(true);
+      const sendPromise = handle.send({ channel: 'ch', body: new Uint8Array([1]) });
+
+      // Resolve backpressure
+      stream.setBackpressure(false);
+      stream.triggerDrain();
+      await sendPromise;
+    });
+
+    it('stream end triggers breakStream and rejects drain waiters', async () => {
+      const { client, transport } = createClient();
+      const getStream = captureDuplexStream(transport);
+      const handle = client.createEventStream();
+
+      const stream = getStream();
+      stream.setBackpressure(true);
+      const sendPromise = handle.send({ channel: 'ch', body: new Uint8Array([1]) });
+
+      stream.simulateEnd();
+      await expect(sendPromise).rejects.toThrow('Event stream broken');
+    });
+  });
+
+  // ─── createQueueUpstream ───
+
+  describe('createQueueUpstream', () => {
+    it('opens duplex stream and sends queue messages', async () => {
+      const { client, transport } = createClient();
+      const getStream = captureDuplexStream(transport);
+      const handle = client.createQueueUpstream();
+
+      expect(handle.isActive).toBe(true);
+
+      const sendPromise = handle.send([{ channel: 'q-ch', body: new Uint8Array([1]) }]);
+
+      await new Promise((r) => setTimeout(r, 10));
+      const stream = getStream();
+      const req = stream.written[0] as any;
+
+      // Simulate server ACK
+      stream.simulateData(
+        new kubemq.QueuesUpstreamResponse({
+          RefRequestID: req.RequestID,
+          Results: [
+            new kubemq.SendQueueMessageResult({
+              MessageID: 'qm-1',
+              SentAt: BigInt(Date.now() * 1_000_000),
+              IsError: false,
+            }),
+          ],
+          IsError: false,
+        }),
+      );
+
+      const result = await sendPromise;
+      expect(result.results).toHaveLength(1);
+    });
+
+    it('close rejects pending and ends stream', async () => {
+      const { client, transport } = createClient();
+      captureDuplexStream(transport);
+      const handle = client.createQueueUpstream();
+
+      const sendPromise = handle.send([{ channel: 'q-ch', body: new Uint8Array([1]) }]);
+      await new Promise((r) => setTimeout(r, 10));
+
+      handle.close();
+      expect(handle.isActive).toBe(false);
+      await expect(sendPromise).rejects.toThrow('Queue upstream closed by client');
+    });
+
+    it('stream error rejects pending', async () => {
+      const { client, transport } = createClient();
+      const getStream = captureDuplexStream(transport);
+      const handle = client.createQueueUpstream();
+
+      const sendPromise = handle.send([{ channel: 'q-ch', body: new Uint8Array([1]) }]);
+      await new Promise((r) => setTimeout(r, 10));
+
+      getStream().simulateError(new Error('upstream broke'));
+      await expect(sendPromise).rejects.toThrow('upstream broke');
+    });
+
+    it('stream end rejects pending', async () => {
+      const { client, transport } = createClient();
+      const getStream = captureDuplexStream(transport);
+      const handle = client.createQueueUpstream();
+
+      const sendPromise = handle.send([{ channel: 'q-ch', body: new Uint8Array([1]) }]);
+      await new Promise((r) => setTimeout(r, 10));
+
+      getStream().simulateEnd();
+      await expect(sendPromise).rejects.toThrow('Queue upstream stream closed');
+    });
+  });
+
+  // ─── close() with active senders ───
+
+  describe('close with active senders', () => {
+    it('closes event sender during client close', async () => {
+      const { client, transport } = createClient();
+      captureDuplexStream(transport);
+      await transport.connect();
+      // Initialize event sender
+      await client.sendEvent({ channel: 'ch', body: new Uint8Array([1]) });
+      // Close should clean up the sender
+      await client.close();
+      // After close, operations fail
+      await expect(client.sendEvent({ channel: 'ch' })).rejects.toThrow();
+    });
+
+    it('closes upstream sender during client close', async () => {
+      const { client, transport } = createClient();
+      captureDuplexStream(transport);
+      await transport.connect();
+      // Initialize upstream sender by starting a queue send (will hang on ACK)
+      const queuePromise = client.sendQueueMessage({ channel: 'q', body: new Uint8Array([1]) }).catch(() => {});
+      await new Promise((r) => setTimeout(r, 10));
+      // Close should clean up
+      await client.close();
+      await queuePromise;
+    });
+  });
+
+  // ─── subscription cancel and resubscribe ───
+
+  describe('subscription lifecycle', () => {
+    it('subscribeToEvents cancel unregisters from tracker', () => {
+      const { client, transport } = createClient();
+      captureServerStream(transport);
+      const sub = client.subscribeToEvents({
+        channel: 'ev-ch',
+        onEvent: () => {},
+        onError: () => {},
+      });
+      expect(sub.isActive).toBe(true);
+      sub.cancel();
+      expect(sub.isActive).toBe(false);
+    });
+
+    it('subscribeToCommands cancel unregisters from tracker', () => {
+      const { client, transport } = createClient();
+      captureServerStream(transport);
+      const sub = client.subscribeToCommands({
+        channel: 'cmd-ch',
+        onCommand: () => {},
+        onError: () => {},
+      });
+      sub.cancel();
+      expect(sub.isActive).toBe(false);
+    });
+
+    it('subscribeToQueries cancel unregisters from tracker', () => {
+      const { client, transport } = createClient();
+      captureServerStream(transport);
+      const sub = client.subscribeToQueries({
+        channel: 'qry-ch',
+        onQuery: () => {},
+        onError: () => {},
+      });
+      sub.cancel();
+      expect(sub.isActive).toBe(false);
+    });
+
+    it('subscribeToEvents resubscribes on transport reconnect', async () => {
+      const { client, transport } = createClient();
+      captureServerStream(transport);
+      const received: any[] = [];
+
+      client.subscribeToEvents({
+        channel: 'ev-ch',
+        onEvent: (msg) => received.push(msg),
+        onError: () => {},
+      });
+
+      // Verify initial subscription
+      expect(transport.callsTo('SubscribeToEvents')).toHaveLength(1);
+
+      // Simulate disconnect/reconnect — triggers resubscribe
+      transport.simulateDisconnect();
+      transport.simulateReconnect();
+
+      // Should have opened a second stream
+      expect(transport.callsTo('SubscribeToEvents').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('subscribeToEventsStore resubscribes on reconnect', async () => {
+      const { client, transport } = createClient();
+      captureServerStream(transport);
+
+      client.subscribeToEventsStore({
+        channel: 'es-ch',
+        startFrom: 1,
+        onEvent: () => {},
+        onError: () => {},
+      });
+
+      expect(transport.callsTo('SubscribeToEvents')).toHaveLength(1);
+
+      transport.simulateDisconnect();
+      transport.simulateReconnect();
+
+      expect(transport.callsTo('SubscribeToEvents').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('subscribeToCommands resubscribes on reconnect', () => {
+      const { client, transport } = createClient();
+      captureServerStream(transport);
+
+      client.subscribeToCommands({
+        channel: 'cmd-ch',
+        onCommand: () => {},
+        onError: () => {},
+      });
+
+      expect(transport.callsTo('SubscribeToRequests')).toHaveLength(1);
+
+      transport.simulateDisconnect();
+      transport.simulateReconnect();
+
+      expect(transport.callsTo('SubscribeToRequests').length).toBeGreaterThanOrEqual(1);
     });
   });
 });

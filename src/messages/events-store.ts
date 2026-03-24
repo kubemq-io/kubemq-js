@@ -14,9 +14,9 @@ import { validateEventStoreMessage } from '../internal/validation/message-valida
  * @see {@link EventStoreSubscription}
  * @see {@link KubeMQClient.subscribeToEventsStore}
  */
-export enum EventStoreType {
+export enum EventStoreStartPosition {
   /** Receive only events published after the subscription is created. */
-  StartNewOnly = 1,
+  StartFromNew = 1,
   /** Replay all events from the beginning of the stream. */
   StartFromFirst = 2,
   /** Start from the most recent event and receive new ones going forward. */
@@ -55,7 +55,7 @@ export interface EventStoreMessage {
  * Do not modify received message objects — they are shared references from
  * the subscription's delivery pipeline. Fields are readonly.
  */
-export interface ReceivedEventStore {
+export interface EventStoreReceived {
   readonly id: string;
   readonly channel: string;
   readonly timestamp: Date;
@@ -77,10 +77,24 @@ export interface ReceivedEventStore {
 export interface EventStoreSubscription {
   readonly channel: string;
   readonly group?: string;
-  readonly startFrom: EventStoreType;
+  readonly startFrom: EventStoreStartPosition;
   readonly startValue?: number;
-  readonly onMessage: (event: ReceivedEventStore) => void;
+  readonly onEvent: (event: EventStoreReceived) => void;
   readonly onError: (err: KubeMQError) => void;
+}
+
+/**
+ * Result of a persistent event-store send operation.
+ *
+ * @see {@link KubeMQClient.sendEventStore}
+ */
+export interface EventStoreResult {
+  /** Server-assigned event ID. */
+  readonly id: string;
+  /** Whether the event was successfully persisted. */
+  readonly sent: boolean;
+  /** Error message if the send failed. */
+  readonly error: string;
 }
 
 /**
@@ -120,7 +134,7 @@ export interface EventStoreStreamHandle {
  *   body: new TextEncoder().encode(JSON.stringify({ action: 'login', userId: '42' })),
  *   tags: { service: 'auth' },
  * });
- * await client.publishEventStore(event);
+ * await client.sendEventStore(event);
  * ```
  */
 export function createEventStoreMessage(

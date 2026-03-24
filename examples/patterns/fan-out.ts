@@ -22,7 +22,7 @@ async function main(): Promise<void> {
     // Create three independent subscribers — each receives all events.
     const logger = client.subscribeToEvents({
       channel: 'js-patterns.fan-out',
-      onMessage: (event) => {
+      onEvent: (event) => {
         console.log('[Logger]', new TextDecoder().decode(event.body));
       },
       onError: (err) => {
@@ -32,7 +32,7 @@ async function main(): Promise<void> {
 
     const monitor = client.subscribeToEvents({
       channel: 'js-patterns.fan-out',
-      onMessage: (event) => {
+      onEvent: (event) => {
         console.log('[Monitor]', new TextDecoder().decode(event.body));
       },
       onError: (err) => {
@@ -42,7 +42,7 @@ async function main(): Promise<void> {
 
     const alerter = client.subscribeToEvents({
       channel: 'js-patterns.fan-out',
-      onMessage: (event) => {
+      onEvent: (event) => {
         const body = new TextDecoder().decode(event.body);
         if (body.includes('critical')) {
           console.log('[Alerter] ALERT:', body);
@@ -63,7 +63,7 @@ async function main(): Promise<void> {
     ];
 
     for (const data of events) {
-      await client.publishEvent(
+      await client.sendEvent(
         createEventMessage({
           channel: 'js-patterns.fan-out',
           body: data,

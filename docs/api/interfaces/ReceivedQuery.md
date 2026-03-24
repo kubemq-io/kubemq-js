@@ -2,9 +2,9 @@
 
 ---
 
-[KubeMQ JS/TS SDK](../README.md) / ReceivedQuery
+[KubeMQ JS/TS SDK](../README.md) / QueryReceived
 
-# Interface: ReceivedQuery
+# Interface: QueryReceived
 
 Defined in: messages/queries.ts:37
 

@@ -11,6 +11,7 @@ import {
   ValidationError,
   KubeMQTimeoutError,
   RetryExhaustedError,
+  CancellationError,
   KubeMQError,
   ErrorCode,
 } from '../../src/errors.js';
@@ -72,7 +73,7 @@ describe('withRetry', () => {
     multiplier: 2,
     jitter: 'none' as const,
   };
-  const ctx = { operation: 'publishEvent', operationType: 'events' as const, channel: 'test' };
+  const ctx = { operation: 'sendEvent', operationType: 'events' as const, channel: 'test' };
 
   it('succeeds on first attempt without retrying', async () => {
     let callCount = 0;
@@ -99,7 +100,7 @@ describe('withRetry', () => {
           throw new TransientError({
             code: ErrorCode.Unavailable,
             message: 'unavailable',
-            operation: 'publishEvent',
+            operation: 'sendEvent',
             isRetryable: true,
           });
         }
@@ -123,7 +124,7 @@ describe('withRetry', () => {
           throw new ValidationError({
             code: ErrorCode.ValidationFailed,
             message: 'invalid',
-            operation: 'publishEvent',
+            operation: 'sendEvent',
             isRetryable: false,
           });
         },
@@ -168,7 +169,7 @@ describe('withRetry', () => {
           throw new TransientError({
             code: ErrorCode.Unavailable,
             message: 'down',
-            operation: 'publishEvent',
+            operation: 'sendEvent',
             isRetryable: true,
           });
         },
@@ -197,7 +198,7 @@ describe('withRetry', () => {
           throw new TransientError({
             code: ErrorCode.Unavailable,
             message: 'down',
-            operation: 'publishEvent',
+            operation: 'sendEvent',
             isRetryable: true,
           });
         },
@@ -235,7 +236,7 @@ describe('withRetry', () => {
           throw new TransientError({
             code: ErrorCode.Unavailable,
             message: 'unknown error',
-            operation: 'publishEvent',
+            operation: 'sendEvent',
             isRetryable: true,
             statusCode: 2,
           });
@@ -258,7 +259,7 @@ describe('withRetry', () => {
           throw new TransientError({
             code: ErrorCode.Unavailable,
             message: 'unknown',
-            operation: 'publishEvent',
+            operation: 'sendEvent',
             isRetryable: true,
             statusCode: 2,
           });
@@ -288,7 +289,7 @@ describe('withRetry', () => {
           throw new TransientError({
             code: ErrorCode.Unavailable,
             message: 'down',
-            operation: 'publishEvent',
+            operation: 'sendEvent',
             isRetryable: true,
           });
         },
@@ -345,7 +346,7 @@ describe('RetryHooks', () => {
     multiplier: 2,
     jitter: 'none' as const,
   };
-  const ctx = { operation: 'publishEvent', operationType: 'events' as const, channel: 'test' };
+  const ctx = { operation: 'sendEvent', operationType: 'events' as const, channel: 'test' };
 
   it('calls onRetry for each retry attempt', async () => {
     let callCount = 0;
@@ -357,7 +358,7 @@ describe('RetryHooks', () => {
           throw new TransientError({
             code: ErrorCode.Unavailable,
             message: 'unavailable',
-            operation: 'publishEvent',
+            operation: 'sendEvent',
             isRetryable: true,
           });
         }
@@ -383,7 +384,7 @@ describe('RetryHooks', () => {
           throw new TransientError({
             code: ErrorCode.Unavailable,
             message: 'down',
-            operation: 'publishEvent',
+            operation: 'sendEvent',
             isRetryable: true,
           });
         },
@@ -424,7 +425,7 @@ describe('RetryHooks', () => {
           throw new ValidationError({
             code: ErrorCode.ValidationFailed,
             message: 'bad',
-            operation: 'publishEvent',
+            operation: 'sendEvent',
             isRetryable: false,
           });
         },
@@ -530,5 +531,83 @@ describe('resolveSignal', () => {
   it('uses timeout=0 as explicit value (not falsy)', () => {
     const signal = resolveSignal(5000, { timeout: 0 });
     expect(signal).toBeInstanceOf(AbortSignal);
+  });
+});
+
+describe('withRetry — abort signal during backoff', () => {
+  const retryPolicy = {
+    maxRetries: 5,
+    initialBackoffMs: 5000,
+    maxBackoffMs: 30000,
+    multiplier: 2,
+    jitter: 'none' as const,
+  };
+  const ctx = { operation: 'sendEvent', operationType: 'events' as const, channel: 'test' };
+
+  it('abort during backoff sleep rejects with CancellationError', async () => {
+    const controller = new AbortController();
+    let callCount = 0;
+
+    const promise = withRetry(
+      async () => {
+        callCount++;
+        throw new TransientError({
+          code: ErrorCode.Unavailable,
+          message: 'unavailable',
+          operation: 'sendEvent',
+          isRetryable: true,
+        });
+      },
+      retryPolicy,
+      ctx,
+      noopLogger,
+      createUnlimitedThrottle(),
+      controller.signal,
+    );
+
+    // Let the first attempt fail and enter backoff
+    await new Promise((r) => setTimeout(r, 20));
+    controller.abort();
+
+    await expect(promise).rejects.toThrow();
+    expect(callCount).toBe(1);
+  });
+
+  it('pre-aborted signal rejects immediately with CancellationError', async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      withRetry(
+        async () => 'never',
+        retryPolicy,
+        ctx,
+        noopLogger,
+        createUnlimitedThrottle(),
+        controller.signal,
+      ),
+    ).rejects.toThrow();
+  });
+
+  it('AbortSignal.timeout wraps as KubeMQTimeoutError', async () => {
+    const signal = AbortSignal.timeout(10);
+
+    await expect(
+      withRetry(
+        async () => {
+          throw new TransientError({
+            code: ErrorCode.Unavailable,
+            message: 'unavailable',
+            operation: 'sendEvent',
+            isRetryable: true,
+          });
+        },
+        retryPolicy,
+        ctx,
+        noopLogger,
+        createUnlimitedThrottle(),
+        signal,
+      ),
+    ).rejects.toThrow();
   });
 });

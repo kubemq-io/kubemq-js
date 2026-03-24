@@ -39,7 +39,7 @@ Multiple concurrent operations multiplex over the same channel automatically.
 ```typescript
 const client = await KubeMQClient.create({ address: 'localhost:50000' });
 // Use this single client for all operations across your application
-await client.publishEvent(eventMsg);
+await client.sendEvent(eventMsg);
 await client.sendCommand(commandMsg);
 await client.sendQueueMessage(queueMsg);
 ```
@@ -78,7 +78,7 @@ export const kubemq = await KubeMQClient.create({ address: 'localhost:50000' });
 
 // handler.ts — reuse everywhere
 import { kubemq } from './app.js';
-await kubemq.publishEvent(msg);
+await kubemq.sendEvent(msg);
 ```
 
 ### 2. Use batching for high-throughput queue sends
@@ -98,7 +98,7 @@ processing blocks all other operations.
 
 ```typescript
 // GOOD: Offload heavy work
-subscription.onMessage = async (msg) => {
+subscription.onEvent = async (msg) => {
   // Quick validation on event loop
   if (!isValid(msg)) return;
   // Heavy processing in a worker
@@ -142,7 +142,7 @@ const msg = createQueueMessage({ channel: 'ch', body: jsonString });
 Parse message bodies lazily, only when you need the data:
 
 ```typescript
-subscription.onMessage = async (msg) => {
+subscription.onEvent = async (msg) => {
   // Only parse if you need the data
   if (shouldProcess(msg.channel)) {
     const data = JSON.parse(bodyToString(msg.body));
@@ -210,13 +210,13 @@ For high-latency networks, increase `timeMs` and `timeoutMs`.
 
 ### Connection Timeout
 
-Set `connectionTimeoutMs` for fast failure detection in environments
+Set `connectionTimeoutSeconds` for fast failure detection in environments
 where the server may be temporarily unreachable:
 
 ```typescript
 const client = await KubeMQClient.create({
   address: 'kubemq.prod:50000',
-  connectionTimeoutMs: 5_000, // Fail fast if server unreachable
+  connectionTimeoutSeconds: 5, // Fail fast if server unreachable
 });
 ```
 
@@ -253,7 +253,7 @@ offload to worker threads:
 ```typescript
 import { Worker } from 'node:worker_threads';
 
-subscription.onMessage = async (msg) => {
+subscription.onEvent = async (msg) => {
   const result = await runInWorker(msg.body);
   // ... handle result ...
 };

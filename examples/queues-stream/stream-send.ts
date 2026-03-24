@@ -13,7 +13,10 @@
 import { KubeMQClient, createQueueMessage } from '../../src/index.js';
 
 async function main(): Promise<void> {
-  const client = await KubeMQClient.create({ address: 'localhost:50000', clientId: 'js-queues-stream-stream-send-client' });
+  const client = await KubeMQClient.create({
+    address: 'localhost:50000',
+    clientId: 'js-queues-stream-stream-send-client',
+  });
 
   try {
     // Send multiple messages — the SDK reuses the underlying gRPC stream.

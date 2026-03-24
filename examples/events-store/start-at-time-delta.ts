@@ -1,4 +1,4 @@
-import { KubeMQClient, EventStoreType } from '../../src/index.js';
+import { KubeMQClient, EventStoreStartPosition } from '../../src/index.js';
 
 async function main() {
   const client = await KubeMQClient.create({
@@ -9,9 +9,9 @@ async function main() {
   try {
     const sub = client.subscribeToEventsStore({
       channel: 'js-events-store.start-at-time-delta',
-      startFrom: EventStoreType.StartAtTimeDelta,
+      startFrom: EventStoreStartPosition.StartAtTimeDelta,
       startValue: 30,
-      onMessage: (event) => {
+      onEvent: (event) => {
         console.log(`[seq=${event.sequence}]`, new TextDecoder().decode(event.body));
       },
       onError: (err) => {

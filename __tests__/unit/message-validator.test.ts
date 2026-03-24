@@ -10,7 +10,7 @@ import {
   validateEventStoreSubscription,
   validateResponseMessage,
 } from '../../src/internal/validation/message-validator.js';
-import { EventStoreType } from '../../src/messages/events-store.js';
+import { EventStoreStartPosition } from '../../src/messages/events-store.js';
 import { ValidationError } from '../../src/errors.js';
 
 describe('validateEventMessage', () => {
@@ -81,20 +81,26 @@ describe('validateQueueMessage', () => {
 describe('validateCommandMessage', () => {
   it('passes with valid body and timeout', () => {
     expect(() =>
-      validateCommandMessage({ channel: 'cmd-channel', body: 'hello', timeoutMs: 5000 }, 'test'),
+      validateCommandMessage(
+        { channel: 'cmd-channel', body: 'hello', timeoutInSeconds: 5 },
+        'test',
+      ),
     ).not.toThrow();
   });
 
   it('passes with metadata instead of body', () => {
     expect(() =>
-      validateCommandMessage({ channel: 'cmd-channel', metadata: 'meta', timeoutMs: 5000 }, 'test'),
+      validateCommandMessage(
+        { channel: 'cmd-channel', metadata: 'meta', timeoutInSeconds: 5 },
+        'test',
+      ),
     ).not.toThrow();
   });
 
   it('passes with tags instead of body', () => {
     expect(() =>
       validateCommandMessage(
-        { channel: 'cmd-channel', tags: { key: 'value' }, timeoutMs: 5000 },
+        { channel: 'cmd-channel', tags: { key: 'value' }, timeoutInSeconds: 5 },
         'test',
       ),
     ).not.toThrow();
@@ -102,25 +108,31 @@ describe('validateCommandMessage', () => {
 
   it('throws on empty channel', () => {
     expect(() =>
-      validateCommandMessage({ channel: '', body: 'hello', timeoutMs: 5000 }, 'test'),
+      validateCommandMessage({ channel: '', body: 'hello', timeoutInSeconds: 5 }, 'test'),
     ).toThrow(ValidationError);
   });
 
   it('throws on missing body, metadata, and tags', () => {
     expect(() =>
-      validateCommandMessage({ channel: 'cmd-channel', timeoutMs: 5000 }, 'test'),
+      validateCommandMessage({ channel: 'cmd-channel', timeoutInSeconds: 5 }, 'test'),
     ).toThrow(ValidationError);
   });
 
-  it('throws on zero timeoutMs', () => {
+  it('throws on zero timeoutInSeconds', () => {
     expect(() =>
-      validateCommandMessage({ channel: 'cmd-channel', body: 'hello', timeoutMs: 0 }, 'test'),
+      validateCommandMessage(
+        { channel: 'cmd-channel', body: 'hello', timeoutInSeconds: 0 },
+        'test',
+      ),
     ).toThrow(ValidationError);
   });
 
-  it('throws on negative timeoutMs', () => {
+  it('throws on negative timeoutInSeconds', () => {
     expect(() =>
-      validateCommandMessage({ channel: 'cmd-channel', body: 'hello', timeoutMs: -100 }, 'test'),
+      validateCommandMessage(
+        { channel: 'cmd-channel', body: 'hello', timeoutInSeconds: -1 },
+        'test',
+      ),
     ).toThrow(ValidationError);
   });
 });
@@ -128,41 +140,41 @@ describe('validateCommandMessage', () => {
 describe('validateQueryMessage', () => {
   it('passes with valid body and timeout', () => {
     expect(() =>
-      validateQueryMessage({ channel: 'query-channel', body: 'data', timeoutMs: 5000 }, 'test'),
+      validateQueryMessage({ channel: 'query-channel', body: 'data', timeoutInSeconds: 5 }, 'test'),
     ).not.toThrow();
   });
 
   it('throws on empty channel', () => {
     expect(() =>
-      validateQueryMessage({ channel: '', body: 'data', timeoutMs: 5000 }, 'test'),
+      validateQueryMessage({ channel: '', body: 'data', timeoutInSeconds: 5 }, 'test'),
     ).toThrow(ValidationError);
   });
 
   it('throws on missing content (no body, metadata, or tags)', () => {
     expect(() =>
-      validateQueryMessage({ channel: 'query-channel', timeoutMs: 5000 }, 'test'),
+      validateQueryMessage({ channel: 'query-channel', timeoutInSeconds: 5 }, 'test'),
     ).toThrow(ValidationError);
   });
 
-  it('throws on zero timeoutMs', () => {
+  it('throws on zero timeoutInSeconds', () => {
     expect(() =>
-      validateQueryMessage({ channel: 'query-channel', body: 'data', timeoutMs: 0 }, 'test'),
+      validateQueryMessage({ channel: 'query-channel', body: 'data', timeoutInSeconds: 0 }, 'test'),
     ).toThrow(ValidationError);
   });
 
-  it('throws on negative cacheTTL', () => {
+  it('throws on negative cacheTtlInSeconds', () => {
     expect(() =>
       validateQueryMessage(
-        { channel: 'query-channel', body: 'data', timeoutMs: 5000, cacheTTL: -1 },
+        { channel: 'query-channel', body: 'data', timeoutInSeconds: 5, cacheTtlInSeconds: -1 },
         'test',
       ),
     ).toThrow(ValidationError);
   });
 
-  it('passes with valid cacheTTL', () => {
+  it('passes with valid cacheTtlInSeconds', () => {
     expect(() =>
       validateQueryMessage(
-        { channel: 'query-channel', body: 'data', timeoutMs: 5000, cacheTTL: 60 },
+        { channel: 'query-channel', body: 'data', timeoutInSeconds: 5, cacheTtlInSeconds: 60 },
         'test',
       ),
     ).not.toThrow();
@@ -172,56 +184,20 @@ describe('validateQueryMessage', () => {
 describe('validateQueuePollRequest', () => {
   it('passes with valid request', () => {
     expect(() =>
-      validateQueuePollRequest(
-        { channel: 'poll-channel', waitTimeoutSeconds: 10, visibilitySeconds: 30 },
-        'test',
-      ),
+      validateQueuePollRequest({ channel: 'poll-channel', waitTimeoutSeconds: 10 }, 'test'),
     ).not.toThrow();
   });
 
   it('throws on empty channel', () => {
-    expect(() =>
-      validateQueuePollRequest(
-        { channel: '', waitTimeoutSeconds: 10, visibilitySeconds: 30 },
-        'test',
-      ),
-    ).toThrow(ValidationError);
+    expect(() => validateQueuePollRequest({ channel: '', waitTimeoutSeconds: 10 }, 'test')).toThrow(
+      ValidationError,
+    );
   });
 
   it('throws on zero waitTimeoutSeconds', () => {
     expect(() =>
-      validateQueuePollRequest(
-        { channel: 'poll-channel', waitTimeoutSeconds: 0, visibilitySeconds: 30 },
-        'test',
-      ),
+      validateQueuePollRequest({ channel: 'poll-channel', waitTimeoutSeconds: 0 }, 'test'),
     ).toThrow(ValidationError);
-  });
-
-  it('throws on negative visibilitySeconds', () => {
-    expect(() =>
-      validateQueuePollRequest(
-        { channel: 'poll-channel', waitTimeoutSeconds: 10, visibilitySeconds: -5 },
-        'test',
-      ),
-    ).toThrow(ValidationError);
-  });
-
-  it('throws on autoAck with visibilitySeconds together', () => {
-    expect(() =>
-      validateQueuePollRequest(
-        { channel: 'poll-channel', waitTimeoutSeconds: 10, visibilitySeconds: 30, autoAck: true },
-        'test',
-      ),
-    ).toThrow(ValidationError);
-  });
-
-  it('passes with autoAck and zero visibilitySeconds', () => {
-    expect(() =>
-      validateQueuePollRequest(
-        { channel: 'poll-channel', waitTimeoutSeconds: 10, visibilitySeconds: 0, autoAck: true },
-        'test',
-      ),
-    ).not.toThrow();
   });
 });
 
@@ -238,13 +214,13 @@ describe('validateSubscription', () => {
 describe('validateEventStoreSubscription', () => {
   const noop = () => {};
 
-  it('passes with StartNewOnly', () => {
+  it('passes with StartFromNew', () => {
     expect(() =>
       validateEventStoreSubscription(
         {
           channel: 'es-channel',
-          startFrom: EventStoreType.StartNewOnly,
-          onMessage: noop,
+          startFrom: EventStoreStartPosition.StartFromNew,
+          onEvent: noop,
           onError: noop,
         },
         'test',
@@ -257,8 +233,8 @@ describe('validateEventStoreSubscription', () => {
       validateEventStoreSubscription(
         {
           channel: 'es-channel',
-          startFrom: EventStoreType.StartFromFirst,
-          onMessage: noop,
+          startFrom: EventStoreStartPosition.StartFromFirst,
+          onEvent: noop,
           onError: noop,
         },
         'test',
@@ -269,7 +245,12 @@ describe('validateEventStoreSubscription', () => {
   it('throws on empty channel', () => {
     expect(() =>
       validateEventStoreSubscription(
-        { channel: '', startFrom: EventStoreType.StartNewOnly, onMessage: noop, onError: noop },
+        {
+          channel: '',
+          startFrom: EventStoreStartPosition.StartFromNew,
+          onEvent: noop,
+          onError: noop,
+        },
         'test',
       ),
     ).toThrow(ValidationError);
@@ -278,7 +259,7 @@ describe('validateEventStoreSubscription', () => {
   it('throws on missing startFrom', () => {
     expect(() =>
       validateEventStoreSubscription(
-        { channel: 'es-channel', onMessage: noop, onError: noop } as any,
+        { channel: 'es-channel', onEvent: noop, onError: noop } as any,
         'test',
       ),
     ).toThrow(ValidationError);
@@ -289,9 +270,9 @@ describe('validateEventStoreSubscription', () => {
       validateEventStoreSubscription(
         {
           channel: 'es-channel',
-          startFrom: EventStoreType.StartAtSequence,
+          startFrom: EventStoreStartPosition.StartAtSequence,
           startValue: -1,
-          onMessage: noop,
+          onEvent: noop,
           onError: noop,
         },
         'test',
@@ -304,9 +285,9 @@ describe('validateEventStoreSubscription', () => {
       validateEventStoreSubscription(
         {
           channel: 'es-channel',
-          startFrom: EventStoreType.StartAtSequence,
+          startFrom: EventStoreStartPosition.StartAtSequence,
           startValue: 0,
-          onMessage: noop,
+          onEvent: noop,
           onError: noop,
         },
         'test',
@@ -319,9 +300,9 @@ describe('validateEventStoreSubscription', () => {
       validateEventStoreSubscription(
         {
           channel: 'es-channel',
-          startFrom: EventStoreType.StartAtTime,
+          startFrom: EventStoreStartPosition.StartAtTime,
           startValue: 0,
-          onMessage: noop,
+          onEvent: noop,
           onError: noop,
         },
         'test',
@@ -334,9 +315,9 @@ describe('validateEventStoreSubscription', () => {
       validateEventStoreSubscription(
         {
           channel: 'es-channel',
-          startFrom: EventStoreType.StartAtTime,
+          startFrom: EventStoreStartPosition.StartAtTime,
           startValue: 1700000000,
-          onMessage: noop,
+          onEvent: noop,
           onError: noop,
         },
         'test',
@@ -349,9 +330,9 @@ describe('validateEventStoreSubscription', () => {
       validateEventStoreSubscription(
         {
           channel: 'es-channel',
-          startFrom: EventStoreType.StartAtTimeDelta,
+          startFrom: EventStoreStartPosition.StartAtTimeDelta,
           startValue: 0,
-          onMessage: noop,
+          onEvent: noop,
           onError: noop,
         },
         'test',
@@ -364,9 +345,9 @@ describe('validateEventStoreSubscription', () => {
       validateEventStoreSubscription(
         {
           channel: 'es-channel',
-          startFrom: EventStoreType.StartAtTimeDelta,
+          startFrom: EventStoreStartPosition.StartAtTimeDelta,
           startValue: 60,
-          onMessage: noop,
+          onEvent: noop,
           onError: noop,
         },
         'test',
@@ -428,30 +409,30 @@ describe('channel format validation (GAP-09)', () => {
   });
 });
 
-describe('cacheKey/cacheTTL coupling (GAP-10)', () => {
-  it('rejects cacheKey without cacheTTL', () => {
+describe('cacheKey/cacheTtlInSeconds coupling (GAP-10)', () => {
+  it('rejects cacheKey without cacheTtlInSeconds', () => {
     expect(() =>
       validateQueryMessage(
         {
           channel: 'q-ch',
           body: new Uint8Array([1]),
-          timeoutMs: 5000,
+          timeoutInSeconds: 5,
           cacheKey: 'my-key',
         } as any,
         'test',
       ),
-    ).toThrow(/cacheTTL/i);
+    ).toThrow(/cacheTtlInSeconds/i);
   });
 
-  it('allows cacheKey with positive cacheTTL', () => {
+  it('allows cacheKey with positive cacheTtlInSeconds', () => {
     expect(() =>
       validateQueryMessage(
         {
           channel: 'q-ch',
           body: new Uint8Array([1]),
-          timeoutMs: 5000,
+          timeoutInSeconds: 5,
           cacheKey: 'my-key',
-          cacheTTL: 60,
+          cacheTtlInSeconds: 60,
         } as any,
         'test',
       ),
@@ -499,8 +480,8 @@ describe('EventsStore wildcard rejection (GAP-15)', () => {
       validateEventStoreSubscription(
         {
           channel: 'events.*',
-          startFrom: EventStoreType.StartNewOnly,
-          onMessage: () => {},
+          startFrom: EventStoreStartPosition.StartFromNew,
+          onEvent: () => {},
           onError: () => {},
         } as any,
         'test',
@@ -515,7 +496,6 @@ describe('queue upper bound checks (GAP-18)', () => {
       validateQueuePollRequest(
         {
           channel: 'q',
-          visibilitySeconds: 30,
           waitTimeoutSeconds: 5,
           maxMessages: 2000,
         },
@@ -529,7 +509,6 @@ describe('queue upper bound checks (GAP-18)', () => {
       validateQueuePollRequest(
         {
           channel: 'q',
-          visibilitySeconds: 30,
           waitTimeoutSeconds: 5000,
         },
         'test',
@@ -544,9 +523,9 @@ describe('StartAtSequence validation (GAP-19)', () => {
       validateEventStoreSubscription(
         {
           channel: 'store-ch',
-          startFrom: EventStoreType.StartAtSequence,
+          startFrom: EventStoreStartPosition.StartAtSequence,
           startValue: 0,
-          onMessage: () => {},
+          onEvent: () => {},
           onError: () => {},
         } as any,
         'test',
@@ -559,9 +538,9 @@ describe('StartAtSequence validation (GAP-19)', () => {
       validateEventStoreSubscription(
         {
           channel: 'store-ch',
-          startFrom: EventStoreType.StartAtSequence,
+          startFrom: EventStoreStartPosition.StartAtSequence,
           startValue: 1,
-          onMessage: () => {},
+          onEvent: () => {},
           onError: () => {},
         } as any,
         'test',

@@ -16,9 +16,10 @@ async function main() {
     );
 
     console.log('Sent message ID:', result.messageId);
-    const expiresAt = result.expirationAt instanceof Date && !isNaN(result.expirationAt.getTime())
-      ? result.expirationAt.toISOString()
-      : 'N/A';
+    const expiresAt =
+      result.expirationAt instanceof Date && !isNaN(result.expirationAt.getTime())
+        ? result.expirationAt.toISOString()
+        : 'N/A';
     console.log('Expires at:', expiresAt);
   } finally {
     await client.close();

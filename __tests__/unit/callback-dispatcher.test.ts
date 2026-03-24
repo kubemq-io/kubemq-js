@@ -191,4 +191,224 @@ describe('CallbackDispatcher', () => {
 
     expect(results).toEqual([undefined, undefined, undefined]);
   });
+
+  // ─── High / Low Water Mark & Drop Mode Tests ───
+
+  it('high water mark triggers onHighWater when queue is full', async () => {
+    const logger = createTestLogger();
+    const errors: KubeMQError[] = [];
+    const highWaterCalls: number[] = [];
+    const lowWaterCalls: number[] = [];
+    const dispatcher = new CallbackDispatcher<string>({
+      maxConcurrent: 1,
+      maxQueueDepth: 3,
+      dropOnHighWater: false,
+      logger,
+      onError: (err) => errors.push(err),
+      onHighWater: () => highWaterCalls.push(Date.now()),
+      onLowWater: () => lowWaterCalls.push(Date.now()),
+    });
+
+    // Dispatch 5 slow handlers — with maxConcurrent=1, the queue will fill up
+    for (let i = 0; i < 5; i++) {
+      dispatcher.dispatch(async () => {
+        await sleep(20);
+      }, `msg-${i}`);
+    }
+
+    // Give the event loop a tick so the semaphore queue builds up
+    await sleep(5);
+
+    expect(highWaterCalls.length).toBe(1);
+    expect((dispatcher as any)._paused).toBe(true);
+
+    dispatcher.close();
+  });
+
+  it('high water mark not triggered below threshold', async () => {
+    const logger = createTestLogger();
+    const errors: KubeMQError[] = [];
+    const highWaterCalls: number[] = [];
+    const dispatcher = new CallbackDispatcher<string>({
+      maxConcurrent: 1,
+      maxQueueDepth: 10,
+      dropOnHighWater: false,
+      logger,
+      onError: (err) => errors.push(err),
+      onHighWater: () => highWaterCalls.push(Date.now()),
+    });
+
+    // Dispatch only 3 fast handlers — should not trigger high water (maxQueueDepth=10)
+    for (let i = 0; i < 3; i++) {
+      dispatcher.dispatch(async () => {
+        await sleep(1);
+      }, `msg-${i}`);
+    }
+
+    await dispatcher.drain();
+
+    expect(highWaterCalls.length).toBe(0);
+  });
+
+  it('drop mode silently drops when queue full', async () => {
+    const logger = createTestLogger();
+    const errors: KubeMQError[] = [];
+    const received: string[] = [];
+    const dispatcher = new CallbackDispatcher<string>({
+      maxConcurrent: 1,
+      maxQueueDepth: 2,
+      dropOnHighWater: true,
+      logger,
+      onError: (err) => errors.push(err),
+    });
+
+    // Dispatch 4 slow handlers — first one runs, next fill queue, rest get dropped
+    for (let i = 0; i < 4; i++) {
+      dispatcher.dispatch(async (msg) => {
+        await sleep(20);
+        received.push(msg);
+      }, `msg-${i}`);
+    }
+
+    await dispatcher.drain();
+
+    // Some messages should have been dropped
+    expect(dispatcher.dropCount).toBeGreaterThan(0);
+    expect(received.length).toBeLessThan(4);
+  });
+
+  it('dropCount getter returns correct count', async () => {
+    const logger = createTestLogger();
+    const errors: KubeMQError[] = [];
+    const received: string[] = [];
+    const dispatcher = new CallbackDispatcher<string>({
+      maxConcurrent: 1,
+      maxQueueDepth: 2,
+      dropOnHighWater: true,
+      logger,
+      onError: (err) => errors.push(err),
+    });
+
+    for (let i = 0; i < 6; i++) {
+      dispatcher.dispatch(async (msg) => {
+        await sleep(20);
+        received.push(msg);
+      }, `msg-${i}`);
+    }
+
+    await dispatcher.drain();
+
+    // dropCount + received should equal total dispatched
+    expect(dispatcher.dropCount + received.length).toBe(6);
+    expect(dispatcher.dropCount).toBeGreaterThan(0);
+  });
+
+  it('onHighWater not called in drop mode', async () => {
+    const logger = createTestLogger();
+    const errors: KubeMQError[] = [];
+    const highWaterCalls: number[] = [];
+    const dispatcher = new CallbackDispatcher<string>({
+      maxConcurrent: 1,
+      maxQueueDepth: 2,
+      dropOnHighWater: true,
+      logger,
+      onError: (err) => errors.push(err),
+      onHighWater: () => highWaterCalls.push(Date.now()),
+    });
+
+    for (let i = 0; i < 5; i++) {
+      dispatcher.dispatch(async () => {
+        await sleep(20);
+      }, `msg-${i}`);
+    }
+
+    await dispatcher.drain();
+
+    // In drop mode, onHighWater should never be called
+    expect(highWaterCalls.length).toBe(0);
+  });
+
+  it('low water mark triggers onLowWater when queue drains below half', async () => {
+    const logger = createTestLogger();
+    const errors: KubeMQError[] = [];
+    const highWaterCalls: number[] = [];
+    const lowWaterCalls: number[] = [];
+    const dispatcher = new CallbackDispatcher<string>({
+      maxConcurrent: 1,
+      maxQueueDepth: 3,
+      dropOnHighWater: false,
+      logger,
+      onError: (err) => errors.push(err),
+      onHighWater: () => highWaterCalls.push(Date.now()),
+      onLowWater: () => lowWaterCalls.push(Date.now()),
+    });
+
+    // With maxConcurrent=1 and maxQueueDepth=3, iteration 5 will see
+    // semaphore.waiting=3 and trigger high water. As handlers complete
+    // and waiting drops below 3/2=1.5, low water will trigger.
+    for (let i = 0; i < 6; i++) {
+      dispatcher.dispatch(async () => {
+        await sleep(15);
+      }, `msg-${i}`);
+    }
+
+    // Wait for all to complete — low water should trigger as queue drains
+    await dispatcher.drain();
+
+    expect(highWaterCalls.length).toBeGreaterThanOrEqual(1);
+    expect(lowWaterCalls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('onHighWater only called once while paused', async () => {
+    const logger = createTestLogger();
+    const errors: KubeMQError[] = [];
+    const highWaterCalls: number[] = [];
+    const dispatcher = new CallbackDispatcher<string>({
+      maxConcurrent: 1,
+      maxQueueDepth: 3,
+      dropOnHighWater: false,
+      logger,
+      onError: (err) => errors.push(err),
+      onHighWater: () => highWaterCalls.push(Date.now()),
+    });
+
+    // Dispatch many items past the threshold — onHighWater should only fire once
+    for (let i = 0; i < 8; i++) {
+      dispatcher.dispatch(async () => {
+        await sleep(10);
+      }, `msg-${i}`);
+    }
+
+    await sleep(5);
+
+    // Should only be called once even though multiple dispatches exceed the threshold
+    expect(highWaterCalls.length).toBe(1);
+
+    dispatcher.close();
+  });
+
+  it('close resolves pending drain waiters', async () => {
+    const logger = createTestLogger();
+    const errors: KubeMQError[] = [];
+    const dispatcher = new CallbackDispatcher<string>({
+      maxConcurrent: 1,
+      logger,
+      onError: (err) => errors.push(err),
+    });
+
+    // Dispatch a slow handler so drain() will be pending
+    dispatcher.dispatch(async () => {
+      await sleep(500);
+    }, 'slow');
+
+    // Start drain — it won't resolve because the handler is slow
+    const drainPromise = dispatcher.drain();
+
+    // Close should resolve pending drain waiters
+    await sleep(5);
+    dispatcher.close();
+
+    // drain should now resolve (not hang)
+    await expect(drainPromise).resolves.toBeUndefined();
+  });
 });

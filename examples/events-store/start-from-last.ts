@@ -1,4 +1,4 @@
-import { KubeMQClient, EventStoreType, createEventStoreMessage } from '../../src/index.js';
+import { KubeMQClient, EventStoreStartPosition, createEventStoreMessage } from '../../src/index.js';
 
 async function main() {
   const client = await KubeMQClient.create({
@@ -7,14 +7,17 @@ async function main() {
   });
 
   try {
-    await client.publishEventStore(
-      createEventStoreMessage({ channel: 'js-events-store.start-from-last', body: 'pre-existing message' }),
+    await client.sendEventStore(
+      createEventStoreMessage({
+        channel: 'js-events-store.start-from-last',
+        body: 'pre-existing message',
+      }),
     );
 
     const sub = client.subscribeToEventsStore({
       channel: 'js-events-store.start-from-last',
-      startFrom: EventStoreType.StartFromLast,
-      onMessage: (event) => {
+      startFrom: EventStoreStartPosition.StartFromLast,
+      onEvent: (event) => {
         console.log(`[seq=${event.sequence}]`, new TextDecoder().decode(event.body));
       },
       onError: (err) => {

@@ -31,15 +31,15 @@ describe('ClientOptions validation', () => {
     expect(() => validateClientOptions({ address: 'localhost:50000' })).not.toThrow();
   });
 
-  it('rejects negative connectionTimeoutMs', () => {
+  it('rejects negative connectionTimeoutSeconds', () => {
     expect(() =>
-      validateClientOptions({ address: 'localhost:50000', connectionTimeoutMs: -1 }),
+      validateClientOptions({ address: 'localhost:50000', connectionTimeoutSeconds: -1 }),
     ).toThrow(ConfigurationError);
   });
 
-  it('rejects zero connectionTimeoutMs', () => {
+  it('rejects zero connectionTimeoutSeconds', () => {
     expect(() =>
-      validateClientOptions({ address: 'localhost:50000', connectionTimeoutMs: 0 }),
+      validateClientOptions({ address: 'localhost:50000', connectionTimeoutSeconds: 0 }),
     ).toThrow(ConfigurationError);
   });
 
@@ -66,7 +66,7 @@ describe('ClientOptions validation', () => {
       validateClientOptions({
         address: 'localhost:50000',
         clientId: 'test-client',
-        connectionTimeoutMs: 5000,
+        connectionTimeoutSeconds: 5,
       }),
     ).not.toThrow();
   });

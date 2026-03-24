@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { createEventStoreMessage, EventStoreType } from '../../../src/messages/events-store.js';
+import {
+  createEventStoreMessage,
+  EventStoreStartPosition,
+} from '../../../src/messages/events-store.js';
 import { ValidationError } from '../../../src/errors.js';
 
 describe('createEventStoreMessage', () => {
@@ -76,13 +79,13 @@ describe('createEventStoreMessage', () => {
   });
 });
 
-describe('EventStoreType', () => {
+describe('EventStoreStartPosition', () => {
   it('has correct enum values', () => {
-    expect(EventStoreType.StartNewOnly).toBe(1);
-    expect(EventStoreType.StartFromFirst).toBe(2);
-    expect(EventStoreType.StartFromLast).toBe(3);
-    expect(EventStoreType.StartAtSequence).toBe(4);
-    expect(EventStoreType.StartAtTime).toBe(5);
-    expect(EventStoreType.StartAtTimeDelta).toBe(6);
+    expect(EventStoreStartPosition.StartFromNew).toBe(1);
+    expect(EventStoreStartPosition.StartFromFirst).toBe(2);
+    expect(EventStoreStartPosition.StartFromLast).toBe(3);
+    expect(EventStoreStartPosition.StartAtSequence).toBe(4);
+    expect(EventStoreStartPosition.StartAtTime).toBe(5);
+    expect(EventStoreStartPosition.StartAtTimeDelta).toBe(6);
   });
 });

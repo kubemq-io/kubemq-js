@@ -31,13 +31,13 @@ without deploying multiple messaging systems.
 
 KubeMQ runs as a StatefulSet inside Kubernetes and supports five messaging patterns:
 
-| Pattern       | Delivery Guarantee | Persistence | Direction          |
-|---------------|--------------------|-------------|--------------------|
-| Events        | At-most-once       | No          | One-to-many        |
-| Events Store  | At-least-once      | Yes         | One-to-many        |
-| Queues        | At-least-once      | Yes         | One-to-one (FIFO)  |
-| Commands      | Exactly-once       | No          | One-to-one (RPC)   |
-| Queries       | Exactly-once       | No          | One-to-one (RPC)   |
+| Pattern      | Delivery Guarantee | Persistence | Direction         |
+| ------------ | ------------------ | ----------- | ----------------- |
+| Events       | At-most-once       | No          | One-to-many       |
+| Events Store | At-least-once      | Yes         | One-to-many       |
+| Queues       | At-least-once      | Yes         | One-to-one (FIFO) |
+| Commands     | Exactly-once       | No          | One-to-one (RPC)  |
+| Queries      | Exactly-once       | No          | One-to-one (RPC)  |
 
 All SDKs (Go, Python, Java, C#, JavaScript/TypeScript) expose the same patterns and
 semantics, so concepts learned here apply uniformly across languages.
@@ -79,13 +79,13 @@ the message immediately; new or reconnecting subscribers can replay from any poi
 
 **Subscription start positions:**
 
-| Position            | Description                                         |
-|---------------------|-----------------------------------------------------|
-| Start from new      | Only receive messages published after subscribing   |
-| Start from first    | Replay all messages from the beginning of the store |
-| Start from last     | Start from the most recent message                  |
-| Start from sequence | Replay from a specific sequence number              |
-| Start from time     | Replay from a specific timestamp                    |
+| Position            | Description                                                        |
+| ------------------- | ------------------------------------------------------------------ |
+| Start from new      | Only receive messages published after subscribing                  |
+| Start from first    | Replay all messages from the beginning of the store                |
+| Start from last     | Start from the most recent message                                 |
+| Start from sequence | Replay from a specific sequence number                             |
+| Start from time     | Replay from a specific timestamp                                   |
 | Start from delta    | Replay messages from a relative time offset (e.g., last 5 minutes) |
 
 **Key characteristics:**
@@ -106,13 +106,11 @@ delivery. Messages persist until explicitly acknowledged by a consumer.
 
 A producer sends a message to a queue channel; the broker persists it. A consumer
 polls or receives the message, processes it, and sends an **acknowledgment** (ack).
-On ack, the message is removed. If the consumer fails to ack within the **visibility
-timeout**, the message becomes available to other consumers.
+On ack, the message is removed. If the consumer fails to ack, the message becomes
+available to other consumers.
 
 **Advanced features:**
 
-- **Visibility timeout** — Time a message is hidden from other consumers while being
-  processed. If the consumer crashes or doesn't ack in time, the message reappears.
 - **Dead-letter queue** — Messages exceeding the maximum receive count are moved to a
   dead-letter channel for inspection.
 - **Delayed delivery** — Messages can be scheduled for future delivery by specifying
@@ -186,13 +184,13 @@ subscription listens on a channel.
 
 Each channel is associated with exactly one messaging pattern:
 
-| Channel Type   | Pattern      | Example Channel Name         |
-|----------------|--------------|------------------------------|
-| events         | Events       | `notifications.user.signup`  |
-| events_store   | Events Store | `audit.orders.created`       |
-| queues         | Queues       | `tasks.image.resize`         |
-| commands       | Commands     | `service.payments.charge`    |
-| queries        | Queries      | `service.inventory.check`    |
+| Channel Type | Pattern      | Example Channel Name        |
+| ------------ | ------------ | --------------------------- |
+| events       | Events       | `notifications.user.signup` |
+| events_store | Events Store | `audit.orders.created`      |
+| queues       | Queues       | `tasks.image.resize`        |
+| commands     | Commands     | `service.payments.charge`   |
+| queries      | Queries      | `service.inventory.check`   |
 
 ### Naming Conventions
 
@@ -205,10 +203,10 @@ Each channel is associated with exactly one messaging pattern:
 
 Events and Events Store channels support wildcard subscriptions:
 
-| Wildcard | Meaning                    | Example                                        |
-|----------|----------------------------|------------------------------------------------|
+| Wildcard | Meaning                    | Example                                                                            |
+| -------- | -------------------------- | ---------------------------------------------------------------------------------- |
 | `*`      | Matches one level          | `notifications.*` matches `notifications.email` but not `notifications.email.sent` |
-| `>`      | Matches one or more levels | `notifications.>` matches `notifications.email` and `notifications.email.sent` |
+| `>`      | Matches one or more levels | `notifications.>` matches `notifications.email` and `notifications.email.sent`     |
 
 Queues, Commands, and Queries require exact channel names.
 
@@ -238,13 +236,13 @@ Instead of every subscriber receiving every message, each message is delivered t
 
 Consumer groups are available for all messaging patterns:
 
-| Pattern       | Group Behavior                                      |
-|---------------|-----------------------------------------------------|
-| Events        | One subscriber in the group receives each event     |
-| Events Store  | One subscriber in the group receives each event     |
-| Queues        | One consumer in the group receives each message     |
-| Commands      | One responder in the group handles each command     |
-| Queries       | One responder in the group handles each query       |
+| Pattern      | Group Behavior                                  |
+| ------------ | ----------------------------------------------- |
+| Events       | One subscriber in the group receives each event |
+| Events Store | One subscriber in the group receives each event |
+| Queues       | One consumer in the group receives each message |
+| Commands     | One responder in the group handles each command |
+| Queries      | One responder in the group handles each query   |
 
 ### When to Use
 
@@ -279,9 +277,9 @@ can replay the entire history or start from any point in the stream.
 
 **Failure scenarios:**
 
-- **No ack within visibility timeout** — Message becomes visible again and is
-  delivered to the next available consumer.
-- **Explicit reject** — Message is returned to the queue immediately.
+- **No ack** — Message becomes available again and is delivered to the next
+  available consumer.
+- **Explicit nack** — Message is returned to the queue immediately.
 - **Max receive count exceeded** — Message is moved to the dead-letter queue.
 - **Message expired (TTL)** — Message is removed from the queue automatically.
 
@@ -296,25 +294,25 @@ managed automatically by the SDK.
 
 `DISCONNECTED → CONNECTING → CONNECTED → RECONNECTING → (back to CONNECTING)`
 
-| State          | Description                                           |
-|----------------|-------------------------------------------------------|
-| DISCONNECTED   | No active connection to the broker                    |
-| CONNECTING     | Initial connection attempt in progress                |
-| CONNECTED      | Active, healthy connection                            |
-| RECONNECTING   | Connection lost; SDK is attempting to re-establish it |
+| State        | Description                                           |
+| ------------ | ----------------------------------------------------- |
+| DISCONNECTED | No active connection to the broker                    |
+| CONNECTING   | Initial connection attempt in progress                |
+| CONNECTED    | Active, healthy connection                            |
+| RECONNECTING | Connection lost; SDK is attempting to re-establish it |
 
 ### Connection Parameters
 
-| Parameter          | Description                                           |
-|--------------------|-------------------------------------------------------|
-| Address            | Broker host and gRPC port (e.g., `localhost:50000`)   |
-| Client ID          | Unique identifier for this client instance            |
-| Auth Token         | JWT or API key for authentication (optional)          |
-| TLS                | Enable TLS encryption for the gRPC channel            |
-| TLS Certificate    | Client certificate for mutual TLS (mTLS)             |
-| Keep-alive         | Interval for gRPC keep-alive pings                    |
-| Reconnect interval | Delay between reconnection attempts                   |
-| Max reconnects     | Maximum reconnection attempts (0 = unlimited)         |
+| Parameter          | Description                                         |
+| ------------------ | --------------------------------------------------- |
+| Address            | Broker host and gRPC port (e.g., `localhost:50000`) |
+| Client ID          | Unique identifier for this client instance          |
+| Auth Token         | JWT or API key for authentication (optional)        |
+| TLS                | Enable TLS encryption for the gRPC channel          |
+| TLS Certificate    | Client certificate for mutual TLS (mTLS)            |
+| Keep-alive         | Interval for gRPC keep-alive pings                  |
+| Reconnect interval | Delay between reconnection attempts                 |
+| Max reconnects     | Maximum reconnection attempts (0 = unlimited)       |
 
 ### Automatic Reconnection
 
@@ -338,14 +336,14 @@ KubeMQ SDKs categorize errors to help applications decide how to respond.
 
 ### Error Categories
 
-| Category         | Description                                          | Retryable |
-|------------------|------------------------------------------------------|-----------|
-| CONNECTIVITY     | Network-level failures (timeout, DNS, TCP)           | Yes       |
-| AUTHENTICATION   | Invalid or expired auth token                        | No*       |
-| CONFIGURATION    | Invalid client settings or parameters                | No        |
-| OPERATION        | Business-logic failures (e.g., no responder)         | Sometimes |
-| DATA             | Malformed message, payload too large                 | No        |
-| SYSTEM           | Internal broker errors                               | Yes       |
+| Category       | Description                                  | Retryable |
+| -------------- | -------------------------------------------- | --------- |
+| CONNECTIVITY   | Network-level failures (timeout, DNS, TCP)   | Yes       |
+| AUTHENTICATION | Invalid or expired auth token                | No\*      |
+| CONFIGURATION  | Invalid client settings or parameters        | No        |
+| OPERATION      | Business-logic failures (e.g., no responder) | Sometimes |
+| DATA           | Malformed message, payload too large         | No        |
+| SYSTEM         | Internal broker errors                       | Yes       |
 
 \* Authentication errors may become retryable after refreshing the token.
 
@@ -409,5 +407,5 @@ an **isRetryable** flag, and an actionable **suggestion**.
 
 ---
 
-*This document covers KubeMQ concepts applicable to all SDKs. For language-specific
-API references and code examples, see the SDK README and examples directory.*
+_This document covers KubeMQ concepts applicable to all SDKs. For language-specific
+API references and code examples, see the SDK README and examples directory._

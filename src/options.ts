@@ -163,7 +163,7 @@ export interface OperationOptions {
    * ```typescript
    * const controller = new AbortController();
    * setTimeout(() => controller.abort(), 5000);
-   * await client.publishEvent(msg, { signal: controller.signal });
+   * await client.sendEvent(msg, { signal: controller.signal });
    * ```
    */
   signal?: AbortSignal;
@@ -182,15 +182,28 @@ export interface OperationOptions {
 export interface SubscriptionOptions extends OperationOptions {
   /**
    * Maximum number of concurrent callback invocations.
-   * Default: 1 (sequential processing — callbacks never overlap).
+   * Default varies by subscription type: events=100, events_store=20, commands/queries=1.
    * Set to a higher value for parallel message processing.
    *
    * @remarks
    * When > 1, messages are dispatched to the callback concurrently
    * using an internal semaphore. Message ordering is NOT guaranteed
-   * when concurrency > 1. Use 1 (default) for ordered processing.
+   * when concurrency > 1. Use 1 for ordered processing.
    */
   maxConcurrentCallbacks?: number;
+
+  /**
+   * Maximum internal queue depth before backpressure is applied.
+   * Default: 1000.
+   */
+  maxQueueDepth?: number;
+
+  /**
+   * If true, drop messages when the internal queue is full instead of
+   * pausing the gRPC stream. Useful for pub/sub patterns where message
+   * loss is acceptable but stream stalls are not. Default: false.
+   */
+  dropOnHighWater?: boolean;
 }
 
 /**
@@ -198,20 +211,20 @@ export interface SubscriptionOptions extends OperationOptions {
  */
 export interface CloseOptions {
   /**
-   * Max time to wait for in-flight gRPC operations to drain, in ms.
-   * Default: 5000 (5s).
+   * Max time to wait for in-flight gRPC operations to drain, in seconds.
+   * Default: 5.
    */
-  timeoutMs?: number;
+  timeoutSeconds?: number;
 
   /**
-   * Max time to wait for in-flight subscription callbacks to complete, in ms.
-   * Default: 30000 (30s).
+   * Max time to wait for in-flight subscription callbacks to complete, in seconds.
+   * Default: 30.
    *
    * Callbacks that haven't completed within this timeout are abandoned —
    * they may still be running in the background but the client will
    * proceed to close.
    */
-  callbackTimeoutMs?: number;
+  callbackTimeoutSeconds?: number;
 }
 
 /**
@@ -248,8 +261,8 @@ export interface ClientOptions {
   retry?: RetryPolicy;
   /** Reconnection policy for dropped connections. Uses {@link DEFAULT_RECONNECTION_POLICY} if omitted. */
   reconnect?: ReconnectionPolicy;
-  /** Maximum time in milliseconds to wait for the initial connection. Default: {@link DEFAULT_CONNECTION_TIMEOUT_MS}. */
-  connectionTimeoutMs?: number;
+  /** Maximum time in seconds to wait for the initial connection. Default: 10. */
+  connectionTimeoutSeconds?: number;
   /** Maximum inbound message size in bytes. Default: {@link DEFAULT_MAX_MESSAGE_SIZE} (100 MiB). */
   maxReceiveMessageSize?: number;
   /** Maximum outbound message size in bytes. Default: {@link DEFAULT_MAX_MESSAGE_SIZE} (100 MiB). */
@@ -268,14 +281,14 @@ export interface ClientOptions {
   reconnectBufferMode?: 'error' | 'block';
   /** Maximum number of concurrent retry operations across all calls. Default: {@link DEFAULT_MAX_CONCURRENT_RETRIES}. */
   maxConcurrentRetries?: number;
-  /** Default timeout in milliseconds for publish/send operations. Default: {@link DEFAULT_SEND_TIMEOUT_MS}. */
-  defaultSendTimeoutMs?: number;
-  /** Default timeout in milliseconds for subscribe operations. Default: {@link DEFAULT_SUBSCRIBE_TIMEOUT_MS}. */
-  defaultSubscribeTimeoutMs?: number;
-  /** Default timeout in milliseconds for RPC (command/query) operations. Default: {@link DEFAULT_RPC_TIMEOUT_MS}. */
-  defaultRpcTimeoutMs?: number;
-  /** Default timeout in milliseconds for queue receive operations. Default: {@link DEFAULT_QUEUE_RECEIVE_TIMEOUT_MS}. */
-  defaultQueueReceiveTimeoutMs?: number;
-  /** Default timeout in milliseconds for queue poll operations. Default: {@link DEFAULT_QUEUE_POLL_TIMEOUT_MS}. */
-  defaultQueuePollTimeoutMs?: number;
+  /** Default timeout in seconds for publish/send operations. Default: 5. */
+  defaultSendTimeoutSeconds?: number;
+  /** Default timeout in seconds for subscribe operations. Default: 10. */
+  defaultSubscribeTimeoutSeconds?: number;
+  /** Default timeout in seconds for RPC (command/query) operations. Default: 10. */
+  defaultRpcTimeoutSeconds?: number;
+  /** Default timeout in seconds for queue receive operations. Default: 10. */
+  defaultQueueReceiveTimeoutSeconds?: number;
+  /** Default timeout in seconds for queue poll operations. Default: 30. */
+  defaultQueuePollTimeoutSeconds?: number;
 }

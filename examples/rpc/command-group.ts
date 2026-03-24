@@ -21,7 +21,7 @@ async function main() {
 
     await new Promise((r) => setTimeout(r, 500));
     const resp = await client.sendCommand(
-      createCommand({ channel: 'js-rpc.command-group', body: 'do-work', timeoutMs: 5000 }),
+      createCommand({ channel: 'js-rpc.command-group', body: 'do-work', timeoutInSeconds: 5 }),
     );
     console.log('Command executed:', resp.executed);
 

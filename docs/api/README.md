@@ -25,7 +25,7 @@ Key guarantees:
 
 ## Enumerations
 
-- [EventStoreType](enumerations/EventStoreType.md)
+- [EventStoreStartPosition](enumerations/EventStoreType.md)
 
 ## Classes
 
@@ -65,19 +65,19 @@ Key guarantees:
 - [ChannelInfo](interfaces/ChannelInfo.md)
 - [Logger](interfaces/Logger.md)
 - [CommandMessage](interfaces/CommandMessage.md)
-- [ReceivedCommand](interfaces/ReceivedCommand.md)
+- [CommandReceived](interfaces/ReceivedCommand.md)
 - [CommandResponse](interfaces/CommandResponse.md)
 - [CommandSubscription](interfaces/CommandSubscription.md)
 - [EventStoreMessage](interfaces/EventStoreMessage.md)
-- [ReceivedEventStore](interfaces/ReceivedEventStore.md)
+- [EventStoreReceived](interfaces/ReceivedEventStore.md)
 - [EventStoreSubscription](interfaces/EventStoreSubscription.md)
 - [EventStoreStreamHandle](interfaces/EventStoreStreamHandle.md)
 - [EventMessage](interfaces/EventMessage.md)
-- [ReceivedEvent](interfaces/ReceivedEvent.md)
+- [EventReceived](interfaces/ReceivedEvent.md)
 - [EventsSubscription](interfaces/EventsSubscription.md)
 - [EventStreamHandle](interfaces/EventStreamHandle.md)
 - [QueryMessage](interfaces/QueryMessage.md)
-- [ReceivedQuery](interfaces/ReceivedQuery.md)
+- [QueryReceived](interfaces/ReceivedQuery.md)
 - [QueryResponse](interfaces/QueryResponse.md)
 - [QuerySubscription](interfaces/QuerySubscription.md)
 - [QueueMessagePolicy](interfaces/QueueMessagePolicy.md)

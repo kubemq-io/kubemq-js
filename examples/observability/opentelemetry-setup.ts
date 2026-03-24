@@ -27,7 +27,7 @@ import { KubeMQClient, createEventMessage } from '../../src/index.js';
 
 async function main(): Promise<void> {
   // Pass the tracerProvider to enable automatic span creation.
-  // The SDK creates spans for: publishEvent, sendQueueMessage, sendCommand,
+  // The SDK creates spans for: sendEvent, sendQueueMessage, sendCommand,
   // sendQuery, subscribeToEvents, and all other client operations.
   const client = await KubeMQClient.create({
     address: 'localhost:50000',
@@ -36,9 +36,9 @@ async function main(): Promise<void> {
   });
 
   try {
-    // This operation will create a span named "kubemq.publishEvent"
+    // This operation will create a span named "kubemq.sendEvent"
     // with attributes: messaging.system, messaging.destination, etc.
-    await client.publishEvent(
+    await client.sendEvent(
       createEventMessage({
         channel: 'js-observability.opentelemetry-setup',
         body: JSON.stringify({ orderId: 'ORD-001', total: 99.99 }),

@@ -28,9 +28,9 @@ async function main() {
     const q = createQuery({
       channel: 'js-rpc.query-cache-hit',
       body: 'lookup',
-      timeoutMs: 5000,
+      timeoutInSeconds: 5,
       cacheKey: 'my-key',
-      cacheTTL: 60,
+      cacheTtlInSeconds: 60,
     });
     const r1 = await client.sendQuery(q);
     console.log('Response 1 — cacheHit:', r1.cacheHit ?? false);

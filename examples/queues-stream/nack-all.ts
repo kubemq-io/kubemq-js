@@ -11,7 +11,10 @@ async function main() {
       createQueueMessage({ channel: 'js-queues-stream.nack-all', body: 'will be nacked' }),
     );
 
-    const handle = client.streamQueueMessages({ channel: 'js-queues-stream.nack-all', maxMessages: 10 });
+    const handle = client.streamQueueMessages({
+      channel: 'js-queues-stream.nack-all',
+      maxMessages: 10,
+    });
     handle.onMessages((msgs) => {
       console.log('Received', msgs.length, 'message(s) — nacking all');
       handle.nackAll();

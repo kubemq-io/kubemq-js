@@ -66,7 +66,7 @@ The simplest approach checks `isRetryable` to decide whether to retry or escalat
 import { KubeMQError } from 'kubemq-js';
 
 try {
-  await client.publishEvent(msg);
+  await client.sendEvent(msg);
 } catch (err) {
   if (err instanceof KubeMQError) {
     if (err.isRetryable) {
@@ -93,7 +93,7 @@ import {
 } from 'kubemq-js';
 
 try {
-  await client.publishEvent(msg);
+  await client.sendEvent(msg);
 } catch (err) {
   if (err instanceof ConnectionError) {
     // Server unreachable — SDK already retried per RetryPolicy.
@@ -118,16 +118,16 @@ try {
 
 Every `KubeMQError` exposes these properties for diagnostics and log correlation:
 
-| Property      | Type                  | Description                                               |
-| ------------- | --------------------- | --------------------------------------------------------- |
-| `code`        | `ErrorCode`           | Machine-readable error code (e.g., `CONNECTION_TIMEOUT`)  |
-| `message`     | `string`              | Human-readable description                                |
-| `operation`   | `string`              | SDK method that produced the error (e.g., `publishEvent`) |
-| `channel`     | `string \| undefined` | The channel or queue involved, if applicable              |
-| `cause`       | `Error \| undefined`  | Underlying error (ES2022 `Error.cause`)                   |
-| `suggestion`  | `string \| undefined` | Actionable fix recommendation                             |
-| `isRetryable` | `boolean`             | Whether auto-retry would help                             |
-| `requestId`   | `string`              | UUID for log correlation across services                  |
+| Property      | Type                  | Description                                              |
+| ------------- | --------------------- | -------------------------------------------------------- |
+| `code`        | `ErrorCode`           | Machine-readable error code (e.g., `CONNECTION_TIMEOUT`) |
+| `message`     | `string`              | Human-readable description                               |
+| `operation`   | `string`              | SDK method that produced the error (e.g., `sendEvent`)   |
+| `channel`     | `string \| undefined` | The channel or queue involved, if applicable             |
+| `cause`       | `Error \| undefined`  | Underlying error (ES2022 `Error.cause`)                  |
+| `suggestion`  | `string \| undefined` | Actionable fix recommendation                            |
+| `isRetryable` | `boolean`             | Whether auto-retry would help                            |
+| `requestId`   | `string`              | UUID for log correlation across services                 |
 
 ## Auto-Retry Behavior
 
@@ -204,7 +204,7 @@ All subscription methods require an `onError` callback. If a transport error occ
 ```typescript
 client.subscribeToEvents({
   channel: 'notifications',
-  onMessage: (event) => {
+  onEvent: (event) => {
     console.log('Received:', new TextDecoder().decode(event.body));
   },
   onError: (err) => {
@@ -217,7 +217,7 @@ client.subscribeToEvents({
 
 ### Handler Error Isolation
 
-If your `onMessage` callback throws, the SDK catches the exception and wraps it in a `HandlerError`. Your subscription stays alive — one failed message does not kill the subscription.
+If your `onEvent` callback throws, the SDK catches the exception and wraps it in a `HandlerError`. Your subscription stays alive — one failed message does not kill the subscription.
 
 ### Reconnection on Stream Errors
 
@@ -262,7 +262,7 @@ For queue consumers, `StreamBrokenError` exposes `unacknowledgedMessageIds` so y
 ```typescript
 client.subscribeToEvents({
   channel: 'orders',
-  onMessage: (event) => {
+  onEvent: (event) => {
     /* process */
   },
   onError: (err) => {
@@ -291,7 +291,7 @@ client.subscribeToEvents({
 Override the default timeout for a specific operation using `OperationOptions`:
 
 ```typescript
-await client.publishEvent(msg, { timeout: 2000 });
+await client.sendEvent(msg, { timeout: 2000 });
 ```
 
 ### AbortSignal Cancellation

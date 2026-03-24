@@ -51,9 +51,9 @@ Defined in: messages/queries.ts:20
 
 ---
 
-### timeoutMs
+### timeoutInSeconds
 
-> `readonly` **timeoutMs**: `number`
+> `readonly` **timeoutInSeconds**: `number`
 
 Defined in: messages/queries.ts:21
 
@@ -67,9 +67,9 @@ Defined in: messages/queries.ts:22
 
 ---
 
-### cacheTTL?
+### cacheTtlInSeconds?
 
-> `readonly` `optional` **cacheTTL**: `number`
+> `readonly` `optional` **cacheTtlInSeconds**: `number`
 
 Defined in: messages/queries.ts:23
 

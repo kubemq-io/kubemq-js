@@ -38,7 +38,7 @@ async function main(): Promise<void> {
 
 ## Step 2 — Subscribe to Events
 
-Subscribers must connect *before* publishers send, because events are not persisted. This is the key difference from queues: if nobody is listening, the message is lost.
+Subscribers must connect _before_ publishers send, because events are not persisted. This is the key difference from queues: if nobody is listening, the message is lost.
 
 ```typescript
   try {
@@ -46,7 +46,7 @@ Subscribers must connect *before* publishers send, because events are not persis
 
     const subscription = client.subscribeToEvents({
       channel,
-      onMessage: (event) => {
+      onEvent: (event) => {
         const body = new TextDecoder().decode(event.body);
         console.log(`[Subscriber] New signup: ${body}`);
         console.log(`  Channel: ${event.channel}`);
@@ -64,28 +64,28 @@ Subscribers must connect *before* publishers send, because events are not persis
     console.log(`Listening for signup events on "${channel}"...`);
 ```
 
-The `subscribeToEvents` method returns a subscription handle with a `cancel()` method. The `onMessage` callback fires for each incoming event on its own microtask, so your main thread stays responsive.
+The `subscribeToEvents` method returns a subscription handle with a `cancel()` method. The `onEvent` callback fires for each incoming event on its own microtask, so your main thread stays responsive.
 
 ## Step 3 — Publish Events
 
 With the subscriber listening, we can send events. Each event carries a string or Buffer body, optional metadata, and key-value tags for filtering.
 
 ```typescript
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    const newUsers = ['alice@example.com', 'bob@example.com', 'carol@example.com'];
+const newUsers = ['alice@example.com', 'bob@example.com', 'carol@example.com'];
 
-    for (const user of newUsers) {
-      await client.publishEvent(
-        createEventMessage({
-          channel,
-          body: user,
-          metadata: 'signup-service',
-          tags: { source: 'registration-api', priority: 'normal' },
-        }),
-      );
-      console.log(`[Publisher] Sent signup event for: ${user}`);
-    }
+for (const user of newUsers) {
+  await client.sendEvent(
+    createEventMessage({
+      channel,
+      body: user,
+      metadata: 'signup-service',
+      tags: { source: 'registration-api', priority: 'normal' },
+    }),
+  );
+  console.log(`[Publisher] Sent signup event for: ${user}`);
+}
 ```
 
 The `createEventMessage` helper converts your string body to bytes and validates the message structure. The 1-second delay gives the subscription time to register on the server.
@@ -125,7 +125,7 @@ async function main(): Promise<void> {
 
     const subscription = client.subscribeToEvents({
       channel,
-      onMessage: (event) => {
+      onEvent: (event) => {
         const body = new TextDecoder().decode(event.body);
         console.log(`[Subscriber] New signup: ${body}`);
         console.log(`  Channel: ${event.channel}`);
@@ -147,7 +147,7 @@ async function main(): Promise<void> {
     const newUsers = ['alice@example.com', 'bob@example.com', 'carol@example.com'];
 
     for (const user of newUsers) {
-      await client.publishEvent(
+      await client.sendEvent(
         createEventMessage({
           channel,
           body: user,
@@ -204,11 +204,11 @@ Notification system shut down.
 
 Common issues and how to handle them:
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `Connection refused` | KubeMQ server not running | Start the server: `docker run -p 50000:50000 kubemq/kubemq` |
-| `Subscriber missed events` | Subscriber connected after publisher sent | Always subscribe before publishing |
-| `ConnectionError` | Network interruption | Catch and reconnect with `KubeMQClient.create()` |
+| Error                      | Cause                                     | Fix                                                         |
+| -------------------------- | ----------------------------------------- | ----------------------------------------------------------- |
+| `Connection refused`       | KubeMQ server not running                 | Start the server: `docker run -p 50000:50000 kubemq/kubemq` |
+| `Subscriber missed events` | Subscriber connected after publisher sent | Always subscribe before publishing                          |
+| `ConnectionError`          | Network interruption                      | Catch and reconnect with `KubeMQClient.create()`            |
 
 For production, wrap your subscriber in a resilient pattern:
 
@@ -221,7 +221,7 @@ async function resilientSubscribe(client: KubeMQClient, channel: string): Promis
     try {
       const sub = client.subscribeToEvents({
         channel,
-        onMessage: (event) => processEvent(event),
+        onEvent: (event) => processEvent(event),
         onError: (err) => {
           console.error('Subscription error, will retry:', err.message);
           retries++;

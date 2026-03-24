@@ -30,7 +30,7 @@ When aborted, the operation is cancelled and throws `CancellationError`.
 ```typescript
 const controller = new AbortController();
 setTimeout(() => controller.abort(), 5000);
-await client.publishEvent(msg, { signal: controller.signal });
+await client.sendEvent(msg, { signal: controller.signal });
 ```
 
 #### Inherited from

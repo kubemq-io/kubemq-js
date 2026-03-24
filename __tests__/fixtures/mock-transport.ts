@@ -20,6 +20,10 @@ interface MockStreamHandle<TWrite, TRead> extends StreamHandle<TWrite, TRead> {
   simulateEnd(): void;
   readonly written: TWrite[];
   readonly cancelled: boolean;
+  /** Enable/disable backpressure simulation — when on, write() returns false. */
+  setBackpressure(on: boolean): void;
+  /** Fire all pending onDrain handlers (simulate write buffer drain). */
+  triggerDrain(): void;
 }
 
 type UnaryHandler = (method: string, request: unknown) => unknown | Promise<unknown>;
@@ -176,13 +180,15 @@ function createMockStreamHandle<TWrite, TRead>(): MockStreamHandle<TWrite, TRead
   const dataHandlers: ((msg: TRead) => void)[] = [];
   const errorHandlers: ((err: Error) => void)[] = [];
   const endHandlers: (() => void)[] = [];
+  const drainHandlers: (() => void)[] = [];
   const writtenMessages: TWrite[] = [];
   let isCancelled = false;
+  let backpressure = false;
 
   return {
     write(msg: TWrite): boolean {
       writtenMessages.push(msg);
-      return true;
+      return !backpressure;
     },
     onData(handler: (msg: TRead) => void): void {
       dataHandlers.push(handler);
@@ -199,6 +205,21 @@ function createMockStreamHandle<TWrite, TRead>(): MockStreamHandle<TWrite, TRead
     end(): void {
       for (const h of endHandlers) h();
     },
+    pause(): void {
+      // no-op for mock
+    },
+    resume(): void {
+      // no-op for mock
+    },
+    onDrain(handler: () => void): void {
+      drainHandlers.push(handler);
+    },
+    removeAllListeners(): void {
+      dataHandlers.length = 0;
+      errorHandlers.length = 0;
+      endHandlers.length = 0;
+      drainHandlers.length = 0;
+    },
     simulateData(data: TRead): void {
       for (const h of dataHandlers) h(data);
     },
@@ -213,6 +234,13 @@ function createMockStreamHandle<TWrite, TRead>(): MockStreamHandle<TWrite, TRead
     },
     get cancelled(): boolean {
       return isCancelled;
+    },
+    setBackpressure(on: boolean): void {
+      backpressure = on;
+    },
+    triggerDrain(): void {
+      const handlers = drainHandlers.splice(0);
+      for (const h of handlers) h();
     },
   };
 }

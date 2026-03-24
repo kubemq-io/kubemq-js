@@ -45,7 +45,7 @@ Defined in: messages/commands.ts:71
 
 ##### cmd
 
-[`ReceivedCommand`](ReceivedCommand.md)
+[`CommandReceived`](ReceivedCommand.md)
 
 #### Returns
 

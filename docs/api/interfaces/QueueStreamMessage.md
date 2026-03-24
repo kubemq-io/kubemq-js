@@ -126,9 +126,9 @@ Defined in: messages/queues.ts:116
 
 ---
 
-### reject()
+### nack()
 
-> **reject**(): `void`
+> **nack**(): `void`
 
 Defined in: messages/queues.ts:117
 

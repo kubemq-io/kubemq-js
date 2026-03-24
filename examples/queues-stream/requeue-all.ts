@@ -11,9 +11,16 @@ async function main() {
       createQueueMessage({ channel: 'js-queues-stream.requeue-all', body: 'will be requeued' }),
     );
 
-    const handle = client.streamQueueMessages({ channel: 'js-queues-stream.requeue-all', maxMessages: 10 });
+    const handle = client.streamQueueMessages({
+      channel: 'js-queues-stream.requeue-all',
+      maxMessages: 10,
+    });
     handle.onMessages((msgs) => {
-      console.log('Received', msgs.length, 'message(s) — requeuing to js-queues-stream.requeue-all-target');
+      console.log(
+        'Received',
+        msgs.length,
+        'message(s) — requeuing to js-queues-stream.requeue-all-target',
+      );
       handle.reQueueAll('js-queues-stream.requeue-all-target');
       handle.close();
     });
@@ -22,7 +29,9 @@ async function main() {
     });
 
     await new Promise((r) => setTimeout(r, 2000));
-    console.log('Messages moved from js-queues-stream.requeue-all to js-queues-stream.requeue-all-target');
+    console.log(
+      'Messages moved from js-queues-stream.requeue-all to js-queues-stream.requeue-all-target',
+    );
   } finally {
     await client.close();
   }

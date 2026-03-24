@@ -6,7 +6,7 @@ describe('createCommand', () => {
   const validOpts = {
     channel: 'test-channel',
     body: 'hello',
-    timeoutMs: 5000,
+    timeoutInSeconds: 5,
   };
 
   it('creates command with all fields', () => {
@@ -15,7 +15,7 @@ describe('createCommand', () => {
       body: 'payload',
       metadata: 'meta',
       tags: { key: 'value' },
-      timeoutMs: 3000,
+      timeoutInSeconds: 3,
       id: 'my-id',
       clientId: 'client-1',
     });
@@ -24,7 +24,7 @@ describe('createCommand', () => {
     expect(cmd.body).toBeInstanceOf(Uint8Array);
     expect(cmd.metadata).toBe('meta');
     expect(cmd.tags).toEqual({ key: 'value' });
-    expect(cmd.timeoutMs).toBe(3000);
+    expect(cmd.timeoutInSeconds).toBe(3);
     expect(cmd.id).toBe('my-id');
     expect(cmd.clientId).toBe('client-1');
   });
@@ -83,21 +83,21 @@ describe('createCommand', () => {
     expect(() =>
       createCommand({
         channel: 'ch',
-        timeoutMs: 1000,
+        timeoutInSeconds: 1,
       }),
     ).toThrow(ValidationError);
   });
 
-  it('throws ValidationError when timeoutMs <= 0', () => {
-    expect(() => createCommand({ ...validOpts, timeoutMs: 0 })).toThrow(ValidationError);
-    expect(() => createCommand({ ...validOpts, timeoutMs: -1 })).toThrow(ValidationError);
+  it('throws ValidationError when timeoutInSeconds <= 0', () => {
+    expect(() => createCommand({ ...validOpts, timeoutInSeconds: 0 })).toThrow(ValidationError);
+    expect(() => createCommand({ ...validOpts, timeoutInSeconds: -1 })).toThrow(ValidationError);
   });
 
   it('accepts metadata alone without body', () => {
     const cmd = createCommand({
       channel: 'ch',
       metadata: 'some-meta',
-      timeoutMs: 1000,
+      timeoutInSeconds: 1,
     });
     expect(cmd.body).toBeUndefined();
     expect(cmd.metadata).toBe('some-meta');
@@ -107,7 +107,7 @@ describe('createCommand', () => {
     const cmd = createCommand({
       channel: 'ch',
       tags: { env: 'test' },
-      timeoutMs: 1000,
+      timeoutInSeconds: 1,
     });
     expect(cmd.body).toBeUndefined();
     expect(cmd.tags).toEqual({ env: 'test' });

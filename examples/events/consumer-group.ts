@@ -23,7 +23,7 @@ async function main(): Promise<void> {
     const sub1 = client.subscribeToEvents({
       channel: 'js-events.consumer-group',
       group: 'workers',
-      onMessage: (event) => {
+      onEvent: (event) => {
         console.log('[Worker A]', new TextDecoder().decode(event.body));
       },
       onError: (err) => {
@@ -34,7 +34,7 @@ async function main(): Promise<void> {
     const sub2 = client.subscribeToEvents({
       channel: 'js-events.consumer-group',
       group: 'workers',
-      onMessage: (event) => {
+      onEvent: (event) => {
         console.log('[Worker B]', new TextDecoder().decode(event.body));
       },
       onError: (err) => {
@@ -43,7 +43,7 @@ async function main(): Promise<void> {
     });
 
     for (let i = 1; i <= 6; i++) {
-      await client.publishEvent(
+      await client.sendEvent(
         createEventMessage({ channel: 'js-events.consumer-group', body: `task-${i}` }),
       );
     }

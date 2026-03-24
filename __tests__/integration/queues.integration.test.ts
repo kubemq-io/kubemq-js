@@ -29,7 +29,6 @@ describe('Queues integration', () => {
 
     const messages = await client.receiveQueueMessages({
       channel,
-      visibilitySeconds: 10,
       waitTimeoutSeconds: 5,
       maxMessages: 1,
     });
@@ -51,7 +50,6 @@ describe('Queues integration', () => {
 
     const messages = await client.receiveQueueMessages({
       channel,
-      visibilitySeconds: 10,
       waitTimeoutSeconds: 5,
       maxMessages: 1,
     });
@@ -59,14 +57,13 @@ describe('Queues integration', () => {
 
     const retry = await client.receiveQueueMessages({
       channel,
-      visibilitySeconds: 10,
       waitTimeoutSeconds: 2,
       maxMessages: 1,
     });
     expect(retry.length).toBe(0);
   });
 
-  it('reject returns message to queue', async () => {
+  it('nack returns message to queue', async () => {
     client = await KubeMQClient.create(createTestClientOptions());
     const channel = uniqueChannel('q-reject');
 
@@ -77,14 +74,13 @@ describe('Queues integration', () => {
 
     const handle = client.streamQueueMessages({
       channel,
-      visibilitySeconds: 5,
       waitTimeoutSeconds: 5,
       maxMessages: 1,
     });
 
     const rejected = await new Promise<boolean>((resolve) => {
       handle.onMessages((msgs) => {
-        msgs[0].reject();
+        msgs[0].nack();
         resolve(true);
       });
       handle.onError(() => resolve(false));
@@ -94,11 +90,10 @@ describe('Queues integration', () => {
     handle.close();
     expect(rejected).toBe(true);
 
-    await sleep(1000);
+    await sleep(3000);
 
     const messages = await client.receiveQueueMessages({
       channel,
-      visibilitySeconds: 10,
       waitTimeoutSeconds: 5,
       maxMessages: 1,
     });
@@ -118,7 +113,6 @@ describe('Queues integration', () => {
 
     const early = await client.receiveQueueMessages({
       channel,
-      visibilitySeconds: 10,
       waitTimeoutSeconds: 1,
       maxMessages: 1,
     });
@@ -128,7 +122,6 @@ describe('Queues integration', () => {
 
     const late = await client.receiveQueueMessages({
       channel,
-      visibilitySeconds: 10,
       waitTimeoutSeconds: 5,
       maxMessages: 1,
     });
@@ -152,7 +145,6 @@ describe('Queues integration', () => {
 
     const received = await client.receiveQueueMessages({
       channel,
-      visibilitySeconds: 10,
       waitTimeoutSeconds: 5,
       maxMessages: count,
     });
@@ -170,7 +162,6 @@ describe('Queues integration', () => {
 
     const handle = client.streamQueueMessages({
       channel,
-      visibilitySeconds: 2,
       waitTimeoutSeconds: 5,
       maxMessages: 1,
     });
@@ -190,7 +181,6 @@ describe('Queues integration', () => {
 
     const messages = await client.receiveQueueMessages({
       channel,
-      visibilitySeconds: 10,
       waitTimeoutSeconds: 5,
       maxMessages: 1,
     });

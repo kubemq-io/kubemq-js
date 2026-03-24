@@ -13,13 +13,16 @@
 import { KubeMQClient, createEventMessage } from '../../src/index.js';
 
 async function main(): Promise<void> {
-  const client = await KubeMQClient.create({ address: 'localhost:50000', clientId: 'js-events-multiple-subscribers-client' });
+  const client = await KubeMQClient.create({
+    address: 'localhost:50000',
+    clientId: 'js-events-multiple-subscribers-client',
+  });
 
   try {
     // Both subscribers receive every event (fan-out).
     const sub1 = client.subscribeToEvents({
       channel: 'js-events.multiple-subscribers',
-      onMessage: (event) => {
+      onEvent: (event) => {
         console.log('[Subscriber A]', new TextDecoder().decode(event.body));
       },
       onError: (err) => {
@@ -29,7 +32,7 @@ async function main(): Promise<void> {
 
     const sub2 = client.subscribeToEvents({
       channel: 'js-events.multiple-subscribers',
-      onMessage: (event) => {
+      onEvent: (event) => {
         console.log('[Subscriber B]', new TextDecoder().decode(event.body));
       },
       onError: (err) => {
@@ -40,7 +43,7 @@ async function main(): Promise<void> {
     // Allow subscriptions to fully establish on the server.
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    await client.publishEvent(
+    await client.sendEvent(
       createEventMessage({ channel: 'js-events.multiple-subscribers', body: 'cpu_usage=72%' }),
     );
 

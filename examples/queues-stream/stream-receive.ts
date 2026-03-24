@@ -14,12 +14,14 @@
 import { KubeMQClient } from '../../src/index.js';
 
 async function main(): Promise<void> {
-  const client = await KubeMQClient.create({ address: 'localhost:50000', clientId: 'js-queues-stream-stream-receive-client' });
+  const client = await KubeMQClient.create({
+    address: 'localhost:50000',
+    clientId: 'js-queues-stream-stream-receive-client',
+  });
 
   try {
     const messages = await client.receiveQueueMessages({
       channel: 'js-queues-stream.stream-receive',
-      visibilitySeconds: 30,
       waitTimeoutSeconds: 10,
       maxMessages: 5,
     });
@@ -37,7 +39,7 @@ async function main(): Promise<void> {
         console.log('  ✓ Acknowledged');
       } catch {
         // On failure, reject the message.
-        await msg.reject();
+        await msg.nack();
         console.log('  ✗ Rejected');
       }
     }

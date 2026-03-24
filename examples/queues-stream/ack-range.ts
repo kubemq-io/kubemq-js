@@ -13,7 +13,10 @@ async function main() {
       );
     }
 
-    const handle = client.streamQueueMessages({ channel: 'js-queues-stream.ack-range', maxMessages: 3 });
+    const handle = client.streamQueueMessages({
+      channel: 'js-queues-stream.ack-range',
+      maxMessages: 3,
+    });
     handle.onMessages((msgs) => {
       const sequences = msgs.map((m) => m.sequence);
       console.log('Received sequences:', sequences);

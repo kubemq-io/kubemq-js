@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { KubeMQClient } from '../../src/client.js';
 import { createTestClientOptions, uniqueChannel } from '../fixtures/test-helpers.js';
-import type { ReceivedCommand, CommandResponse } from '../../src/messages/commands.js';
-import type { ReceivedQuery, QueryResponse } from '../../src/messages/queries.js';
+import type { CommandReceived, CommandResponse } from '../../src/messages/commands.js';
+import type { QueryReceived, QueryResponse } from '../../src/messages/queries.js';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -25,7 +25,7 @@ describe('RPC Commands integration', () => {
     const sub = client.subscribeToCommands({
       channel,
       group: '',
-      onCommand: (cmd: ReceivedCommand) => {
+      onCommand: (cmd: CommandReceived) => {
         client.sendCommandResponse({
           id: cmd.id,
           replyChannel: cmd.replyChannel,
@@ -39,7 +39,7 @@ describe('RPC Commands integration', () => {
     const response: CommandResponse = await client.sendCommand({
       channel,
       body: new TextEncoder().encode('do-something'),
-      timeoutMs: 10_000,
+      timeoutInSeconds: 10,
     });
 
     expect(response.executed).toBe(true);
@@ -54,7 +54,7 @@ describe('RPC Commands integration', () => {
       client.sendCommand({
         channel,
         body: new TextEncoder().encode('timeout-cmd'),
-        timeoutMs: 1000,
+        timeoutInSeconds: 1,
       }),
     ).rejects.toThrow();
   });
@@ -66,7 +66,7 @@ describe('RPC Commands integration', () => {
     const sub = client.subscribeToCommands({
       channel,
       group: '',
-      onCommand: (cmd: ReceivedCommand) => {
+      onCommand: (cmd: CommandReceived) => {
         client.sendCommandResponse({
           id: cmd.id,
           replyChannel: cmd.replyChannel,
@@ -81,7 +81,7 @@ describe('RPC Commands integration', () => {
     const response: CommandResponse = await client.sendCommand({
       channel,
       body: new TextEncoder().encode('will-reject'),
-      timeoutMs: 10_000,
+      timeoutInSeconds: 10,
     });
 
     expect(response.executed).toBe(false);
@@ -104,7 +104,7 @@ describe('RPC Queries integration', () => {
     const sub = client.subscribeToQueries({
       channel,
       group: '',
-      onQuery: (query: ReceivedQuery) => {
+      onQuery: (query: QueryReceived) => {
         client.sendQueryResponse({
           id: query.id,
           replyChannel: query.replyChannel,
@@ -119,7 +119,7 @@ describe('RPC Queries integration', () => {
     const response: QueryResponse = await client.sendQuery({
       channel,
       body: new TextEncoder().encode('ask-something'),
-      timeoutMs: 10_000,
+      timeoutInSeconds: 10,
     });
 
     expect(response.executed).toBe(true);
@@ -136,7 +136,7 @@ describe('RPC Queries integration', () => {
       client.sendQuery({
         channel,
         body: new TextEncoder().encode('timeout-query'),
-        timeoutMs: 1000,
+        timeoutInSeconds: 1,
       }),
     ).rejects.toThrow();
   });
@@ -148,7 +148,7 @@ describe('RPC Queries integration', () => {
     const sub = client.subscribeToQueries({
       channel,
       group: '',
-      onQuery: (query: ReceivedQuery) => {
+      onQuery: (query: QueryReceived) => {
         client.sendQueryResponse({
           id: query.id,
           replyChannel: query.replyChannel,
@@ -164,7 +164,7 @@ describe('RPC Queries integration', () => {
     const response: QueryResponse = await client.sendQuery({
       channel,
       body: new TextEncoder().encode('ask-meta'),
-      timeoutMs: 10_000,
+      timeoutInSeconds: 10,
     });
 
     expect(response.executed).toBe(true);

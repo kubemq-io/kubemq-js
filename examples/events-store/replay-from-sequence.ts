@@ -10,15 +10,18 @@
  *
  * Run: npx tsx examples/events-store/replay-from-sequence.ts
  */
-import { KubeMQClient, createEventStoreMessage, EventStoreType } from '../../src/index.js';
+import { KubeMQClient, createEventStoreMessage, EventStoreStartPosition } from '../../src/index.js';
 
 async function main(): Promise<void> {
-  const client = await KubeMQClient.create({ address: 'localhost:50000', clientId: 'js-events-store-replay-from-sequence-client' });
+  const client = await KubeMQClient.create({
+    address: 'localhost:50000',
+    clientId: 'js-events-store-replay-from-sequence-client',
+  });
 
   try {
     // Publish several events.
     for (let i = 1; i <= 5; i++) {
-      await client.publishEventStore(
+      await client.sendEventStore(
         createEventStoreMessage({
           channel: 'js-events-store.replay-from-sequence',
           body: `Payment #${i}: $${(i * 49.99).toFixed(2)}`,
@@ -29,9 +32,9 @@ async function main(): Promise<void> {
     // Subscribe from sequence 3 — only events #3, #4, #5 are received.
     const subscription = client.subscribeToEventsStore({
       channel: 'js-events-store.replay-from-sequence',
-      startFrom: EventStoreType.StartAtSequence,
+      startFrom: EventStoreStartPosition.StartAtSequence,
       startValue: 3,
-      onMessage: (event) => {
+      onEvent: (event) => {
         console.log(`[seq=${event.sequence}] ${new TextDecoder().decode(event.body)}`);
       },
       onError: (err) => {

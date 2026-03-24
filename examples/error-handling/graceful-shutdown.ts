@@ -10,11 +10,7 @@
  *
  * Run: npx tsx examples/error-handling/graceful-shutdown.ts
  */
-import {
-  KubeMQClient,
-  createEventMessage,
-  createQueueMessage,
-} from '../../src/index.js';
+import { KubeMQClient, createEventMessage, createQueueMessage } from '../../src/index.js';
 import type { Subscription } from '../../src/index.js';
 
 async function main(): Promise<void> {
@@ -30,7 +26,7 @@ async function main(): Promise<void> {
     // Set up multiple subscriptions.
     const eventSub = client.subscribeToEvents({
       channel: 'js-error-handling.graceful-shutdown-events',
-      onMessage: (event) => {
+      onEvent: (event) => {
         console.log('[Events] Received:', new TextDecoder().decode(event.body));
       },
       onError: (err) => {
@@ -58,7 +54,7 @@ async function main(): Promise<void> {
     console.log('Started command subscription');
 
     // Simulate some work.
-    await client.publishEvent(
+    await client.sendEvent(
       createEventMessage({
         channel: 'js-error-handling.graceful-shutdown-events',
         body: 'processing started',
@@ -89,8 +85,8 @@ async function main(): Promise<void> {
       // This waits for in-flight operations to complete.
       console.log('Step 2: Closing client (draining in-flight operations)...');
       await client.close({
-        timeoutMs: 5000,           // max 5s for gRPC operations to drain
-        callbackTimeoutMs: 10_000, // max 10s for callbacks to finish
+        timeoutSeconds: 5, // max 5s for gRPC operations to drain
+        callbackTimeoutSeconds: 10, // max 10s for callbacks to finish
       });
 
       console.log('Step 3: Shutdown complete. State:', client.state);

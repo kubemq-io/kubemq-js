@@ -37,7 +37,7 @@ Defined in: messages/events-store.ts:63
 
 ### startFrom
 
-> `readonly` **startFrom**: [`EventStoreType`](../enumerations/EventStoreType.md)
+> `readonly` **startFrom**: [`EventStoreStartPosition`](../enumerations/EventStoreType.md)
 
 Defined in: messages/events-store.ts:64
 
@@ -51,9 +51,9 @@ Defined in: messages/events-store.ts:65
 
 ---
 
-### onMessage()
+### onEvent()
 
-> `readonly` **onMessage**: (`event`) => `void`
+> `readonly` **onEvent**: (`event`) => `void`
 
 Defined in: messages/events-store.ts:66
 
@@ -61,7 +61,7 @@ Defined in: messages/events-store.ts:66
 
 ##### event
 
-[`ReceivedEventStore`](ReceivedEventStore.md)
+[`EventStoreReceived`](ReceivedEventStore.md)
 
 #### Returns
 

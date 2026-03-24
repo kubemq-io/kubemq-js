@@ -103,6 +103,7 @@ export class GrpcTransport implements Transport {
   private readonly address: string;
   private _closing = false;
   private readonly metadata = new Map<string, string>();
+  private cachedGrpcMetadata: grpc.Metadata | null = null;
 
   private grpcClient: InstanceType<typeof kubemq.kubemqClient> | null = null;
 
@@ -440,6 +441,7 @@ export class GrpcTransport implements Transport {
 
   setMetadata(key: string, value: string): void {
     this.metadata.set(key, value);
+    this.cachedGrpcMetadata = null; // invalidate cache
   }
 
   on<K extends keyof ConnectionEventMap>(event: K, handler: ConnectionEventMap[K]): void {
@@ -464,8 +466,9 @@ export class GrpcTransport implements Transport {
       }
 
       const deadline = Date.now() + 30_000;
-      channel.watchConnectivityState(currentState, deadline, (err?: Error) => {
-        if (err || this._closing) return;
+      channel.watchConnectivityState(currentState, deadline, (_err?: Error) => {
+        // JS-2 fix: only stop watching if closing; on deadline expiry, restart the watch
+        if (this._closing) return;
         this.watchChannelState();
       });
       /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
@@ -519,6 +522,8 @@ export class GrpcTransport implements Transport {
           finalCreds = grpc.credentials.combineChannelCredentials(channelCreds, callCreds);
         }
         this.grpcClient = new kubemq.kubemqClient(this.address, finalCreds, this.channelOptions);
+        // JS-3 fix: verify connectivity with a ping before declaring ready
+        await this.waitForChannelReady(5000);
         this.watchChannelState();
       })
       .then(() => {
@@ -537,16 +542,27 @@ export class GrpcTransport implements Transport {
   }
 
   private buildGrpcMetadata(): grpc.Metadata {
-    const metadata = new grpc.Metadata();
-    for (const [key, value] of this.metadata) {
-      metadata.set(key, value);
-    }
+    // When there's a token cache without TLS, the token may change between calls,
+    // so we cannot cache the metadata.
     if (this.tokenCache && !this.resolvedTls.enabled) {
+      const metadata = new grpc.Metadata();
+      for (const [key, value] of this.metadata) {
+        metadata.set(key, value);
+      }
       const token = this.tokenCache.lastKnownToken;
       if (token) {
         metadata.set(AUTH_METADATA_KEY, token);
       }
+      return metadata;
     }
+
+    // Static metadata path: build once and cache
+    if (this.cachedGrpcMetadata) return this.cachedGrpcMetadata;
+    const metadata = new grpc.Metadata();
+    for (const [key, value] of this.metadata) {
+      metadata.set(key, value);
+    }
+    this.cachedGrpcMetadata = metadata;
     return metadata;
   }
 
@@ -588,6 +604,20 @@ export class GrpcTransport implements Transport {
       end(): void {
         stream.cancel();
       },
+      // C3 fix: backpressure support
+      pause(): void {
+        stream.pause();
+      },
+      resume(): void {
+        stream.resume();
+      },
+      // H2 fix: clean up listeners on rebind
+      removeAllListeners(): void {
+        stream.removeAllListeners();
+      },
+      onDrain(_handler: () => void): void {
+        /* read-only stream, no-op */
+      },
     };
   }
 
@@ -613,7 +643,42 @@ export class GrpcTransport implements Transport {
       end(): void {
         stream.end();
       },
+      // C3 fix: backpressure support
+      pause(): void {
+        stream.pause();
+      },
+      resume(): void {
+        stream.resume();
+      },
+      // H2 fix: clean up listeners on rebind
+      removeAllListeners(): void {
+        stream.removeAllListeners();
+      },
+      onDrain(handler: () => void): void {
+        stream.once('drain', handler);
+      },
     };
+  }
+
+  /**
+   * JS-3 fix: Wait for the gRPC channel to reach READY state before proceeding.
+   * Uses grpc-js waitForReady which waits for the underlying HTTP/2 connection.
+   */
+  private waitForChannelReady(timeoutMs: number): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      if (!this.grpcClient) {
+        reject(new Error('No gRPC client'));
+        return;
+      }
+      const deadline = Date.now() + timeoutMs;
+      this.grpcClient.waitForReady(deadline, (err?: Error) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
   }
 
   private createTimeout(ms: number): Promise<void> {

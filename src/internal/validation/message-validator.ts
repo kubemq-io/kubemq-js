@@ -3,7 +3,7 @@
 import { ValidationError, ErrorCode } from '../../errors.js';
 import type { EventMessage } from '../../messages/events.js';
 import type { EventStoreMessage, EventStoreSubscription } from '../../messages/events-store.js';
-import { EventStoreType } from '../../messages/events-store.js';
+import { EventStoreStartPosition } from '../../messages/events-store.js';
 import type { QueueMessage, QueuePollRequest } from '../../messages/queues.js';
 import type { CommandMessage } from '../../messages/commands.js';
 import type { QueryMessage } from '../../messages/queries.js';
@@ -129,12 +129,12 @@ export function validateCommandMessage(msg: CommandMessage, operation: string): 
   requireNonEmptyChannel(msg.channel, operation);
   validateChannelFormat(msg.channel, false, operation);
   requireBody(msg, operation);
-  if (msg.timeoutMs <= 0) {
+  if (msg.timeoutInSeconds <= 0) {
     fail(
-      'Command message requires a positive timeoutMs',
+      'Command message requires a positive timeoutInSeconds',
       operation,
       msg.channel,
-      'Set timeoutMs to the maximum time (in ms) to wait for a response',
+      'Set timeoutInSeconds to the maximum time (in seconds) to wait for a response',
     );
   }
 }
@@ -143,31 +143,30 @@ export function validateQueryMessage(msg: QueryMessage, operation: string): void
   requireNonEmptyChannel(msg.channel, operation);
   validateChannelFormat(msg.channel, false, operation);
   requireBody(msg, operation);
-  if (msg.timeoutMs <= 0) {
+  if (msg.timeoutInSeconds <= 0) {
     fail(
-      'Query message requires a positive timeoutMs',
+      'Query message requires a positive timeoutInSeconds',
       operation,
       msg.channel,
-      'Set timeoutMs to the maximum time (in ms) to wait for a response',
+      'Set timeoutInSeconds to the maximum time (in seconds) to wait for a response',
     );
   }
-  if (msg.cacheKey && (!msg.cacheTTL || msg.cacheTTL <= 0)) {
+  if (msg.cacheKey && (!msg.cacheTtlInSeconds || msg.cacheTtlInSeconds <= 0)) {
     fail(
-      'cacheTTL is required and must be > 0 when cacheKey is set',
+      'cacheTtlInSeconds is required and must be > 0 when cacheKey is set',
       operation,
       msg.channel,
-      'Set cacheTTL to a positive number of seconds',
+      'Set cacheTtlInSeconds to a positive number of seconds',
     );
   }
-  if (msg.cacheTTL !== undefined) {
-    requirePositive(msg.cacheTTL, 'cacheTTL', operation);
+  if (msg.cacheTtlInSeconds !== undefined) {
+    requirePositive(msg.cacheTtlInSeconds, 'cacheTtlInSeconds', operation);
   }
 }
 
 export function validateQueuePollRequest(req: QueuePollRequest, operation: string): void {
   requireNonEmptyChannel(req.channel, operation);
   requirePositive(req.waitTimeoutSeconds, 'waitTimeoutSeconds', operation);
-  requireNonNegative(req.visibilitySeconds, 'visibilitySeconds', operation);
   if (req.maxMessages !== undefined) {
     requirePositive(req.maxMessages, 'maxMessages', operation);
   }
@@ -177,14 +176,8 @@ export function validateQueuePollRequest(req: QueuePollRequest, operation: strin
   if (req.waitTimeoutSeconds > 3600) {
     fail('waitTimeoutSeconds must be <= 3600', operation, req.channel);
   }
-  if (req.autoAck === true && req.visibilitySeconds !== undefined && req.visibilitySeconds > 0) {
-    fail(
-      'autoAck and visibilitySeconds cannot be set together',
-      operation,
-      req.channel,
-      'Use either autoAck (no visibility timer) or visibilitySeconds (manual ack)',
-    );
-  }
+  // M4 note: autoAck is accepted but has no wire effect
+  // on the unary ReceiveQueueMessages API — server always auto-acks.
 }
 
 export function validateSubscription(
@@ -210,16 +203,16 @@ export function validateEventStoreSubscription(
     );
   }
 
-  if (sub.startFrom === undefined || sub.startFrom === null) {
+  if ((sub.startFrom as number | undefined) == null) {
     fail(
       'EventStore subscription requires a startFrom value',
       operation,
       sub.channel,
-      'Set startFrom to one of the EventStoreType values (e.g., EventStoreType.StartNewOnly)',
+      'Set startFrom to one of the EventStoreStartPosition values (e.g., EventStoreStartPosition.StartFromNew)',
     );
   }
 
-  if (sub.startFrom === EventStoreType.StartAtSequence) {
+  if (sub.startFrom === EventStoreStartPosition.StartAtSequence) {
     if (sub.startValue === undefined || sub.startValue <= 0) {
       fail(
         'EventStore subscription with StartAtSequence requires a positive startValue (sequence number)',
@@ -229,7 +222,7 @@ export function validateEventStoreSubscription(
     }
   }
 
-  if (sub.startFrom === EventStoreType.StartAtTime) {
+  if (sub.startFrom === EventStoreStartPosition.StartAtTime) {
     if (sub.startValue === undefined || sub.startValue <= 0) {
       fail(
         'EventStore subscription with StartAtTime requires a positive startValue (Unix timestamp in seconds)',
@@ -239,7 +232,7 @@ export function validateEventStoreSubscription(
     }
   }
 
-  if (sub.startFrom === EventStoreType.StartAtTimeDelta) {
+  if (sub.startFrom === EventStoreStartPosition.StartAtTimeDelta) {
     if (sub.startValue === undefined || sub.startValue <= 0) {
       fail(
         'EventStore subscription with StartAtTimeDelta requires a positive startValue (seconds from now)',

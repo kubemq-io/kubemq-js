@@ -144,4 +144,44 @@ describe('TracePropagation', () => {
 
     expect(tp.createLink({} as never)).toBeUndefined();
   });
+
+  it('extract catches propagation.extract failure and returns undefined', () => {
+    const mockApi = {
+      ROOT_CONTEXT: {},
+      propagation: {
+        extract: vi.fn(() => {
+          throw new Error('bad trace context');
+        }),
+      },
+    };
+
+    const logger = createMockLogger();
+    const tp = new TracePropagation(mockApi as never, logger);
+    const tags = new Map<string, string>([['traceparent', 'bad']]);
+
+    const result = tp.extract(tags);
+    expect(result).toBeUndefined();
+    expect(logger.debug).toHaveBeenCalled();
+  });
+
+  it('extract returns undefined when api is not set', () => {
+    const tp = new TracePropagation(undefined as never, createMockLogger());
+    expect(tp.extract(new Map())).toBeUndefined();
+  });
+});
+
+describe('TagsCarrier — keys()', () => {
+  it('returns all tag keys', () => {
+    const tags = new Map([
+      ['traceparent', 'val1'],
+      ['tracestate', 'val2'],
+    ]);
+    const carrier = new TagsCarrier(tags);
+    expect(carrier.keys()).toEqual(['traceparent', 'tracestate']);
+  });
+
+  it('returns empty array for empty tags', () => {
+    const carrier = new TagsCarrier(new Map());
+    expect(carrier.keys()).toEqual([]);
+  });
 });

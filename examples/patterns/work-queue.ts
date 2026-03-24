@@ -48,7 +48,6 @@ async function main(): Promise<void> {
       const messages = await client.receiveQueueMessages({
         channel,
         maxMessages: count,
-        visibilitySeconds: 30,
         waitTimeoutSeconds: 5,
       });
 
@@ -65,10 +64,7 @@ async function main(): Promise<void> {
     }
 
     // Both workers pull concurrently — each message goes to exactly one worker.
-    await Promise.all([
-      runWorker('Worker-A', 3),
-      runWorker('Worker-B', 3),
-    ]);
+    await Promise.all([runWorker('Worker-A', 3), runWorker('Worker-B', 3)]);
 
     console.log('\nAll tasks processed by competing consumers');
   } finally {

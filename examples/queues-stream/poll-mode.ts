@@ -7,12 +7,13 @@ async function main() {
   });
 
   try {
-    await client.sendQueueMessage(createQueueMessage({ channel: 'js-queues-stream.poll-mode', body: 'poll-me' }));
+    await client.sendQueueMessage(
+      createQueueMessage({ channel: 'js-queues-stream.poll-mode', body: 'poll-me' }),
+    );
 
     const messages = await client.receiveQueueMessages({
       channel: 'js-queues-stream.poll-mode',
       maxMessages: 1,
-      visibilitySeconds: 10,
       waitTimeoutSeconds: 5,
     });
 

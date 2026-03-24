@@ -18,7 +18,7 @@ export interface CommandMessage {
   readonly body?: MessageBody;
   readonly metadata?: string;
   readonly tags?: Record<string, string>;
-  readonly timeoutMs: number;
+  readonly timeoutInSeconds: number;
   readonly id?: string;
   readonly clientId?: string;
   readonly span?: Uint8Array;
@@ -32,7 +32,7 @@ export interface CommandMessage {
  * Do not modify received message objects — they are shared references from
  * the subscription's delivery pipeline. Fields are readonly.
  */
-export interface ReceivedCommand {
+export interface CommandReceived {
   readonly id: string;
   readonly channel: string;
   readonly fromClientId: string;
@@ -53,7 +53,7 @@ export interface ReceivedCommand {
  *
  * @see {@link KubeMQClient.sendCommand}
  * @see {@link KubeMQClient.sendCommandResponse}
- * @see {@link ReceivedCommand}
+ * @see {@link CommandReceived}
  */
 export interface CommandResponse {
   /** Correlation ID linking the response to its originating command. */
@@ -90,7 +90,7 @@ export interface CommandResponse {
 export interface CommandSubscription {
   readonly channel: string;
   readonly group?: string;
-  readonly onCommand: (cmd: ReceivedCommand) => void;
+  readonly onCommand: (cmd: CommandReceived) => void;
   readonly onError: (err: KubeMQError) => void;
 }
 
@@ -100,7 +100,7 @@ export interface CommandSubscription {
  * - `id` defaults to a random UUID
  * - `metadata` defaults to `''`
  * - `tags` defaults to `{}`
- * - `timeoutMs` is required and must be positive
+ * - `timeoutInSeconds` is required and must be positive
  * - Requires at least one of: body, metadata, or tags
  * - String/Buffer body is normalized to `Uint8Array`
  *
@@ -109,7 +109,7 @@ export interface CommandSubscription {
  * const cmd = createCommand({
  *   channel: 'commands.user-service',
  *   body: new TextEncoder().encode(JSON.stringify({ action: 'disable', userId: '42' })),
- *   timeoutMs: 5000,
+ *   timeoutInSeconds: 5,
  *   tags: { source: 'admin-panel' },
  * });
  * const response = await client.sendCommand(cmd);
@@ -125,7 +125,7 @@ export function createCommand(
     body: opts.body !== undefined ? normalizeBody(opts.body) : undefined,
     metadata: opts.metadata ?? '',
     tags: opts.tags ?? {},
-    timeoutMs: opts.timeoutMs,
+    timeoutInSeconds: opts.timeoutInSeconds,
     id: opts.id ?? randomUUID(),
     clientId: opts.clientId,
   };

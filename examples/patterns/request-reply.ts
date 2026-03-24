@@ -45,7 +45,7 @@ async function main(): Promise<void> {
       createCommand({
         channel: 'js-patterns.request-reply-cmd',
         body: JSON.stringify({ action: 'restart', service: 'web-server' }),
-        timeoutMs: 5000,
+        timeoutInSeconds: 5,
       }),
     );
     console.log('Command executed:', cmdResponse.executed);
@@ -81,7 +81,7 @@ async function main(): Promise<void> {
       createQuery({
         channel: 'js-patterns.request-reply-query',
         body: JSON.stringify({ userId: 'u-1001' }),
-        timeoutMs: 5000,
+        timeoutInSeconds: 5,
       }),
     );
 

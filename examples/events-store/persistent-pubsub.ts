@@ -10,15 +10,18 @@
  *
  * Run: npx tsx examples/events-store/persistent-pubsub.ts
  */
-import { KubeMQClient, createEventStoreMessage, EventStoreType } from '../../src/index.js';
+import { KubeMQClient, createEventStoreMessage, EventStoreStartPosition } from '../../src/index.js';
 
 async function main(): Promise<void> {
-  const client = await KubeMQClient.create({ address: 'localhost:50000', clientId: 'js-events-store-persistent-pubsub-client' });
+  const client = await KubeMQClient.create({
+    address: 'localhost:50000',
+    clientId: 'js-events-store-persistent-pubsub-client',
+  });
 
   try {
     // Publish events first — they are persisted in the store.
     for (let i = 1; i <= 3; i++) {
-      await client.publishEventStore(
+      await client.sendEventStore(
         createEventStoreMessage({
           channel: 'js-events-store.persistent-pubsub',
           body: `User action #${i}: login from 192.168.1.${i}`,
@@ -31,8 +34,8 @@ async function main(): Promise<void> {
     // Subscribe starting from the first stored event — replays all three.
     const subscription = client.subscribeToEventsStore({
       channel: 'js-events-store.persistent-pubsub',
-      startFrom: EventStoreType.StartNewOnly,
-      onMessage: (event) => {
+      startFrom: EventStoreStartPosition.StartFromNew,
+      onEvent: (event) => {
         console.log(`Received [seq=${event.sequence}]:`, new TextDecoder().decode(event.body));
       },
       onError: (err) => {

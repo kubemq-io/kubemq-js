@@ -12,25 +12,25 @@ Options for the `close()` method.
 
 ## Properties
 
-### timeoutMs?
+### timeoutSeconds?
 
-> `optional` **timeoutMs**: `number`
+> `optional` **timeoutSeconds**: `number`
 
 Defined in: options.ts:125
 
-Max time to wait for in-flight gRPC operations to drain, in ms.
-Default: 5000 (5s).
+Max time to wait for in-flight gRPC operations to drain, in seconds.
+Default: 5.
 
 ---
 
-### callbackTimeoutMs?
+### callbackTimeoutSeconds?
 
-> `optional` **callbackTimeoutMs**: `number`
+> `optional` **callbackTimeoutSeconds**: `number`
 
 Defined in: options.ts:135
 
-Max time to wait for in-flight subscription callbacks to complete, in ms.
-Default: 30000 (30s).
+Max time to wait for in-flight subscription callbacks to complete, in seconds.
+Default: 30.
 
 Callbacks that haven't completed within this timeout are abandoned —
 they may still be running in the background but the client will

@@ -2,9 +2,9 @@
 
 ---
 
-[KubeMQ JS/TS SDK](../README.md) / ReceivedCommand
+[KubeMQ JS/TS SDK](../README.md) / CommandReceived
 
-# Interface: ReceivedCommand
+# Interface: CommandReceived
 
 Defined in: messages/commands.ts:35
 

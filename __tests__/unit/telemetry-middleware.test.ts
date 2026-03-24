@@ -375,4 +375,31 @@ describe('TelemetryMiddleware', () => {
       expect(finished[0].status.code).toBe(1); // SpanStatusCode.OK
     });
   });
+
+  describe('lazyLoadApi failure', () => {
+    it('catches import failure gracefully', async () => {
+      const logger = createMockLogger();
+      // Create a fresh middleware that hasn't loaded the API
+      const freshMiddleware = new TelemetryMiddleware(logger, '1.0.0-test');
+
+      // Mock the dynamic import to fail — use vi.spyOn on the module-level import
+      // Since we can't easily mock dynamic import(), verify the path when API is not loaded
+      expect(freshMiddleware.isEnabled).toBe(false);
+      expect(freshMiddleware.startSpan({
+        operationName: 'publish',
+        channel: 'ch',
+        spanKind: 3,
+        clientId: 'c',
+        serverAddress: 'localhost',
+        serverPort: 50000,
+      })).toBeUndefined();
+    });
+
+    it('endSpan is no-op when span is undefined', () => {
+      const logger = createMockLogger();
+      const freshMiddleware = new TelemetryMiddleware(logger, '1.0.0-test');
+      // Should not throw
+      freshMiddleware.endSpan(undefined);
+    });
+  });
 });

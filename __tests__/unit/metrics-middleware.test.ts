@@ -178,4 +178,26 @@ describe('MetricsMiddleware', () => {
       expect(logger.warn).not.toHaveBeenCalled();
     });
   });
+
+  describe('edge cases', () => {
+    it('isEnabled is false before lazyLoadApi', () => {
+      const mw = new MetricsMiddleware(logger, '1.0.0-test');
+      expect(mw.isEnabled).toBe(false);
+    });
+
+    it('recordMessageSent without channel is no-op when disabled', () => {
+      expect(() =>
+        middleware.recordMessageSent({ operationName: 'publish' }),
+      ).not.toThrow();
+    });
+
+    it('recordConnectionChange is no-op when disabled', () => {
+      expect(() => middleware.recordConnectionChange(1)).not.toThrow();
+      expect(() => middleware.recordConnectionChange(-1)).not.toThrow();
+    });
+
+    it('recordReconnectionAttempt is no-op when disabled', () => {
+      expect(() => middleware.recordReconnectionAttempt()).not.toThrow();
+    });
+  });
 });

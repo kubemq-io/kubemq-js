@@ -165,9 +165,9 @@ Defined in: client.ts:251
 
 ---
 
-### publishEvent()
+### sendEvent()
 
-> **publishEvent**(`msg`, `opts?`): `Promise`\<`void`\>
+> **sendEvent**(`msg`, `opts?`): `Promise`\<`void`\>
 
 Defined in: client.ts:261
 
@@ -187,9 +187,9 @@ Defined in: client.ts:261
 
 ---
 
-### publishEventStore()
+### sendEventStore()
 
-> **publishEventStore**(`msg`, `opts?`): `Promise`\<`void`\>
+> **sendEventStore**(`msg`, `opts?`): `Promise`\<`void`\>
 
 Defined in: client.ts:297
 

@@ -7,7 +7,7 @@ This guide covers the most common issues you may encounter when using the KubeMQ
 **Error message:**
 
 ```
-ConnectionError: Failed to connect to "kubemq-server:50000": connection timeout after 10000ms
+ConnectionError: Failed to connect to "kubemq-server:50000": connection timeout after 10s
 ```
 
 **Cause:**
@@ -25,7 +25,7 @@ The SDK cannot establish a TCP connection to the KubeMQ server within the config
 ```typescript
 const client = await KubeMQClient.create({
   address: 'remote-server:50000',
-  connectionTimeoutMs: 30_000,
+  connectionTimeoutSeconds: 30,
 });
 ```
 
@@ -63,7 +63,7 @@ const client = await KubeMQClient.create({
 **Error message:**
 
 ```
-AuthorizationError: Permission denied for operation "publishEvent" on channel "restricted.channel"
+AuthorizationError: Permission denied for operation "sendEvent" on channel "restricted.channel"
 ```
 
 **Cause:**
@@ -260,7 +260,7 @@ The subscriber is set up but is not receiving messages that you expect. This is 
 client.subscribeToEvents({
   channel: 'orders',
   group: 'processors', // Only one subscriber in this group receives each message
-  onMessage: (event) => {
+  onEvent: (event) => {
     /* ... */
   },
   onError: (err) => {
@@ -274,7 +274,7 @@ client.subscribeToEvents({
 ```typescript
 client.subscribeToEvents({
   channel: 'orders',
-  onMessage: (event) => {
+  onEvent: (event) => {
     /* ... */
   },
   onError: (err) => {
@@ -283,15 +283,15 @@ client.subscribeToEvents({
 });
 ```
 
-5. **For Events Store, check the `startFrom` parameter.** If you use `StartNewOnly`, you only receive events published after the subscription starts. Use `StartFromFirst` or `StartAtSequence` to replay historical events:
+5. **For Events Store, check the `startFrom` parameter.** If you use `StartFromNew`, you only receive events published after the subscription starts. Use `StartFromFirst` or `StartAtSequence` to replay historical events:
 
 ```typescript
-import { EventStoreType } from 'kubemq-js';
+import { EventStoreStartPosition } from 'kubemq-js';
 
 client.subscribeToEventsStore({
   channel: 'audit-log',
-  startFrom: EventStoreType.StartFromFirst,
-  onMessage: (event) => {
+  startFrom: EventStoreStartPosition.StartFromFirst,
+  onEvent: (event) => {
     /* ... */
   },
   onError: (err) => {
@@ -306,7 +306,7 @@ This is not an error but unexpected behavior — messages reappear after being r
 
 **Cause:**
 
-When you receive a queue message with a visibility timeout, the message becomes hidden from other consumers for `visibilitySeconds`. If you don't call `msg.ack()` before the visibility timeout expires, the message becomes visible again and will be redelivered to the next consumer.
+When you receive a queue message, it is held in a transaction until you explicitly acknowledge or reject it. If you don't call `msg.ack()` in time, the message becomes available again and will be redelivered to the next consumer.
 
 **Solution:**
 
@@ -315,7 +315,6 @@ When you receive a queue message with a visibility timeout, the message becomes 
 ```typescript
 const messages = await client.receiveQueueMessages({
   channel: 'tasks',
-  visibilitySeconds: 30,
   waitTimeoutSeconds: 5,
 });
 
@@ -325,14 +324,14 @@ for (const msg of messages) {
     await msg.ack();
   } catch (err) {
     // Reject the message to send it to the dead-letter queue.
-    await msg.reject();
+    await msg.nack();
   }
 }
 ```
 
-2. **Increase `visibilitySeconds`** if your processing takes longer than expected.
+2. **Reduce batch size** if your processing takes longer than expected.
 
-3. **Use `msg.reject()`** to permanently remove a message you cannot process (sends it to the dead-letter queue if configured).
+3. **Use `msg.nack()`** to permanently remove a message you cannot process (sends it to the dead-letter queue if configured).
 
 4. **Use `msg.requeue('other.channel')`** to move a message to a different queue for later processing or specialized handling.
 
@@ -357,25 +356,25 @@ await client.sendQueueMessage(
 
 The SDK automatically maps gRPC status codes from the KubeMQ server into typed `KubeMQError` subclasses. This table shows the full mapping and whether each error is automatically retried.
 
-| gRPC Code | gRPC Status          | SDK Error Class                          | Retryable | Notes                                                                 |
-| --------- | -------------------- | ---------------------------------------- | --------- | --------------------------------------------------------------------- |
-| 0         | `OK`                 | —                                        | —         | Success; no error raised                                              |
-| 1         | `CANCELLED`          | `CancellationError` / `TransientError`   | Depends   | Local `AbortSignal` → `CancellationError`; server cancel → retried   |
-| 2         | `UNKNOWN`            | `TransientError`                         | Yes       | Unknown error from server or proxy                                    |
-| 3         | `INVALID_ARGUMENT`   | `ValidationError`                        | No        | Bad request parameters (empty channel, missing body, etc.)            |
-| 4         | `DEADLINE_EXCEEDED`  | `KubeMQTimeoutError`                     | Yes       | Operation timed out                                                   |
-| 5         | `NOT_FOUND`          | `NotFoundError`                          | No        | Channel or resource does not exist                                    |
-| 6         | `ALREADY_EXISTS`     | `ValidationError`                        | No        | Resource already exists                                               |
-| 7         | `PERMISSION_DENIED`  | `AuthorizationError`                     | No        | Insufficient permissions for the operation                            |
-| 8         | `RESOURCE_EXHAUSTED` | `ThrottlingError`                        | Yes       | Server rate-limiting; SDK retries with backoff                        |
-| 9         | `FAILED_PRECONDITION`| `ValidationError`                        | No        | State precondition not met                                            |
-| 10        | `ABORTED`            | `TransientError`                         | Yes       | Transaction conflict; SDK retries                                     |
-| 11        | `OUT_OF_RANGE`       | `ValidationError`                        | No        | Iterator or pagination boundary exceeded                              |
-| 12        | `UNIMPLEMENTED`      | `FatalError`                             | No        | Feature not supported by the server version                           |
-| 13        | `INTERNAL`           | `KubeMQTimeoutError` / `FatalError`      | Depends   | Message contains "timeout" → timeout error (retried); otherwise fatal |
-| 14        | `UNAVAILABLE`        | `ConnectionError`                        | Yes       | Server temporarily unavailable; SDK retries with reconnection         |
-| 15        | `DATA_LOSS`          | `FatalError`                             | No        | Unrecoverable data loss                                               |
-| 16        | `UNAUTHENTICATED`    | `AuthenticationError`                    | No        | Invalid or expired credentials                                        |
+| gRPC Code | gRPC Status           | SDK Error Class                        | Retryable | Notes                                                                 |
+| --------- | --------------------- | -------------------------------------- | --------- | --------------------------------------------------------------------- |
+| 0         | `OK`                  | —                                      | —         | Success; no error raised                                              |
+| 1         | `CANCELLED`           | `CancellationError` / `TransientError` | Depends   | Local `AbortSignal` → `CancellationError`; server cancel → retried    |
+| 2         | `UNKNOWN`             | `TransientError`                       | Yes       | Unknown error from server or proxy                                    |
+| 3         | `INVALID_ARGUMENT`    | `ValidationError`                      | No        | Bad request parameters (empty channel, missing body, etc.)            |
+| 4         | `DEADLINE_EXCEEDED`   | `KubeMQTimeoutError`                   | Yes       | Operation timed out                                                   |
+| 5         | `NOT_FOUND`           | `NotFoundError`                        | No        | Channel or resource does not exist                                    |
+| 6         | `ALREADY_EXISTS`      | `ValidationError`                      | No        | Resource already exists                                               |
+| 7         | `PERMISSION_DENIED`   | `AuthorizationError`                   | No        | Insufficient permissions for the operation                            |
+| 8         | `RESOURCE_EXHAUSTED`  | `ThrottlingError`                      | Yes       | Server rate-limiting; SDK retries with backoff                        |
+| 9         | `FAILED_PRECONDITION` | `ValidationError`                      | No        | State precondition not met                                            |
+| 10        | `ABORTED`             | `TransientError`                       | Yes       | Transaction conflict; SDK retries                                     |
+| 11        | `OUT_OF_RANGE`        | `ValidationError`                      | No        | Iterator or pagination boundary exceeded                              |
+| 12        | `UNIMPLEMENTED`       | `FatalError`                           | No        | Feature not supported by the server version                           |
+| 13        | `INTERNAL`            | `KubeMQTimeoutError` / `FatalError`    | Depends   | Message contains "timeout" → timeout error (retried); otherwise fatal |
+| 14        | `UNAVAILABLE`         | `ConnectionError`                      | Yes       | Server temporarily unavailable; SDK retries with reconnection         |
+| 15        | `DATA_LOSS`           | `FatalError`                           | No        | Unrecoverable data loss                                               |
+| 16        | `UNAUTHENTICATED`     | `AuthenticationError`                  | No        | Invalid or expired credentials                                        |
 
 **How to use this table:** When you catch a `KubeMQError`, check its `code` and `isRetryable` properties. Retryable errors are handled automatically by the SDK's retry policy — you only see them when all retry attempts have been exhausted.
 
@@ -383,7 +382,7 @@ The SDK automatically maps gRPC status codes from the KubeMQ server into typed `
 import { KubeMQError, ConnectionError, ThrottlingError } from 'kubemq-js';
 
 try {
-  await client.publishEvent(msg);
+  await client.sendEvent(msg);
 } catch (err) {
   if (err instanceof KubeMQError) {
     console.log('Error code:', err.code);
@@ -410,13 +409,13 @@ const client = await KubeMQClient.create({
 
 The `createConsoleLogger` function accepts one of the following log levels (from most to least verbose):
 
-| Level   | Output                          |
-| ------- | ------------------------------- |
-| `debug` | All messages (most verbose)     |
-| `info`  | Info, warnings, and errors      |
-| `warn`  | Warnings and errors only        |
-| `error` | Errors only                     |
-| `off`   | No output (same as default)     |
+| Level   | Output                      |
+| ------- | --------------------------- |
+| `debug` | All messages (most verbose) |
+| `info`  | Info, warnings, and errors  |
+| `warn`  | Warnings and errors only    |
+| `error` | Errors only                 |
+| `off`   | No output (same as default) |
 
 ### What Debug Output Looks Like
 
@@ -446,8 +445,8 @@ const pinoLogger = pino({ level: 'debug' });
 
 const logger: Logger = {
   debug: (msg, fields) => pinoLogger.debug(fields, msg),
-  info:  (msg, fields) => pinoLogger.info(fields, msg),
-  warn:  (msg, fields) => pinoLogger.warn(fields, msg),
+  info: (msg, fields) => pinoLogger.info(fields, msg),
+  warn: (msg, fields) => pinoLogger.warn(fields, msg),
   error: (msg, fields) => pinoLogger.error(fields, msg),
 };
 

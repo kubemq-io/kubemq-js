@@ -12,9 +12,9 @@ Received queue message with acknowledgment methods.
 
 ## Remarks
 
-**Async safety:** The `ack()`, `reject()`, and `reQueue()` methods are safe
+**Async safety:** The `ack()`, `nack()`, and `reQueue()` methods are safe
 to call from any async context, but each message MUST be acknowledged exactly
-once. Calling `ack()` after `reject()` (or vice versa) throws a
+once. Calling `ack()` after `nack()` (or vice versa) throws a
 `ValidationError`. The visibility timer runs independently — if the message
 is not acknowledged before the visibility timeout expires, it becomes
 available to other consumers.
@@ -137,9 +137,9 @@ Defined in: messages/queues.ts:59
 
 ---
 
-### reject()
+### nack()
 
-> **reject**(): `Promise`\<`void`\>
+> **nack**(): `Promise`\<`void`\>
 
 Defined in: messages/queues.ts:60
 

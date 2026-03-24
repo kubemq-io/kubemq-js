@@ -14,6 +14,14 @@ export interface StreamHandle<TWrite, TRead> {
   onEnd(handler: () => void): void;
   cancel(): void;
   end(): void;
+  /** Pause the readable side of the stream (C3 backpressure). No-op if not supported. */
+  pause(): void;
+  /** Resume the readable side of the stream (C3 backpressure). No-op if not supported. */
+  resume(): void;
+  /** Remove all listeners from the underlying stream (H2 rebind cleanup). */
+  removeAllListeners(): void;
+  /** Register a one-shot handler for when the write buffer drains (writable-side backpressure). */
+  onDrain(handler: () => void): void;
 }
 
 export interface Transport {

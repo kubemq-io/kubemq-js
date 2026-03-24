@@ -2,17 +2,17 @@
 
 ---
 
-[KubeMQ JS/TS SDK](../README.md) / EventStoreType
+[KubeMQ JS/TS SDK](../README.md) / EventStoreStartPosition
 
-# Enumeration: EventStoreType
+# Enumeration: EventStoreStartPosition
 
 Defined in: messages/events-store.ts:7
 
 ## Enumeration Members
 
-### StartNewOnly
+### StartFromNew
 
-> **StartNewOnly**: `1`
+> **StartFromNew**: `1`
 
 Defined in: messages/events-store.ts:8
 

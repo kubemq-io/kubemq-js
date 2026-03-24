@@ -30,7 +30,7 @@ import {
 } from '../../src/internal/protocol/marshaller.js';
 import { kubemq } from '../../src/protos/kubemq.js';
 import { KubeMQError } from '../../src/errors.js';
-import { EventStoreType } from '../../src/messages/events-store.js';
+import { EventStoreStartPosition } from '../../src/messages/events-store.js';
 
 const CLIENT_ID = 'test-client';
 const encoder = new TextEncoder();
@@ -102,7 +102,7 @@ describe('marshaller', () => {
         channel: 'cmd.test',
         body: encoder.encode('cmd-body'),
         metadata: 'cmd-meta',
-        timeoutMs: 5000,
+        timeoutInSeconds: 5,
         tags: { action: 'run' },
         id: 'req-1',
       };
@@ -122,9 +122,9 @@ describe('marshaller', () => {
         channel: 'query.test',
         body: encoder.encode('q-body'),
         metadata: 'q-meta',
-        timeoutMs: 3000,
+        timeoutInSeconds: 3,
         cacheKey: 'cache-key-1',
-        cacheTTL: 60,
+        cacheTtlInSeconds: 60,
         id: 'q-1',
       };
       const proto = toProtoRequest(msg, CLIENT_ID, 'Query');
@@ -135,14 +135,19 @@ describe('marshaller', () => {
     });
 
     it('auto-generates RequestID if not provided', () => {
-      const msg = { channel: 'cmd.auto', timeoutMs: 1000 };
+      const msg = { channel: 'cmd.auto', timeoutInSeconds: 1 };
       const proto = toProtoRequest(msg, CLIENT_ID, 'Command');
 
       expect(proto.RequestID.length).toBeGreaterThan(0);
     });
 
     it('does not set cache fields for Command type', () => {
-      const msg = { channel: 'cmd.nocache', timeoutMs: 1000, cacheKey: 'ignored', cacheTTL: 30 };
+      const msg = {
+        channel: 'cmd.nocache',
+        timeoutInSeconds: 1,
+        cacheKey: 'ignored',
+        cacheTtlInSeconds: 30,
+      };
       const proto = toProtoRequest(msg, CLIENT_ID, 'Command');
 
       expect(proto.CacheKey).toBe('');
@@ -246,7 +251,6 @@ describe('marshaller', () => {
     it('sets correct fields from QueuePollRequest', () => {
       const req = {
         channel: 'queue.poll',
-        visibilitySeconds: 30,
         waitTimeoutSeconds: 10,
         maxMessages: 5,
       };
@@ -263,7 +267,6 @@ describe('marshaller', () => {
     it('defaults maxMessages to 1 when not provided', () => {
       const req = {
         channel: 'queue.default',
-        visibilitySeconds: 10,
         waitTimeoutSeconds: 5,
       };
       const proto = toProtoReceiveQueueRequest(req, CLIENT_ID);
@@ -336,9 +339,9 @@ describe('marshaller', () => {
       const sub = {
         channel: 'es-ch',
         group: 'g1',
-        startFrom: EventStoreType.StartAtSequence,
+        startFrom: EventStoreStartPosition.StartAtSequence,
         startValue: 42,
-        onMessage: () => {},
+        onEvent: () => {},
         onError: () => {},
       };
       const proto = toProtoSubscribeEventsStore(sub, CLIENT_ID);
@@ -389,25 +392,25 @@ describe('marshaller', () => {
     it('throws KubeMQError on Sent=false', () => {
       const result = new kubemq.Result({ Sent: false, Error: 'publish failed' });
 
-      expect(() => fromProtoResult(result, 'publishEvent')).toThrow(KubeMQError);
-      expect(() => fromProtoResult(result, 'publishEvent')).toThrow('publish failed');
+      expect(() => fromProtoResult(result, 'sendEvent')).toThrow(KubeMQError);
+      expect(() => fromProtoResult(result, 'sendEvent')).toThrow('publish failed');
     });
 
     it('throws with default message when Error is empty', () => {
       const result = new kubemq.Result({ Sent: false, Error: '' });
 
-      expect(() => fromProtoResult(result, 'publishEvent')).toThrow('Event send failed');
+      expect(() => fromProtoResult(result, 'sendEvent')).toThrow('Event send failed');
     });
 
     it('succeeds silently on Sent=true', () => {
       const result = new kubemq.Result({ Sent: true });
 
-      expect(() => fromProtoResult(result, 'publishEvent')).not.toThrow();
+      expect(() => fromProtoResult(result, 'sendEvent')).not.toThrow();
     });
   });
 
   describe('fromProtoReceivedEvent', () => {
-    it('converts EventReceive to ReceivedEvent', () => {
+    it('converts EventReceive to EventReceived', () => {
       const ts = BigInt(Date.now()) * BigInt(1_000_000);
       const data = new kubemq.EventReceive({
         EventID: 'evt-rx-1',
@@ -459,7 +462,7 @@ describe('marshaller', () => {
   });
 
   describe('fromProtoReceivedCommand', () => {
-    it('converts proto Request to ReceivedCommand', () => {
+    it('converts proto Request to CommandReceived', () => {
       const data = new kubemq.Request({
         RequestID: 'cmd-rx-1',
         Channel: 'cmd.ch',
@@ -483,7 +486,7 @@ describe('marshaller', () => {
   });
 
   describe('fromProtoReceivedQuery', () => {
-    it('converts proto Request to ReceivedQuery', () => {
+    it('converts proto Request to QueryReceived', () => {
       const data = new kubemq.Request({
         RequestID: 'qry-rx-1',
         Channel: 'query.ch',
@@ -961,7 +964,7 @@ describe('marshaller', () => {
       const msg = {
         channel: 'cmd.ch',
         body: encoder.encode('hello'),
-        timeoutMs: 5000,
+        timeoutInSeconds: 5,
         span,
       };
       const proto = toProtoRequest(msg as any, CLIENT_ID);
@@ -972,7 +975,7 @@ describe('marshaller', () => {
       const msg = {
         channel: 'cmd.ch',
         body: encoder.encode('hello'),
-        timeoutMs: 5000,
+        timeoutInSeconds: 5,
       };
       const proto = toProtoRequest(msg as any, CLIENT_ID);
       expect(proto.Span?.length ?? 0).toBe(0);

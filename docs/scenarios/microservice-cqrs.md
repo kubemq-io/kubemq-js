@@ -29,12 +29,7 @@ This guide demonstrates a Command Query Responsibility Segregation (CQRS) archit
 The write service subscribes to commands, validates them, applies business logic, and publishes domain events.
 
 ```typescript
-import {
-  KubeMQClient,
-  createCommand,
-  createQuery,
-  createEventMessage,
-} from 'kubemq-js';
+import { KubeMQClient, createCommand, createQuery, createEventMessage } from 'kubemq-js';
 
 const store = new Map<string, string>();
 
@@ -136,7 +131,7 @@ async function main(): Promise<void> {
         channel: 'cqrs.commands',
         body: JSON.stringify({ item: 'widget', qty: 5 }),
         tags: { order_id: 'ORD-001' },
-        timeoutMs: 10000,
+        timeoutInSeconds: 10,
       }),
     );
     console.log(`[Client] Command executed: ${cmdResp.executed}`);
@@ -148,7 +143,7 @@ async function main(): Promise<void> {
       createQuery({
         channel: 'cqrs.queries',
         body: 'ORD-001',
-        timeoutMs: 10000,
+        timeoutInSeconds: 10,
       }),
     );
     if (queryResp.body) {
@@ -170,13 +165,13 @@ main().catch(console.error);
 
 ## Design Considerations
 
-| Concern | Approach |
-|---|---|
+| Concern         | Approach                                                                  |
+| --------------- | ------------------------------------------------------------------------- |
 | **Consistency** | Eventually consistent — events propagate asynchronously to the read model |
-| **Ordering** | Use events-store with sequence replay if strict ordering matters |
-| **Durability** | Commands are request-reply; the write service persists before acking |
-| **Scaling** | Read and write services scale independently via consumer groups |
-| **Failure** | If the read service misses events, replay from events-store |
+| **Ordering**    | Use events-store with sequence replay if strict ordering matters          |
+| **Durability**  | Commands are request-reply; the write service persists before acking      |
+| **Scaling**     | Read and write services scale independently via consumer groups           |
+| **Failure**     | If the read service misses events, replay from events-store               |
 
 ## When to Use This Pattern
 

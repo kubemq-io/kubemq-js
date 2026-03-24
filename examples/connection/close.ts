@@ -7,7 +7,7 @@ async function main() {
   });
 
   try {
-    await client.publishEvent(
+    await client.sendEvent(
       createEventMessage({ channel: 'js-connection.close', body: 'hello before close' }),
     );
     console.log('Event sent successfully');

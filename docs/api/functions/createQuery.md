@@ -15,7 +15,7 @@ Create a validated, frozen QueryMessage with defaults applied.
 - `id` defaults to a random UUID
 - `metadata` defaults to `''`
 - `tags` defaults to `{}`
-- `timeoutMs` is required and must be positive
+- `timeoutInSeconds` is required and must be positive
 - Requires at least one of: body, metadata, or tags
 - String/Buffer body is normalized to `Uint8Array`
 

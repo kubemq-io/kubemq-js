@@ -18,9 +18,9 @@ export interface QueryMessage {
   readonly body?: MessageBody;
   readonly metadata?: string;
   readonly tags?: Record<string, string>;
-  readonly timeoutMs: number;
+  readonly timeoutInSeconds: number;
   readonly cacheKey?: string;
-  readonly cacheTTL?: number;
+  readonly cacheTtlInSeconds?: number;
   readonly id?: string;
   readonly clientId?: string;
   readonly span?: Uint8Array;
@@ -34,7 +34,7 @@ export interface QueryMessage {
  * Do not modify received message objects — they are shared references from
  * the subscription's delivery pipeline. Fields are readonly.
  */
-export interface ReceivedQuery {
+export interface QueryReceived {
   readonly id: string;
   readonly channel: string;
   readonly fromClientId: string;
@@ -56,7 +56,7 @@ export interface ReceivedQuery {
  *
  * @see {@link KubeMQClient.sendQuery}
  * @see {@link KubeMQClient.sendQueryResponse}
- * @see {@link ReceivedQuery}
+ * @see {@link QueryReceived}
  */
 export interface QueryResponse {
   /** Correlation ID linking the response to its originating query. */
@@ -95,7 +95,7 @@ export interface QueryResponse {
 export interface QuerySubscription {
   readonly channel: string;
   readonly group?: string;
-  readonly onQuery: (query: ReceivedQuery) => void;
+  readonly onQuery: (query: QueryReceived) => void;
   readonly onError: (err: KubeMQError) => void;
 }
 
@@ -105,7 +105,7 @@ export interface QuerySubscription {
  * - `id` defaults to a random UUID
  * - `metadata` defaults to `''`
  * - `tags` defaults to `{}`
- * - `timeoutMs` is required and must be positive
+ * - `timeoutInSeconds` is required and must be positive
  * - Requires at least one of: body, metadata, or tags
  * - String/Buffer body is normalized to `Uint8Array`
  *
@@ -114,9 +114,9 @@ export interface QuerySubscription {
  * const query = createQuery({
  *   channel: 'queries.user-service',
  *   body: new TextEncoder().encode(JSON.stringify({ userId: '42' })),
- *   timeoutMs: 5000,
+ *   timeoutInSeconds: 5,
  *   cacheKey: 'user:42',
- *   cacheTTL: 60,
+ *   cacheTtlInSeconds: 60,
  * });
  * const response = await client.sendQuery(query);
  * ```
@@ -131,9 +131,9 @@ export function createQuery(
     body: opts.body !== undefined ? normalizeBody(opts.body) : undefined,
     metadata: opts.metadata ?? '',
     tags: opts.tags ?? {},
-    timeoutMs: opts.timeoutMs,
+    timeoutInSeconds: opts.timeoutInSeconds,
     cacheKey: opts.cacheKey,
-    cacheTTL: opts.cacheTTL,
+    cacheTtlInSeconds: opts.cacheTtlInSeconds,
     id: opts.id ?? randomUUID(),
     clientId: opts.clientId,
   };
