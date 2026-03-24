@@ -1,8 +1,28 @@
 import { readFile } from 'node:fs/promises';
+import { normalize } from 'node:path';
 import { X509Certificate } from 'node:crypto';
 import type { TlsOptions } from '../options.js';
 import type { Logger } from '../logger.js';
 import { AuthenticationError, ConfigurationError, ErrorCode } from '../errors.js';
+
+// ─── Path Safety ────────────────────────────────────────────────────
+
+/**
+ * Reject file paths containing traversal segments (`..`) to prevent
+ * reading arbitrary files when cert paths are derived from untrusted input.
+ */
+function assertSafePath(filePath: string): void {
+  const normalized = normalize(filePath);
+  if (normalized.includes('..')) {
+    throw new ConfigurationError({
+      code: ErrorCode.ConfigurationError,
+      message: `TLS file path must not contain path traversal segments: ${filePath}`,
+      operation: 'resolvePemOrPath',
+      isRetryable: false,
+      suggestion: 'Use an absolute path or a relative path without ".." segments.',
+    });
+  }
+}
 
 // ─── PEM Resolution ──────────────────────────────────────────────────
 
@@ -19,6 +39,7 @@ export async function resolvePemOrPath(input: string | Buffer): Promise<Buffer> 
   if (input.trimStart().startsWith('-----BEGIN')) {
     return Buffer.from(input, 'utf-8');
   }
+  assertSafePath(input);
   return readFile(input);
 }
 
@@ -202,6 +223,15 @@ export async function resolveSslParts(
   }
 
   if (opts.insecureSkipVerify) {
+    if (process.env.NODE_ENV === 'production' && !process.env.KUBEMQ_ALLOW_INSECURE) {
+      throw new ConfigurationError({
+        code: ErrorCode.ConfigurationError,
+        message: 'insecureSkipVerify is not allowed when NODE_ENV=production',
+        operation: 'resolveSslParts',
+        isRetryable: false,
+        suggestion: 'Set KUBEMQ_ALLOW_INSECURE=1 to override, or remove insecureSkipVerify.',
+      });
+    }
     logger.warn('certificate verification is disabled — do not use in production');
   }
 
