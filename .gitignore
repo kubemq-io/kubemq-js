@@ -115,3 +115,4 @@ dist
 /.idea/inspectionProfiles/Project_Default.xml
 /.idea/vcs.xml
 /.npmrc
+/.idea/copilot.data.migration.ask2agent.xml
