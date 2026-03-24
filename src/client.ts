@@ -6,11 +6,12 @@ import type {
   CloseOptions,
   RetryPolicy,
 } from './options.js';
-import type { EventMessage, ReceivedEvent, EventsSubscription } from './messages/events.js';
-import { EventStoreType } from './messages/events-store.js';
+import type { EventMessage, EventReceived, EventsSubscription } from './messages/events.js';
+import { EventStoreStartPosition } from './messages/events-store.js';
 import type {
   EventStoreMessage,
-  ReceivedEventStore,
+  EventStoreReceived,
+  EventStoreResult,
   EventStoreSubscription,
   EventStoreStreamHandle,
 } from './messages/events-store.js';
@@ -32,19 +33,19 @@ import type {
   CommandMessage,
   CommandResponse,
   CommandSubscription,
-  ReceivedCommand,
+  CommandReceived,
 } from './messages/commands.js';
 import type {
   QueryMessage,
   QueryResponse,
   QuerySubscription,
-  ReceivedQuery,
+  QueryReceived,
 } from './messages/queries.js';
 import type { Subscription } from './messages/subscription.js';
 import { ConnectionState } from './internal/transport/connection-state.js';
 import type { ConnectionEventMap } from './internal/transport/typed-emitter.js';
 import { GrpcTransport } from './internal/transport/grpc-transport.js';
-import type { TransportCallOptions } from './internal/transport/transport.js';
+import type { TransportCallOptions, StreamHandle } from './internal/transport/transport.js';
 import { validateClientOptions } from './internal/config-validator.js';
 import { applyDefaults } from './internal/config-defaults.js';
 import type { ResolvedClientOptions } from './internal/config-defaults.js';
@@ -80,13 +81,13 @@ import {
   toProtoQueuesDownstreamRequest,
   fromProtoPingResult,
   fromProtoResult,
+  fromProtoEventStoreResult,
   fromProtoReceivedEvent,
   fromProtoReceivedEventStore,
   fromProtoReceivedCommand,
   fromProtoReceivedQuery,
   fromProtoCommandResponse,
   fromProtoQueryResponse,
-  fromProtoQueueSendResult,
   fromProtoBatchResponse,
   fromProtoReceiveQueueResponse,
   toProtoQueuesUpstreamRequest,
@@ -101,8 +102,11 @@ import type { ChannelType, ChannelInfo } from './internal/protocol/channel-ops.j
 // eslint-disable-next-line no-restricted-imports -- client implementation requires proto types
 import { kubemq } from './protos/kubemq.js';
 import { CallbackDispatcher } from './internal/concurrency/callback-dispatcher.js';
+import { AsyncEventSender } from './internal/streaming/async-event-sender.js';
+import { AsyncUpstreamSender } from './internal/streaming/async-upstream-sender.js';
+import { SenderClosedError } from './errors.js';
 import { assertNodeVersion } from './internal/runtime-check.js';
-import { withRetry, createRetryThrottle, resolveSignal } from './internal/middleware/retry.js';
+import { withRetry, createRetryThrottle, resolveSignal, resolveSignalOptional, resolveDeadline } from './internal/middleware/retry.js';
 import type { RetryThrottle, OperationType, RetryHooks } from './internal/middleware/retry.js';
 import { TelemetryMiddleware } from './internal/middleware/telemetry.js';
 import type { OperationKind, SpanConfig } from './internal/middleware/telemetry.js';
@@ -163,6 +167,10 @@ export class KubeMQClient implements AsyncDisposable {
   readonly #retryThrottle: RetryThrottle;
   readonly #telemetry: TelemetryMiddleware;
   readonly #metrics: MetricsMiddleware;
+  #eventSenderPromise: Promise<AsyncEventSender> | null = null;
+  #upstreamSenderPromise: Promise<AsyncUpstreamSender> | null = null;
+  #closing = false;
+  #closePromise: Promise<void> | null = null;
 
   private constructor(
     options: ClientOptions,
@@ -189,6 +197,42 @@ export class KubeMQClient implements AsyncDisposable {
     return new KubeMQClient(options, resolved, transport);
   }
 
+  // ─── Shared Streaming Senders (lazy init) ───
+
+  #getEventSender(): Promise<AsyncEventSender> {
+    if (this.#closing)
+      throw new SenderClosedError({ message: 'Client is closing', operation: 'send' });
+    if (!this.#eventSenderPromise) {
+      this.#eventSenderPromise = Promise.resolve().then(() => {
+        const sender = new AsyncEventSender({
+          maxQueueSize: 10_000,
+          logger: this.#resolved.logger,
+          clientId: this.clientId,
+        });
+        sender.start(this.#transport);
+        return sender;
+      });
+    }
+    return this.#eventSenderPromise;
+  }
+
+  #getUpstreamSender(): Promise<AsyncUpstreamSender> {
+    if (this.#closing)
+      throw new SenderClosedError({ message: 'Client is closing', operation: 'send' });
+    if (!this.#upstreamSenderPromise) {
+      this.#upstreamSenderPromise = Promise.resolve().then(() => {
+        const sender = new AsyncUpstreamSender({
+          maxQueueSize: 10_000,
+          logger: this.#resolved.logger,
+          clientId: this.clientId,
+        });
+        sender.start(this.#transport);
+        return sender;
+      });
+    }
+    return this.#upstreamSenderPromise;
+  }
+
   /** The raw user-provided options (frozen). */
   get options(): Readonly<ClientOptions> {
     return this.#options;
@@ -207,6 +251,24 @@ export class KubeMQClient implements AsyncDisposable {
   /** Current connection state. */
   get state(): ConnectionState {
     return this.#transport.state;
+  }
+
+  /** Stats from the shared event sender (if initialized). */
+  async getEventSenderStats(): Promise<
+    import('./internal/streaming/base-streaming-sender.js').SenderStats | null
+  > {
+    if (!this.#eventSenderPromise) return null;
+    const sender = await this.#eventSenderPromise.catch(() => null);
+    return sender?.getStats() ?? null;
+  }
+
+  /** Stats from the shared queue upstream sender (if initialized). */
+  async getUpstreamSenderStats(): Promise<
+    import('./internal/streaming/base-streaming-sender.js').SenderStats | null
+  > {
+    if (!this.#upstreamSenderPromise) return null;
+    const sender = await this.#upstreamSenderPromise.catch(() => null);
+    return sender?.getStats() ?? null;
   }
 
   /**
@@ -279,12 +341,12 @@ export class KubeMQClient implements AsyncDisposable {
   // ─── Events ───
 
   /**
-   * Publish a fire-and-forget event to a channel.
+   * Send a fire-and-forget event to a channel.
    *
    * @example
    * ```typescript
    * const client = await KubeMQClient.create({ address: 'localhost:50000' });
-   * await client.publishEvent({
+   * await client.sendEvent({
    *   channel: 'events.notifications',
    *   body: new TextEncoder().encode('user signed up'),
    *   metadata: 'signup',
@@ -292,7 +354,7 @@ export class KubeMQClient implements AsyncDisposable {
    * });
    * ```
    *
-   * @param msg - The event message to publish.
+   * @param msg - The event message to send.
    * @param opts - Optional timeout and cancellation overrides.
    * @throws {@link ValidationError} If the message fails validation (e.g. empty channel).
    * @throws {@link ClientClosedError} If the client has been closed.
@@ -303,11 +365,10 @@ export class KubeMQClient implements AsyncDisposable {
    * @see {@link createEventMessage}
    * @see {@link subscribeToEvents}
    */
-  async publishEvent(msg: EventMessage, opts?: OperationOptions): Promise<void> {
-    this.#transport.ensureNotClosed('publishEvent');
-    validateEventMessage(msg, 'publishEvent');
+  async sendEvent(msg: EventMessage, _opts?: OperationOptions): Promise<void> {
+    this.#transport.ensureNotClosed('sendEvent');
+    validateEventMessage(msg, 'sendEvent');
     const pbEvent = toProtoEvent(msg, this.clientId, false);
-    const signal = resolveSignal(this.#resolved.defaultSendTimeoutMs, opts);
     const span = this.#startSpan('publish', msg.channel, 3, {
       messageId: msg.id,
       bodySize: msg.body?.length,
@@ -315,45 +376,27 @@ export class KubeMQClient implements AsyncDisposable {
     const t0 = performance.now();
 
     try {
-      await withRetry(
-        async (sig) => {
-          const result = await this.#transport.unaryCall<kubemq.Event, kubemq.Result>(
-            'SendEvent',
-            pbEvent,
-            { signal: sig },
-          );
-          fromProtoResult(result, 'publishEvent');
-        },
-        this.#retryPolicy,
-        {
-          operation: 'publishEvent',
-          operationType: 'events' as OperationType,
-          channel: msg.channel,
-          serverAddress: this.address,
-        },
-        this.#resolved.logger,
-        this.#retryThrottle,
-        signal,
-        this.#retryHooks('publishEvent', msg.channel),
-      );
-      this.#metrics.recordMessageSent({ operationName: 'publishEvent', channel: msg.channel });
+      const sender = await this.#getEventSender();
+      sender.sendFireAndForget(pbEvent);
+      this.#metrics.recordMessageSent({ operationName: 'sendEvent', channel: msg.channel });
       this.#telemetry.endSpan(span);
     } catch (err) {
       this.#telemetry.endSpan(span, err instanceof KubeMQError ? err : undefined);
       throw err;
     } finally {
       this.#metrics.recordOperationDuration((performance.now() - t0) / 1000, {
-        operationName: 'publishEvent',
+        operationName: 'sendEvent',
         channel: msg.channel,
       });
     }
   }
 
   /**
-   * Publish a persistent event to an event-store channel.
+   * Send a persistent event to an event-store channel.
    *
-   * @param msg - The event-store message to publish.
+   * @param msg - The event-store message to send.
    * @param opts - Optional timeout and cancellation overrides.
+   * @returns The send result with event ID and delivery status.
    * @throws {@link ValidationError} If the message fails validation.
    * @throws {@link ClientClosedError} If the client has been closed.
    * @throws {@link KubeMQTimeoutError} If the operation exceeds the configured timeout.
@@ -362,12 +405,14 @@ export class KubeMQClient implements AsyncDisposable {
    *
    * @see {@link createEventStoreMessage}
    * @see {@link subscribeToEventsStore}
+   * @see {@link EventStoreResult}
    */
-  async publishEventStore(msg: EventStoreMessage, opts?: OperationOptions): Promise<void> {
-    this.#transport.ensureNotClosed('publishEventStore');
-    validateEventStoreMessage(msg, 'publishEventStore');
+  async sendEventStore(msg: EventStoreMessage, opts?: OperationOptions): Promise<EventStoreResult> {
+    this.#transport.ensureNotClosed('sendEventStore');
+    validateEventStoreMessage(msg, 'sendEventStore');
     const pbEvent = toProtoEvent(msg, this.clientId, true);
-    const signal = resolveSignal(this.#resolved.defaultSendTimeoutMs, opts);
+    const timeoutMs = opts?.timeout ?? this.#resolved.defaultSendTimeoutMs;
+    const deadline = new Date(Date.now() + timeoutMs);
     const span = this.#startSpan('publish', msg.channel, 3, {
       messageId: msg.id,
       bodySize: msg.body?.length,
@@ -375,35 +420,19 @@ export class KubeMQClient implements AsyncDisposable {
     const t0 = performance.now();
 
     try {
-      await withRetry(
-        async (sig) => {
-          const result = await this.#transport.unaryCall<kubemq.Event, kubemq.Result>(
-            'SendEvent',
-            pbEvent,
-            { signal: sig },
-          );
-          fromProtoResult(result, 'publishEventStore');
-        },
-        this.#retryPolicy,
-        {
-          operation: 'publishEventStore',
-          operationType: 'eventsStore' as OperationType,
-          channel: msg.channel,
-          serverAddress: this.address,
-        },
-        this.#resolved.logger,
-        this.#retryThrottle,
-        signal,
-        this.#retryHooks('publishEventStore', msg.channel),
-      );
-      this.#metrics.recordMessageSent({ operationName: 'publishEventStore', channel: msg.channel });
+      const sender = await this.#getEventSender();
+      const result = await sender.sendStore(pbEvent, deadline);
+      fromProtoResult(result, 'sendEventStore');
+      const storeResult = fromProtoEventStoreResult(result);
+      this.#metrics.recordMessageSent({ operationName: 'sendEventStore', channel: msg.channel });
       this.#telemetry.endSpan(span);
+      return storeResult;
     } catch (err) {
       this.#telemetry.endSpan(span, err instanceof KubeMQError ? err : undefined);
       throw err;
     } finally {
       this.#metrics.recordOperationDuration((performance.now() - t0) / 1000, {
-        operationName: 'publishEventStore',
+        operationName: 'sendEventStore',
         channel: msg.channel,
       });
     }
@@ -418,7 +447,7 @@ export class KubeMQClient implements AsyncDisposable {
    * const sub = client.subscribeToEvents({
    *   channel: 'events.notifications',
    *   group: 'worker-group',
-   *   onMessage: (event) => {
+   *   onEvent: (event) => {
    *     console.log(`Received: ${event.id} on ${event.channel}`);
    *   },
    *   onError: (err) => console.error(err),
@@ -434,7 +463,7 @@ export class KubeMQClient implements AsyncDisposable {
    * @throws {@link ValidationError} If the subscription request is invalid.
    * @throws {@link ClientClosedError} If the client has been closed.
    *
-   * @see {@link publishEvent}
+   * @see {@link sendEvent}
    * @see {@link Subscription}
    * @see {@link EventsSubscription}
    */
@@ -442,10 +471,17 @@ export class KubeMQClient implements AsyncDisposable {
     this.#transport.ensureNotClosed('subscribeToEvents');
     validateSubscription(sub, 'subscribeToEvents', true);
 
-    const dispatcher = new CallbackDispatcher<ReceivedEvent>({
-      maxConcurrent: opts?.maxConcurrentCallbacks ?? 1,
+    // C3 fix: currentStream reference for backpressure pause/resume
+    let currentStream: StreamHandle<never, kubemq.EventReceive> | undefined;
+
+    const dispatcher = new CallbackDispatcher<EventReceived>({
+      maxConcurrent: opts?.maxConcurrentCallbacks ?? 20,
+      maxQueueDepth: opts?.maxQueueDepth,
+      dropOnHighWater: opts?.dropOnHighWater,
       logger: this.#resolved.logger,
       onError: sub.onError,
+      onHighWater: () => currentStream?.pause(),
+      onLowWater: () => currentStream?.resume(),
     });
     this.#activeDispatchers.add(dispatcher as CallbackDispatcher<unknown>);
 
@@ -458,6 +494,7 @@ export class KubeMQClient implements AsyncDisposable {
         'SubscribeToEvents',
         pbSubscribe,
       );
+      currentStream = s;
       s.onData((data: kubemq.EventReceive) => {
         const msg = fromProtoReceivedEvent(data);
         this.#metrics.recordMessageConsumed({
@@ -467,7 +504,7 @@ export class KubeMQClient implements AsyncDisposable {
         dispatcher.dispatch((m) => {
           const span = this.#startSpan('process', sub.channel, 4, { messageId: m.id });
           try {
-            sub.onMessage(m);
+            sub.onEvent(m);
             this.#telemetry.endSpan(span);
           } catch (err) {
             this.#telemetry.endSpan(span, err instanceof KubeMQError ? err : undefined);
@@ -529,19 +566,26 @@ export class KubeMQClient implements AsyncDisposable {
    * @throws {@link ValidationError} If the subscription request is invalid.
    * @throws {@link ClientClosedError} If the client has been closed.
    *
-   * @see {@link publishEventStore}
+   * @see {@link sendEventStore}
    * @see {@link Subscription}
    * @see {@link EventStoreSubscription}
-   * @see {@link EventStoreType}
+   * @see {@link EventStoreStartPosition}
    */
   subscribeToEventsStore(sub: EventStoreSubscription, opts?: SubscriptionOptions): Subscription {
     this.#transport.ensureNotClosed('subscribeToEventsStore');
     validateEventStoreSubscription(sub, 'subscribeToEventsStore');
 
-    const dispatcher = new CallbackDispatcher<ReceivedEventStore>({
-      maxConcurrent: opts?.maxConcurrentCallbacks ?? 1,
+    // C3 fix: currentStream reference for backpressure pause/resume
+    let currentStream: StreamHandle<never, kubemq.EventReceive> | undefined;
+
+    const dispatcher = new CallbackDispatcher<EventStoreReceived>({
+      maxConcurrent: opts?.maxConcurrentCallbacks ?? 20,
+      maxQueueDepth: opts?.maxQueueDepth,
+      dropOnHighWater: opts?.dropOnHighWater,
       logger: this.#resolved.logger,
       onError: sub.onError,
+      onHighWater: () => currentStream?.pause(),
+      onLowWater: () => currentStream?.resume(),
     });
     this.#activeDispatchers.add(dispatcher as CallbackDispatcher<unknown>);
 
@@ -554,7 +598,7 @@ export class KubeMQClient implements AsyncDisposable {
       if (tracked?.lastSequence != null) {
         effectiveSub = {
           ...sub,
-          startFrom: EventStoreType.StartAtSequence,
+          startFrom: EventStoreStartPosition.StartAtSequence,
           startValue: tracked.lastSequence + 1,
         };
       }
@@ -563,6 +607,7 @@ export class KubeMQClient implements AsyncDisposable {
         'SubscribeToEvents',
         pbSubscribe,
       );
+      currentStream = s;
       s.onData((data: kubemq.EventReceive) => {
         const msg = fromProtoReceivedEventStore(data);
         tracker.updateSequence(subId, msg.sequence);
@@ -573,7 +618,7 @@ export class KubeMQClient implements AsyncDisposable {
         dispatcher.dispatch((m) => {
           const span = this.#startSpan('process', sub.channel, 4, { messageId: m.id });
           try {
-            sub.onMessage(m);
+            sub.onEvent(m);
             this.#telemetry.endSpan(span);
           } catch (err) {
             this.#telemetry.endSpan(span, err instanceof KubeMQError ? err : undefined);
@@ -660,8 +705,8 @@ export class KubeMQClient implements AsyncDisposable {
   async sendQueueMessage(msg: QueueMessage, opts?: OperationOptions): Promise<QueueSendResult> {
     this.#transport.ensureNotClosed('sendQueueMessage');
     validateQueueMessage(msg, 'sendQueueMessage');
-    const pbMsg = toProtoQueueMessage(msg, this.clientId);
-    const signal = resolveSignal(this.#resolved.defaultSendTimeoutMs, opts);
+    const timeoutMs = opts?.timeout ?? this.#resolved.defaultSendTimeoutMs;
+    const deadline = new Date(Date.now() + timeoutMs);
     const span = this.#startSpan('publish', msg.channel, 3, {
       messageId: msg.id,
       bodySize: msg.body?.length,
@@ -669,26 +714,11 @@ export class KubeMQClient implements AsyncDisposable {
     const t0 = performance.now();
 
     try {
-      const result = await withRetry(
-        async (sig) => {
-          const r = await this.#transport.unaryCall<
-            kubemq.QueueMessage,
-            kubemq.SendQueueMessageResult
-          >('SendQueueMessage', pbMsg, { signal: sig });
-          return fromProtoQueueSendResult(r, 'sendQueueMessage');
-        },
-        this.#retryPolicy,
-        {
-          operation: 'sendQueueMessage',
-          operationType: 'queueSend' as OperationType,
-          channel: msg.channel,
-          serverAddress: this.address,
-        },
-        this.#resolved.logger,
-        this.#retryThrottle,
-        signal,
-        this.#retryHooks('sendQueueMessage', msg.channel),
-      );
+      const sender = await this.#getUpstreamSender();
+      const upstreamReq = toProtoQueuesUpstreamRequest([msg], this.clientId);
+      const response = await sender.send(upstreamReq, deadline);
+      const parsed = fromProtoQueuesUpstreamResponse(response, 'sendQueueMessage');
+      const result = parsed.results[0] ?? { messageId: msg.id ?? '', sentAt: new Date() };
       this.#metrics.recordMessageSent({ operationName: 'sendQueueMessage', channel: msg.channel });
       this.#telemetry.endSpan(span);
       return result;
@@ -722,10 +752,11 @@ export class KubeMQClient implements AsyncDisposable {
     opts?: OperationOptions,
   ): Promise<BatchSendResult> {
     this.#transport.ensureNotClosed('sendQueueMessagesBatch');
-    if (!msgs) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: JS callers may pass null
+    if (!msgs || msgs.length === 0) {
       throw new ValidationError({
         code: ErrorCode.ValidationFailed,
-        message: 'Messages array is required',
+        message: 'Messages array is required and must not be empty',
         operation: 'sendQueueMessagesBatch',
         isRetryable: false,
       });
@@ -806,7 +837,7 @@ export class KubeMQClient implements AsyncDisposable {
    *
    * @param req - Poll parameters including channel, max messages, and wait timeout.
    * @param opts - Optional timeout and cancellation overrides.
-   * @returns Array of received messages with `ack()` / `reject()` methods.
+   * @returns Array of received messages with `ack()` / `nack()` methods.
    * @throws {@link ValidationError} If the poll request is invalid.
    * @throws {@link ClientClosedError} If the client has been closed.
    * @throws {@link KubeMQTimeoutError} If the operation exceeds the configured timeout.
@@ -842,7 +873,7 @@ export class KubeMQClient implements AsyncDisposable {
         this.#retryPolicy,
         {
           operation: 'receiveQueueMessages',
-          operationType: 'queueSend' as OperationType,
+          operationType: 'queueReceive',
           channel: req.channel,
           serverAddress: this.address,
         },
@@ -871,7 +902,7 @@ export class KubeMQClient implements AsyncDisposable {
       ack: async () => {
         /* auto-acked by simple receive API */
       },
-      reject: async () => {
+      nack: async () => {
         /* no-op for simple receive API */
       },
       reQueue: (_channel: string) => {
@@ -916,9 +947,9 @@ export class KubeMQClient implements AsyncDisposable {
     let msgHandler: ((msgs: QueueStreamMessage[]) => void) | undefined;
     let errHandler: ((err: Error) => void) | undefined;
     let closeHandler: (() => void) | undefined;
+    // Design: single active transaction at a time. scheduleRePoll() ensures
+    // sequential Get → Settle → Get flow. Concurrent transactions are not supported.
     let activeTransactionId: string | undefined;
-    let pendingActiveOffsets: ((offsets: number[]) => void) | undefined;
-    let pendingTxnStatus: ((complete: boolean) => void) | undefined;
     let lastResponseMetadata: Record<string, string> = {};
 
     const clientId = this.clientId;
@@ -941,11 +972,15 @@ export class KubeMQClient implements AsyncDisposable {
 
     const scheduleRePoll = () => {
       if (!active) return;
-      queueMicrotask(() => {
+      // Use setTimeout(0) instead of queueMicrotask so that close() (which sets
+      // active=false via a microtask/await continuation) runs before the re-poll.
+      // With queueMicrotask, a nack() → close() sequence would re-poll before the
+      // close fires, re-acquiring the nacked message in a new transaction.
+      setTimeout(() => {
         if (!active) return;
         const rePoll = toProtoQueuesDownstreamRequest(opts, clientId);
         stream.write(rePoll);
-      });
+      }, 0);
     };
 
     const attachStreamHandlers = () => {
@@ -966,17 +1001,11 @@ export class KubeMQClient implements AsyncDisposable {
           return;
         }
 
-        if (data.RequestTypeData === 8 && pendingActiveOffsets) {
-          const resolve = pendingActiveOffsets;
-          pendingActiveOffsets = undefined;
-          resolve((data.ActiveOffsets || []).map(Number));
-          return;
-        }
-
-        if (data.RequestTypeData === 9 && pendingTxnStatus) {
-          const resolve = pendingTxnStatus;
-          pendingTxnStatus = undefined;
-          resolve(data.TransactionComplete);
+        // Only process Get responses (type 1). Settlement confirmations (types 2-7)
+        // carry zero messages and must be discarded — otherwise batchSize=0 triggers
+        // a premature scheduleRePoll() while the prior transaction is still open,
+        // causing broker re-deliveries. Go/Python/Java all filter here.
+        if (data.RequestTypeData !== 0 && data.RequestTypeData !== 1) {
           return;
         }
 
@@ -988,11 +1017,25 @@ export class KubeMQClient implements AsyncDisposable {
           });
           lastResponseMetadata = md;
         }
-        let settled = false;
+
+        // C2 fix: per-message settled flag + batch completion tracker
+        const rawMessages = data.Messages || [];
+        const batchSize = rawMessages.length;
+        let settledCount = 0;
+
+        const onMessageSettled = () => {
+          settledCount++;
+          if (settledCount === batchSize) {
+            // All messages in the batch are settled — clear transaction and re-poll
+            activeTransactionId = undefined;
+            scheduleRePoll();
+          }
+        };
 
         /* eslint-disable @typescript-eslint/no-unnecessary-condition, @typescript-eslint/no-unnecessary-type-conversion */
-        const messages: QueueStreamMessage[] = (data.Messages || []).map((msg) => {
+        const messages: QueueStreamMessage[] = rawMessages.map((msg) => {
           const attrs = msg.Attributes;
+          let msgSettled = false; // per-message flag (C2 fix)
           return {
             id: msg.MessageID,
             channel: msg.Channel,
@@ -1005,56 +1048,59 @@ export class KubeMQClient implements AsyncDisposable {
             md5OfBody: attrs?.MD5OfBody || undefined,
             isReRouted: attrs?.ReRouted ?? false,
             reRouteFromQueue: attrs?.ReRoutedFromQueue || undefined,
-            expiredAt: attrs?.ExpirationAt
-              ? new Date(Number(attrs.ExpirationAt) / 1e6)
-              : undefined,
+            expiredAt: attrs?.ExpirationAt ? new Date(Number(attrs.ExpirationAt) / 1e6) : undefined,
             delayedTo: attrs?.DelayedTo ? new Date(Number(attrs.DelayedTo) / 1e6) : undefined,
             ack() {
-              if (!active || settled) return;
-              settled = true;
-              activeTransactionId = undefined;
+              // H3 fix: silently ignore settlement in autoAck mode
+              if (opts.autoAck) return;
+              if (!active || msgSettled) return;
+              msgSettled = true;
+              // C1 fix: use AckRange (3) instead of AckAll (2)
               stream.write(
                 new kubemq.QueuesDownstreamRequest({
                   RequestID: randomUUID(),
                   ClientID: clientId,
                   Channel: opts.channel,
-                  RequestTypeData: 2,
+                  RequestTypeData: 3,
                   RefTransactionId: data.TransactionId,
                   SequenceRange: [Number(attrs?.Sequence ?? 0)],
                 }),
               );
-              scheduleRePoll();
+              onMessageSettled();
             },
-            reject() {
-              if (!active || settled) return;
-              settled = true;
-              activeTransactionId = undefined;
+            nack() {
+              if (opts.autoAck) return;
+              if (!active || msgSettled) return;
+              msgSettled = true;
+              // C1 fix: use NAckRange (5) instead of NAckAll (4)
               stream.write(
                 new kubemq.QueuesDownstreamRequest({
                   RequestID: randomUUID(),
                   ClientID: clientId,
                   Channel: opts.channel,
-                  RequestTypeData: 4,
+                  RequestTypeData: 5,
                   RefTransactionId: data.TransactionId,
                   SequenceRange: [Number(attrs?.Sequence ?? 0)],
                 }),
               );
+              onMessageSettled();
             },
             reQueue(targetChannel: string) {
-              if (!active || settled) return;
-              settled = true;
-              activeTransactionId = undefined;
+              if (opts.autoAck) return;
+              if (!active || msgSettled) return;
+              msgSettled = true;
+              // C1 fix: use ReQueueRange (7) instead of ReQueueAll (6)
               stream.write(
                 new kubemq.QueuesDownstreamRequest({
                   RequestID: randomUUID(),
                   ClientID: clientId,
                   ReQueueChannel: targetChannel,
-                  RequestTypeData: 6,
+                  RequestTypeData: 7,
                   RefTransactionId: data.TransactionId,
                   SequenceRange: [Number(attrs?.Sequence ?? 0)],
                 }),
               );
-              scheduleRePoll();
+              onMessageSettled();
             },
           };
         });
@@ -1064,8 +1110,15 @@ export class KubeMQClient implements AsyncDisposable {
           msgHandler(messages);
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- active and settled are mutated in callbacks
-        if (active && !settled && opts.autoAck) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- active is mutated in callbacks
+        if (active && opts.autoAck) {
+          scheduleRePoll();
+        }
+        // For manual-ack mode: re-poll on empty-batch responses (server timeout with no messages).
+        // Without this, the stream would go idle after an empty response since onMessageSettled
+        // is never called when batchSize=0.
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- active is mutated in callbacks
+        if (active && !opts.autoAck && batchSize === 0) {
           scheduleRePoll();
         }
       });
@@ -1145,15 +1198,23 @@ export class KubeMQClient implements AsyncDisposable {
         scheduleRePoll();
       },
       getActiveOffsets(): Promise<number[]> {
-        return new Promise((resolve) => {
-          pendingActiveOffsets = resolve;
-          writeDownstream(8);
+        // H1 fix: server never responds to ActiveOffsets (type 8) — throw instead of hanging
+        throw new NotImplementedError({
+          code: ErrorCode.NotImplemented,
+          message: 'ActiveOffsets is not supported by the server',
+          operation: 'getActiveOffsets',
+          isRetryable: false,
+          suggestion: 'This operation is reserved for future use.',
         });
       },
       getTransactionStatus(): Promise<boolean> {
-        return new Promise((resolve) => {
-          pendingTxnStatus = resolve;
-          writeDownstream(9);
+        // H1 fix: server never responds to TransactionStatus (type 9) — throw instead of hanging
+        throw new NotImplementedError({
+          code: ErrorCode.NotImplemented,
+          message: 'TransactionStatus is not supported by the server',
+          operation: 'getTransactionStatus',
+          isRetryable: false,
+          suggestion: 'This operation is reserved for future use.',
         });
       },
       close() {
@@ -1180,7 +1241,7 @@ export class KubeMQClient implements AsyncDisposable {
    *
    * @remarks
    * Returns copies of the messages that remain in the queue.
-   * The `ack()`, `reject()`, and `reQueue()` methods on the returned
+   * The `ack()`, `nack()`, and `reQueue()` methods on the returned
    * messages are no-ops.
    *
    * @param req - Poll parameters including channel and max messages.
@@ -1245,7 +1306,7 @@ export class KubeMQClient implements AsyncDisposable {
       ack: async () => {
         /* no-op for peek */
       },
-      reject: async () => {
+      nack: async () => {
         /* no-op for peek */
       },
       reQueue: async () => {
@@ -1265,7 +1326,7 @@ export class KubeMQClient implements AsyncDisposable {
    * const response = await client.sendCommand({
    *   channel: 'commands.user-service',
    *   body: new TextEncoder().encode(JSON.stringify({ action: 'disable', userId: '42' })),
-   *   timeoutMs: 5000,
+   *   timeoutInSeconds: 5,
    * });
    * console.log(`Executed: ${response.executed}`);
    * ```
@@ -1288,7 +1349,8 @@ export class KubeMQClient implements AsyncDisposable {
     this.#transport.ensureNotClosed('sendCommand');
     validateCommandMessage(msg, 'sendCommand');
     const pbReq = toProtoRequest(msg, this.clientId, 'Command');
-    const signal = resolveSignal(this.#resolved.defaultRpcTimeoutMs, opts);
+    const signal = resolveSignalOptional(opts);
+    const deadline = resolveDeadline(this.#resolved.defaultRpcTimeoutMs, opts);
     const span = this.#startSpan('send', msg.channel, 2, {
       messageId: msg.id,
       bodySize: msg.body?.length,
@@ -1301,7 +1363,7 @@ export class KubeMQClient implements AsyncDisposable {
           const response = await this.#transport.unaryCall<kubemq.Request, kubemq.Response>(
             'SendRequest',
             pbReq,
-            { signal: sig },
+            { signal: signal ? sig : undefined, deadline },
           );
           return fromProtoCommandResponse(response);
         },
@@ -1321,7 +1383,10 @@ export class KubeMQClient implements AsyncDisposable {
       this.#telemetry.endSpan(span);
       return result;
     } catch (err) {
-      const mapped = err instanceof KubeMQError ? err : this.#mapStreamError(err as Error, 'sendCommand', msg.channel);
+      const mapped =
+        err instanceof KubeMQError
+          ? err
+          : this.#mapStreamError(err as Error, 'sendCommand', msg.channel);
       this.#telemetry.endSpan(span, mapped);
       throw mapped;
     } finally {
@@ -1341,7 +1406,7 @@ export class KubeMQClient implements AsyncDisposable {
    * const response = await client.sendQuery({
    *   channel: 'queries.user-service',
    *   body: new TextEncoder().encode(JSON.stringify({ userId: '42' })),
-   *   timeoutMs: 5000,
+   *   timeoutInSeconds: 5,
    * });
    * if (response.executed && response.body) {
    *   const user = JSON.parse(new TextDecoder().decode(response.body));
@@ -1367,7 +1432,8 @@ export class KubeMQClient implements AsyncDisposable {
     this.#transport.ensureNotClosed('sendQuery');
     validateQueryMessage(msg, 'sendQuery');
     const pbReq = toProtoRequest(msg, this.clientId, 'Query');
-    const signal = resolveSignal(this.#resolved.defaultRpcTimeoutMs, opts);
+    const signal = resolveSignalOptional(opts);
+    const deadline = resolveDeadline(this.#resolved.defaultRpcTimeoutMs, opts);
     const span = this.#startSpan('send', msg.channel, 2, {
       messageId: msg.id,
       bodySize: msg.body?.length,
@@ -1380,7 +1446,7 @@ export class KubeMQClient implements AsyncDisposable {
           const response = await this.#transport.unaryCall<kubemq.Request, kubemq.Response>(
             'SendRequest',
             pbReq,
-            { signal: sig },
+            { signal: signal ? sig : undefined, deadline },
           );
           return fromProtoQueryResponse(response);
         },
@@ -1400,7 +1466,10 @@ export class KubeMQClient implements AsyncDisposable {
       this.#telemetry.endSpan(span);
       return result;
     } catch (err) {
-      const mapped = err instanceof KubeMQError ? err : this.#mapStreamError(err as Error, 'sendQuery', msg.channel);
+      const mapped =
+        err instanceof KubeMQError
+          ? err
+          : this.#mapStreamError(err as Error, 'sendQuery', msg.channel);
       this.#telemetry.endSpan(span, mapped);
       throw mapped;
     } finally {
@@ -1429,10 +1498,17 @@ export class KubeMQClient implements AsyncDisposable {
     this.#transport.ensureNotClosed('subscribeToCommands');
     validateSubscription(sub, 'subscribeToCommands');
 
-    const dispatcher = new CallbackDispatcher<ReceivedCommand>({
-      maxConcurrent: opts?.maxConcurrentCallbacks ?? 1,
+    // C3 fix: currentStream reference for backpressure pause/resume
+    let currentStream: StreamHandle<never, kubemq.Request> | undefined;
+
+    const dispatcher = new CallbackDispatcher<CommandReceived>({
+      maxConcurrent: opts?.maxConcurrentCallbacks ?? 20,
+      maxQueueDepth: opts?.maxQueueDepth,
+      dropOnHighWater: opts?.dropOnHighWater,
       logger: this.#resolved.logger,
       onError: sub.onError,
+      onHighWater: () => currentStream?.pause(),
+      onLowWater: () => currentStream?.resume(),
     });
     this.#activeDispatchers.add(dispatcher as CallbackDispatcher<unknown>);
 
@@ -1445,16 +1521,17 @@ export class KubeMQClient implements AsyncDisposable {
         'SubscribeToRequests',
         pbSubscribe,
       );
+      currentStream = s;
       s.onData((data: kubemq.Request) => {
         const msg = fromProtoReceivedCommand(data);
         this.#metrics.recordMessageConsumed({
           operationName: 'subscribeToCommands',
           channel: sub.channel,
         });
-        dispatcher.dispatch((m) => {
+        dispatcher.dispatch(async (m) => {
           const span = this.#startSpan('process', sub.channel, 4, { messageId: m.id });
           try {
-            sub.onCommand(m);
+            await sub.onCommand(m);
             this.#telemetry.endSpan(span);
           } catch (err) {
             this.#telemetry.endSpan(span, err instanceof KubeMQError ? err : undefined);
@@ -1522,10 +1599,17 @@ export class KubeMQClient implements AsyncDisposable {
     this.#transport.ensureNotClosed('subscribeToQueries');
     validateSubscription(sub, 'subscribeToQueries');
 
-    const dispatcher = new CallbackDispatcher<ReceivedQuery>({
-      maxConcurrent: opts?.maxConcurrentCallbacks ?? 1,
+    // C3 fix: currentStream reference for backpressure pause/resume
+    let currentStream: StreamHandle<never, kubemq.Request> | undefined;
+
+    const dispatcher = new CallbackDispatcher<QueryReceived>({
+      maxConcurrent: opts?.maxConcurrentCallbacks ?? 20,
+      maxQueueDepth: opts?.maxQueueDepth,
+      dropOnHighWater: opts?.dropOnHighWater,
       logger: this.#resolved.logger,
       onError: sub.onError,
+      onHighWater: () => currentStream?.pause(),
+      onLowWater: () => currentStream?.resume(),
     });
     this.#activeDispatchers.add(dispatcher as CallbackDispatcher<unknown>);
 
@@ -1538,16 +1622,17 @@ export class KubeMQClient implements AsyncDisposable {
         'SubscribeToRequests',
         pbSubscribe,
       );
+      currentStream = s;
       s.onData((data: kubemq.Request) => {
         const msg = fromProtoReceivedQuery(data);
         this.#metrics.recordMessageConsumed({
           operationName: 'subscribeToQueries',
           channel: sub.channel,
         });
-        dispatcher.dispatch((m) => {
+        dispatcher.dispatch(async (m) => {
           const span = this.#startSpan('process', sub.channel, 4, { messageId: m.id });
           try {
-            sub.onQuery(m);
+            await sub.onQuery(m);
             this.#telemetry.endSpan(span);
           } catch (err) {
             this.#telemetry.endSpan(span, err instanceof KubeMQError ? err : undefined);
@@ -1615,7 +1700,8 @@ export class KubeMQClient implements AsyncDisposable {
     this.#transport.ensureNotClosed('sendCommandResponse');
     validateResponseMessage(resp, 'sendCommandResponse');
     const pbResp = toProtoResponse(resp, this.clientId);
-    const signal = resolveSignal(this.#resolved.defaultRpcTimeoutMs, opts);
+    const signal = resolveSignalOptional(opts);
+    const deadline = resolveDeadline(this.#resolved.defaultRpcTimeoutMs, opts);
     const span = this.#startSpan('process', resp.replyChannel, 1);
     const t0 = performance.now();
 
@@ -1623,7 +1709,8 @@ export class KubeMQClient implements AsyncDisposable {
       await withRetry(
         async (sig) => {
           await this.#transport.unaryCall<kubemq.Response, kubemq.Empty>('SendResponse', pbResp, {
-            signal: sig,
+            signal: signal ? sig : undefined,
+            deadline,
           });
         },
         this.#retryPolicy,
@@ -1668,7 +1755,8 @@ export class KubeMQClient implements AsyncDisposable {
     this.#transport.ensureNotClosed('sendQueryResponse');
     validateResponseMessage(resp, 'sendQueryResponse');
     const pbResp = toProtoResponse(resp, this.clientId);
-    const signal = resolveSignal(this.#resolved.defaultRpcTimeoutMs, opts);
+    const signal = resolveSignalOptional(opts);
+    const deadline = resolveDeadline(this.#resolved.defaultRpcTimeoutMs, opts);
     const span = this.#startSpan('process', resp.replyChannel, 1);
     const t0 = performance.now();
 
@@ -1676,7 +1764,8 @@ export class KubeMQClient implements AsyncDisposable {
       await withRetry(
         async (sig) => {
           await this.#transport.unaryCall<kubemq.Response, kubemq.Empty>('SendResponse', pbResp, {
-            signal: sig,
+            signal: signal ? sig : undefined,
+            deadline,
           });
         },
         this.#retryPolicy,
@@ -1701,6 +1790,58 @@ export class KubeMQClient implements AsyncDisposable {
         channel: resp.replyChannel,
       });
     }
+  }
+
+  // ─── Fast-path Response Methods ───
+
+  /**
+   * Send a command response directly, bypassing retry and telemetry overhead.
+   *
+   * Use this when responding to high-throughput commands where latency matters
+   * more than retry safety. Responses are idempotent and time-critical — retrying
+   * a late response is worse than dropping it.
+   *
+   * @param resp - The command response to send.
+   * @param opts - Optional timeout override.
+   * @throws {@link ValidationError} If the response is invalid.
+   * @throws {@link ClientClosedError} If the client has been closed.
+   *
+   * @see {@link sendCommandResponse} for the full-featured version with retry and telemetry.
+   */
+  async sendCommandResponseDirect(resp: CommandResponse, opts?: OperationOptions): Promise<void> {
+    this.#transport.ensureNotClosed('sendCommandResponseDirect');
+    validateResponseMessage(resp, 'sendCommandResponseDirect');
+    const pbResp = toProtoResponse(resp, this.clientId);
+    const deadline = resolveDeadline(this.#resolved.defaultRpcTimeoutMs, opts);
+    await this.#transport.unaryCall<kubemq.Response, kubemq.Empty>('SendResponse', pbResp, {
+      deadline,
+      signal: opts?.signal,
+    });
+  }
+
+  /**
+   * Send a query response directly, bypassing retry and telemetry overhead.
+   *
+   * Use this when responding to high-throughput queries where latency matters
+   * more than retry safety. Responses are idempotent and time-critical — retrying
+   * a late response is worse than dropping it.
+   *
+   * @param resp - The query response to send.
+   * @param opts - Optional timeout override.
+   * @throws {@link ValidationError} If the response is invalid.
+   * @throws {@link ClientClosedError} If the client has been closed.
+   *
+   * @see {@link sendQueryResponse} for the full-featured version with retry and telemetry.
+   */
+  async sendQueryResponseDirect(resp: QueryResponse, opts?: OperationOptions): Promise<void> {
+    this.#transport.ensureNotClosed('sendQueryResponseDirect');
+    validateResponseMessage(resp, 'sendQueryResponseDirect');
+    const pbResp = toProtoResponse(resp, this.clientId);
+    const deadline = resolveDeadline(this.#resolved.defaultRpcTimeoutMs, opts);
+    await this.#transport.unaryCall<kubemq.Response, kubemq.Empty>('SendResponse', pbResp, {
+      deadline,
+      signal: opts?.signal,
+    });
   }
 
   // ─── Channel Management (REQ-API-2) ───
@@ -1912,15 +2053,24 @@ export class KubeMQClient implements AsyncDisposable {
    * Gracefully close the client, draining in-flight callbacks and transport.
    *
    * @remarks
-   * Waits for active subscription callbacks to complete (up to `callbackTimeoutMs`),
+   * Waits for active subscription callbacks to complete (up to `callbackTimeoutSeconds`),
    * then closes the gRPC transport. After `close()`, all further operations throw
    * {@link ClientClosedError}. Also triggered by `await using` (AsyncDisposable).
    *
    * @param opts - Optional drain timeouts.
    * @see {@link CloseOptions}
    */
-  async close(opts?: CloseOptions): Promise<void> {
-    const callbackTimeoutMs = opts?.callbackTimeoutMs ?? 30_000;
+  close(opts?: CloseOptions): Promise<void> {
+    this.#closePromise ??= this.#doClose(opts);
+    return this.#closePromise;
+  }
+
+  async #doClose(opts?: CloseOptions): Promise<void> {
+    // Prevent new sender creation during shutdown
+    this.#closing = true;
+
+    const callbackTimeoutMs =
+      opts?.callbackTimeoutSeconds != null ? opts.callbackTimeoutSeconds * 1000 : 30_000;
 
     // Drain all active callback dispatchers before transport close
     if (this.#activeDispatchers.size > 0) {
@@ -1941,7 +2091,19 @@ export class KubeMQClient implements AsyncDisposable {
       this.#activeDispatchers.clear();
     }
 
-    await this.#transport.close(opts?.timeoutMs);
+    // Shut down shared streaming senders before transport close
+    if (this.#eventSenderPromise) {
+      const sender = await this.#eventSenderPromise.catch(() => null);
+      await sender?.close(5000);
+    }
+    if (this.#upstreamSenderPromise) {
+      const sender = await this.#upstreamSenderPromise.catch(() => null);
+      await sender?.close(5000);
+    }
+
+    await this.#transport.close(
+      opts?.timeoutSeconds != null ? opts.timeoutSeconds * 1000 : undefined,
+    );
   }
 
   /**
@@ -2101,50 +2263,37 @@ export class KubeMQClient implements AsyncDisposable {
       kubemq.QueuesUpstreamRequest,
       kubemq.QueuesUpstreamResponse
     >('QueuesUpstream');
-
     let active = true;
     const pending = new Map<
       string,
-      {
-        resolve: (r: QueueUpstreamResult) => void;
-        reject: (err: Error) => void;
-      }
+      { resolve: (r: QueueUpstreamResult) => void; reject: (err: Error) => void }
     >();
-    let errHandler: ((err: Error) => void) | undefined;
-
     const clientId = this.clientId;
     const tracker = this.#transport.getSubscriptionTracker();
     const subId = randomUUID();
 
-    const attachUpstreamHandlers = () => {
+    const attachHandlers = () => {
       stream.onData((data: kubemq.QueuesUpstreamResponse) => {
         const p = pending.get(data.RefRequestID);
         if (p) {
           pending.delete(data.RefRequestID);
           const resp = fromProtoQueuesUpstreamResponse(data, 'createQueueUpstream');
-          if (resp.isError) {
-            p.reject(new Error(resp.error ?? 'Queue upstream error'));
-          } else {
-            p.resolve(resp);
-          }
+          if (resp.isError) p.reject(new Error(resp.error ?? 'Queue upstream error'));
+          else p.resolve(resp);
         }
       });
-
       stream.onError((err: Error) => {
         if (!active) return;
         for (const [, p] of pending) p.reject(err);
         pending.clear();
-        if (errHandler) errHandler(err);
       });
-
       stream.onEnd(() => {
         if (!active) return;
         for (const [, p] of pending) p.reject(new Error('Queue upstream stream closed'));
         pending.clear();
       });
     };
-
-    attachUpstreamHandlers();
+    attachHandlers();
 
     tracker.register({
       id: subId,
@@ -2156,7 +2305,7 @@ export class KubeMQClient implements AsyncDisposable {
           kubemq.QueuesUpstreamRequest,
           kubemq.QueuesUpstreamResponse
         >('QueuesUpstream');
-        attachUpstreamHandlers();
+        attachHandlers();
       },
     });
 
@@ -2201,72 +2350,69 @@ export class KubeMQClient implements AsyncDisposable {
    * @see {@link QueueBatch}
    * @see {@link QueueStreamOptions}
    */
+  // M2 fix: removed dead while(true) + break outer loop
   async *consumeQueue(opts: QueueStreamOptions): AsyncIterable<QueueBatch> {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional infinite loop
-    while (true) {
-      const handle = this.streamQueueMessages(opts);
-      try {
-        let batchResolve: ((batch: QueueBatch | null) => void) | undefined;
-        let batchReject: ((err: Error) => void) | undefined;
-        let closed = false;
+    const handle = this.streamQueueMessages(opts);
+    try {
+      let batchResolve: ((batch: QueueBatch | null) => void) | undefined;
+      let batchReject: ((err: Error) => void) | undefined;
+      let closed = false;
 
-        handle.onMessages((messages) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-          const txnId = String((messages[0] as any)?._transactionId ?? '');
-          const batch: QueueBatch = {
-            messages,
-            transactionId: txnId,
-            ackAll: () => {
-              handle.ackAll();
-            },
-            nackAll: () => {
-              handle.nackAll();
-            },
-            reQueueAll: (ch: string) => {
-              handle.reQueueAll(ch);
-            },
-          };
-          if (batchResolve) {
-            const r = batchResolve;
-            batchResolve = undefined;
-            batchReject = undefined;
-            r(batch);
-          }
-        });
-
-        handle.onError((err) => {
-          closed = true;
-          if (batchReject) {
-            const rej = batchReject;
-            batchResolve = undefined;
-            batchReject = undefined;
-            rej(err);
-          }
-        });
-
-        handle.onClose(() => {
-          closed = true;
-          if (batchResolve) {
-            const r = batchResolve;
-            batchResolve = undefined;
-            batchReject = undefined;
-            r(null);
-          }
-        });
-
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- closed is mutated by async callbacks
-        while (!closed) {
-          const batch = await new Promise<QueueBatch | null>((resolve, reject) => {
-            batchResolve = resolve;
-            batchReject = reject;
-          });
-          if (batch === null) break;
-          yield batch;
+      handle.onMessages((messages) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+        const txnId = String((messages[0] as any)?._transactionId ?? '');
+        const batch: QueueBatch = {
+          messages,
+          transactionId: txnId,
+          ackAll: () => {
+            handle.ackAll();
+          },
+          nackAll: () => {
+            handle.nackAll();
+          },
+          reQueueAll: (ch: string) => {
+            handle.reQueueAll(ch);
+          },
+        };
+        if (batchResolve) {
+          const r = batchResolve;
+          batchResolve = undefined;
+          batchReject = undefined;
+          r(batch);
         }
-      } finally {
-        handle.close();
+      });
+
+      handle.onError((err) => {
+        closed = true;
+        if (batchReject) {
+          const rej = batchReject;
+          batchResolve = undefined;
+          batchReject = undefined;
+          rej(err);
+        }
+      });
+
+      handle.onClose(() => {
+        closed = true;
+        if (batchResolve) {
+          const r = batchResolve;
+          batchResolve = undefined;
+          batchReject = undefined;
+          r(null);
+        }
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- closed is mutated by async callbacks
+      while (!closed) {
+        const batch = await new Promise<QueueBatch | null>((resolve, reject) => {
+          batchResolve = resolve;
+          batchReject = reject;
+        });
+        if (batch === null) break;
+        yield batch;
       }
-      break;
+    } finally {
+      handle.close();
     }
   }
 
@@ -2282,35 +2428,93 @@ export class KubeMQClient implements AsyncDisposable {
    * @returns An {@link EventStreamHandle} for sending events and closing the stream.
    * @throws {@link ClientClosedError} If the client has been closed.
    *
-   * @see {@link publishEvent}
+   * @see {@link sendEvent}
    * @see {@link EventStreamHandle}
    */
   createEventStream(): EventStreamHandle {
     this.#transport.ensureNotClosed('createEventStream');
 
     let stream = this.#transport.duplexStream<kubemq.Event, kubemq.Result>('SendEventsStream');
-
     let active = true;
+    let streamReady = true; // JS-1v2: tracks whether the stream is usable
     let errHandler: ((err: Error) => void) | undefined;
     const clientId = this.clientId;
     const tracker = this.#transport.getSubscriptionTracker();
+    const transport = this.#transport;
     const subId = randomUUID();
+
+    // JS-1v2: drain all pending waiters and mark stream as broken
+    const breakStream = () => {
+      streamReady = false;
+      const staleDrain = drainQueue.splice(0);
+      for (const entry of staleDrain) {
+        entry.reject(new Error('Event stream broken — will auto-reconnect'));
+      }
+      drainListenerAttached = false;
+    };
+
+    // JS-1v2: recreate the stream (used by both self-heal and resubscribe)
+    const recreateStream = () => {
+      try {
+        stream.removeAllListeners();
+      } catch { /* ignore */ }
+      stream = transport.duplexStream<kubemq.Event, kubemq.Result>('SendEventsStream');
+      drainListenerAttached = false;
+      streamReady = true;
+      attachHandlers();
+    };
+
+    // JS-1v2: self-healing — wait for transport READY then recreate stream
+    let healingInProgress = false;
+    const selfHeal = async () => {
+      if (!active || healingInProgress) return;
+      healingInProgress = true;
+      try {
+        // Wait for transport to be READY (poll with backoff)
+        let delay = 500;
+        const maxDelay = 5000;
+        while (active && transport.state !== ConnectionState.READY) {
+          await new Promise<void>((r) => setTimeout(r, delay));
+          delay = Math.min(delay * 1.5, maxDelay);
+        }
+        if (!active) return;
+        // If resubscribe() already fixed the stream while we were waiting, skip
+        if (streamReady) return;
+        // Small extra delay to let the new gRPC client stabilize
+        await new Promise<void>((r) => setTimeout(r, 500));
+        if (!active || streamReady) return;
+        recreateStream();
+      } catch {
+        // If stream creation fails, wait and retry
+        healingInProgress = false;
+        if (active) {
+          await new Promise<void>((r) => setTimeout(r, 1000));
+          selfHeal();
+        }
+      } finally {
+        healingInProgress = false;
+      }
+    };
 
     const attachHandlers = () => {
       stream.onData((result: kubemq.Result) => {
-        if (!result.Sent && errHandler) {
+        if (!result.Sent && errHandler)
           errHandler(new Error(result.Error || 'Event stream send error'));
-        }
       });
       stream.onError((err: Error) => {
         if (!active) return;
         if (errHandler) errHandler(err);
+        // JS-1v2: break the stream and self-heal
+        breakStream();
+        selfHeal();
       });
       stream.onEnd(() => {
-        /* no-op for non-store events */
+        // JS-1v2: if the stream ends unexpectedly, treat it like an error
+        if (!active || healingInProgress) return; // already healing or closed
+        breakStream();
+        selfHeal();
       });
     };
-
     attachHandlers();
 
     tracker.register({
@@ -2319,19 +2523,38 @@ export class KubeMQClient implements AsyncDisposable {
       channel: '__event-stream__',
       resubscribe: () => {
         if (!active) return;
-        stream = this.#transport.duplexStream<kubemq.Event, kubemq.Result>('SendEventsStream');
-        attachHandlers();
+        breakStream();
+        recreateStream();
       },
     });
+
+    const drainQueue: Array<{ resolve: () => void; reject: (err: Error) => void }> = [];
+    let drainListenerAttached = false;
+
+    const ensureDrainListener = () => {
+      if (drainListenerAttached) return;
+      drainListenerAttached = true;
+      stream.onDrain(() => {
+        drainListenerAttached = false;
+        const batch = drainQueue.splice(0);
+        for (const entry of batch) entry.resolve();
+      });
+    };
 
     return {
       get isActive() {
         return active;
       },
-      send(msg: EventMessage) {
-        if (!active) return;
-        const pbEvent = toProtoEvent(msg, clientId, false);
-        stream.write(pbEvent);
+      send(msg: EventMessage): Promise<void> {
+        if (!active) return Promise.resolve();
+        // JS-1v2: if stream is broken (reconnecting), reject so caller can retry
+        if (!streamReady) return Promise.reject(new Error('Event stream reconnecting'));
+        const ok = stream.write(toProtoEvent(msg, clientId, false));
+        if (ok) return Promise.resolve();
+        return new Promise<void>((resolve, reject) => {
+          drainQueue.push({ resolve, reject });
+          ensureDrainListener();
+        });
       },
       onError(handler: (err: Error) => void) {
         errHandler = handler;
@@ -2355,51 +2578,96 @@ export class KubeMQClient implements AsyncDisposable {
    * @returns An {@link EventStoreStreamHandle} for sending events and closing the stream.
    * @throws {@link ClientClosedError} If the client has been closed.
    *
-   * @see {@link publishEventStore}
+   * @see {@link sendEventStore}
    * @see {@link EventStoreStreamHandle}
    */
   createEventStoreStream(): EventStoreStreamHandle {
     this.#transport.ensureNotClosed('createEventStoreStream');
 
     let stream = this.#transport.duplexStream<kubemq.Event, kubemq.Result>('SendEventsStream');
-
     let active = true;
+    let streamReady = true; // JS-1v2: tracks whether the stream is usable
     let errHandler: ((err: Error) => void) | undefined;
     const clientId = this.clientId;
     const tracker = this.#transport.getSubscriptionTracker();
+    const transport = this.#transport;
     const subId = randomUUID();
-    const pending = new Map<
-      string,
-      {
-        resolve: () => void;
-        reject: (err: Error) => void;
+    const pending = new Map<string, { resolve: () => void; reject: (err: Error) => void }>();
+
+    // JS-1v2: reject all pending and mark stream as broken
+    const breakStream = () => {
+      streamReady = false;
+      for (const [, p] of pending) {
+        p.reject(new Error('Event store stream broken — will auto-reconnect'));
       }
-    >();
+      pending.clear();
+    };
+
+    // JS-1v2: recreate the stream (used by both self-heal and resubscribe)
+    const recreateStream = () => {
+      try {
+        stream.removeAllListeners();
+      } catch { /* ignore */ }
+      stream = transport.duplexStream<kubemq.Event, kubemq.Result>('SendEventsStream');
+      streamReady = true;
+      attachHandlers();
+    };
+
+    // JS-1v2: self-healing — wait for transport READY then recreate stream
+    let healingInProgress = false;
+    const selfHeal = async () => {
+      if (!active || healingInProgress) return;
+      healingInProgress = true;
+      try {
+        // Wait for transport to be READY (poll with backoff)
+        let delay = 500;
+        const maxDelay = 5000;
+        while (active && transport.state !== ConnectionState.READY) {
+          await new Promise<void>((r) => setTimeout(r, delay));
+          delay = Math.min(delay * 1.5, maxDelay);
+        }
+        if (!active) return;
+        // If resubscribe() already fixed the stream while we were waiting, skip
+        if (streamReady) return;
+        // Small extra delay to let the new gRPC client stabilize
+        await new Promise<void>((r) => setTimeout(r, 500));
+        if (!active || streamReady) return;
+        recreateStream();
+      } catch {
+        // If stream creation fails, wait and retry
+        healingInProgress = false;
+        if (active) {
+          await new Promise<void>((r) => setTimeout(r, 1000));
+          selfHeal();
+        }
+      } finally {
+        healingInProgress = false;
+      }
+    };
 
     const attachHandlers = () => {
       stream.onData((result: kubemq.Result) => {
         const p = pending.get(result.EventID);
         if (p) {
           pending.delete(result.EventID);
-          if (result.Sent) {
-            p.resolve();
-          } else {
-            p.reject(new Error(result.Error || 'Event store stream send failed'));
-          }
+          if (result.Sent) p.resolve();
+          else p.reject(new Error(result.Error || 'Event store stream send failed'));
         }
       });
       stream.onError((err: Error) => {
         if (!active) return;
-        for (const [, p] of pending) p.reject(err);
-        pending.clear();
         if (errHandler) errHandler(err);
+        // JS-1v2: break the stream and self-heal
+        breakStream();
+        selfHeal();
       });
       stream.onEnd(() => {
-        for (const [, p] of pending) p.reject(new Error('Event store stream closed'));
-        pending.clear();
+        // JS-1v2: if the stream ends unexpectedly, treat it like an error
+        if (!active || healingInProgress) return; // already healing or closed
+        breakStream();
+        selfHeal();
       });
     };
-
     attachHandlers();
 
     tracker.register({
@@ -2408,8 +2676,8 @@ export class KubeMQClient implements AsyncDisposable {
       channel: '__event-store-stream__',
       resubscribe: () => {
         if (!active) return;
-        stream = this.#transport.duplexStream<kubemq.Event, kubemq.Result>('SendEventsStream');
-        attachHandlers();
+        breakStream();
+        recreateStream();
       },
     });
 
@@ -2419,6 +2687,8 @@ export class KubeMQClient implements AsyncDisposable {
       },
       send(msg: EventStoreMessage): Promise<void> {
         if (!active) return Promise.reject(new Error('Event store stream is closed'));
+        // JS-1v2: if stream is broken (reconnecting), reject so caller can retry
+        if (!streamReady) return Promise.reject(new Error('Event store stream reconnecting'));
         const pbEvent = toProtoEvent(msg, clientId, true);
         const eventId = pbEvent.EventID;
         return new Promise<void>((resolve, reject) => {
@@ -2464,6 +2734,8 @@ export class KubeMQClient implements AsyncDisposable {
     spanKind: number,
     extra?: Partial<Pick<SpanConfig, 'messageId' | 'consumerGroup' | 'bodySize' | 'batchCount'>>,
   ) {
+    // Fast path: skip config object allocation when telemetry is disabled
+    if (!this.#telemetry.isEnabled) return undefined;
     const { host, port } = this.#parseServerAddress();
     return this.#telemetry.startSpan({
       operationName,

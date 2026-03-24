@@ -14,7 +14,10 @@ import { KubeMQClient, createQueueMessage } from '../../src/index.js';
 
 async function main(): Promise<void> {
   // TODO: Replace with your KubeMQ server address
-  const client = await KubeMQClient.create({ address: 'localhost:50000', clientId: 'js-queues-send-receive-client' });
+  const client = await KubeMQClient.create({
+    address: 'localhost:50000',
+    clientId: 'js-queues-send-receive-client',
+  });
 
   try {
     // Send a message to the queue.
@@ -30,7 +33,6 @@ async function main(): Promise<void> {
     // Receive messages from the queue.
     const messages = await client.receiveQueueMessages({
       channel: 'js-queues.send-receive',
-      visibilitySeconds: 30,
       waitTimeoutSeconds: 5,
     });
 

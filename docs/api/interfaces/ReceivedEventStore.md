@@ -2,9 +2,9 @@
 
 ---
 
-[KubeMQ JS/TS SDK](../README.md) / ReceivedEventStore
+[KubeMQ JS/TS SDK](../README.md) / EventStoreReceived
 
-# Interface: ReceivedEventStore
+# Interface: EventStoreReceived
 
 Defined in: messages/events-store.ts:42
 

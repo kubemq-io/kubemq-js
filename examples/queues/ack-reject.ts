@@ -13,7 +13,10 @@
 import { KubeMQClient, createQueueMessage } from '../../src/index.js';
 
 async function main(): Promise<void> {
-  const client = await KubeMQClient.create({ address: 'localhost:50000', clientId: 'js-queues-ack-reject-client' });
+  const client = await KubeMQClient.create({
+    address: 'localhost:50000',
+    clientId: 'js-queues-ack-reject-client',
+  });
 
   try {
     // Send test messages with different intents.
@@ -29,7 +32,6 @@ async function main(): Promise<void> {
 
     const messages = await client.receiveQueueMessages({
       channel: 'js-queues.ack-reject',
-      visibilitySeconds: 30,
       waitTimeoutSeconds: 5,
       maxMessages: 10,
     });
@@ -39,7 +41,7 @@ async function main(): Promise<void> {
 
       if (body === 'bad-format') {
         // Permanently reject — message goes to dead-letter queue if configured.
-        await msg.reject();
+        await msg.nack();
         console.log('Rejected:', body);
       } else {
         // Acknowledge successful processing.

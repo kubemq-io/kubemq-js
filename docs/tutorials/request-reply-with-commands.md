@@ -1,6 +1,6 @@
 # Request-Reply with Commands in KubeMQ JS/TypeScript SDK
 
-In this tutorial, you'll build a command-and-response system using KubeMQ's `KubeMQClient`. Commands are different from events and queues — the sender *awaits* until the handler responds, giving you synchronous confirmation that an action was executed.
+In this tutorial, you'll build a command-and-response system using KubeMQ's `KubeMQClient`. Commands are different from events and queues — the sender _awaits_ until the handler responds, giving you synchronous confirmation that an action was executed.
 
 ## What You'll Build
 
@@ -43,77 +43,77 @@ async function main(): Promise<void> {
 The handler subscribes to a channel and processes incoming commands. The `onCommand` callback is async — you can perform I/O before responding. Every command must receive a response before the sender's timeout expires.
 
 ```typescript
-    const subscription = client.subscribeToCommands({
-      channel,
-      onCommand: async (cmd) => {
-        const body = new TextDecoder().decode(cmd.body);
-        console.log(`\n[Handler] Received command: ${body}`);
+const subscription = client.subscribeToCommands({
+  channel,
+  onCommand: async (cmd) => {
+    const body = new TextDecoder().decode(cmd.body);
+    console.log(`\n[Handler] Received command: ${body}`);
 
-        if (cmd.tags) {
-          const tagStr = Object.entries(cmd.tags)
-            .map(([k, v]) => `${k}=${v}`)
-            .join(', ');
-          console.log(`  Tags: ${tagStr}`);
-        }
+    if (cmd.tags) {
+      const tagStr = Object.entries(cmd.tags)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(', ');
+      console.log(`  Tags: ${tagStr}`);
+    }
 
-        const success = executeCommand(body);
+    const success = executeCommand(body);
 
-        await client.sendCommandResponse({
-          id: cmd.id,
-          replyChannel: cmd.replyChannel,
-          executed: success,
-          error: success ? undefined : `Unknown command: ${body}`,
-        });
-
-        console.log(`  [Handler] Response sent: executed=${success}`);
-      },
-      onError: (err) => {
-        console.error('[Handler] Error:', err.message);
-      },
+    await client.sendCommandResponse({
+      id: cmd.id,
+      replyChannel: cmd.replyChannel,
+      executed: success,
+      error: success ? undefined : `Unknown command: ${body}`,
     });
 
-    console.log(`Command handler listening on "${channel}"...`);
+    console.log(`  [Handler] Response sent: executed=${success}`);
+  },
+  onError: (err) => {
+    console.error('[Handler] Error:', err.message);
+  },
+});
+
+console.log(`Command handler listening on "${channel}"...`);
 ```
 
 The `cmd.id` and `cmd.replyChannel` link the response back to the correct sender — KubeMQ uses this correlation to route replies. Without them, the sender would time out waiting.
 
 ## Step 3 — Send Commands and Await Responses
 
-Each command includes a `timeoutMs` — if the handler doesn't respond within that window, the promise rejects with a `KubeMQTimeoutError`. This prevents your code from hanging indefinitely.
+Each command includes a `timeoutInSeconds` — if the handler doesn't respond within that window, the promise rejects with a `KubeMQTimeoutError`. This prevents your code from hanging indefinitely.
 
 ```typescript
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    const commands = ['restart-web-server', 'clear-cache', 'UNKNOWN_ACTION'];
+const commands = ['restart-web-server', 'clear-cache', 'UNKNOWN_ACTION'];
 
-    for (const action of commands) {
-      console.log(`\n[Controller] Sending command: ${action}`);
+for (const action of commands) {
+  console.log(`\n[Controller] Sending command: ${action}`);
 
-      try {
-        const response = await client.sendCommand(
-          createCommand({
-            channel,
-            body: JSON.stringify({ action }),
-            timeoutMs: 10000,
-            tags: { action, operator: 'admin' },
-          }),
-        );
+  try {
+    const response = await client.sendCommand(
+      createCommand({
+        channel,
+        body: JSON.stringify({ action }),
+        timeoutInSeconds: 10,
+        tags: { action, operator: 'admin' },
+      }),
+    );
 
-        if (response.executed) {
-          console.log('[Controller] Command executed successfully');
-        } else {
-          console.log(`[Controller] Command failed: ${response.error}`);
-        }
-      } catch (err) {
-        if (err instanceof KubeMQTimeoutError) {
-          console.log('[Controller] Command timed out — no handler responded');
-        } else if (err instanceof ConnectionError) {
-          console.log(`[Controller] Connection error: ${(err as ConnectionError).message}`);
-        } else {
-          console.log(`[Controller] Unexpected error: ${err}`);
-        }
-      }
+    if (response.executed) {
+      console.log('[Controller] Command executed successfully');
+    } else {
+      console.log(`[Controller] Command failed: ${response.error}`);
     }
+  } catch (err) {
+    if (err instanceof KubeMQTimeoutError) {
+      console.log('[Controller] Command timed out — no handler responded');
+    } else if (err instanceof ConnectionError) {
+      console.log(`[Controller] Connection error: ${(err as ConnectionError).message}`);
+    } else {
+      console.log(`[Controller] Unexpected error: ${err}`);
+    }
+  }
+}
 ```
 
 We deliberately include `UNKNOWN_ACTION` to show how the handler can reject commands it doesn't understand. The sender sees the failure immediately through the response — no exception, just `executed: false`.
@@ -202,7 +202,7 @@ async function main(): Promise<void> {
           createCommand({
             channel,
             body: JSON.stringify({ action }),
-            timeoutMs: 10000,
+            timeoutInSeconds: 10,
             tags: { action, operator: 'admin' },
           }),
         );
@@ -283,11 +283,11 @@ Device controller shut down.
 
 ## Error Handling
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `KubeMQTimeoutError` | No handler responded in time | Increase `timeoutMs` or verify handler is running |
-| `ConnectionError` | Server unreachable or connection dropped | Check server status; recreate client |
-| `Handler never responds` | Exception in `onCommand` before `sendCommandResponse` | Wrap handler logic in try-catch |
+| Error                    | Cause                                                 | Fix                                                      |
+| ------------------------ | ----------------------------------------------------- | -------------------------------------------------------- |
+| `KubeMQTimeoutError`     | No handler responded in time                          | Increase `timeoutInSeconds` or verify handler is running |
+| `ConnectionError`        | Server unreachable or connection dropped              | Check server status; recreate client                     |
+| `Handler never responds` | Exception in `onCommand` before `sendCommandResponse` | Wrap handler logic in try-catch                          |
 
 The most critical rule: **always send a response from the handler**. If your `onCommand` throws before calling `sendCommandResponse`, the sender blocks until timeout. Wrap your handler logic defensively:
 

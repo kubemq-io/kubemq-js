@@ -18,14 +18,6 @@ Defined in: messages/queues.ts:65
 
 ---
 
-### visibilitySeconds?
-
-> `readonly` `optional` **visibilitySeconds**: `number`
-
-Defined in: messages/queues.ts:66
-
----
-
 ### waitTimeoutSeconds
 
 > `readonly` **waitTimeoutSeconds**: `number`

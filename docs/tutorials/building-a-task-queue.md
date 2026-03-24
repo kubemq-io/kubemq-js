@@ -4,7 +4,7 @@ In this tutorial, you'll build a reliable task queue using KubeMQ's `KubeMQClien
 
 ## What You'll Build
 
-An image-processing pipeline where a producer enqueues resize jobs and a worker pulls them one at a time, processes each, and acknowledges or rejects based on the outcome.
+An image-processing pipeline where a producer enqueues resize jobs and a worker pulls them one at a time, processes each, and acknowledges or nacks based on the outcome.
 
 ## Prerequisites
 
@@ -45,30 +45,24 @@ async function main(): Promise<void> {
 Each queue message has a body (the work payload) and optional key-value tags. Tags let consumers make routing decisions without deserializing the body — useful for priority handling or format-specific processing.
 
 ```typescript
-    const images = [
-      'photo-001.jpg',
-      'photo-002.png',
-      'photo-003.jpg',
-      'INVALID_FILE',
-      'photo-005.jpg',
-    ];
+const images = ['photo-001.jpg', 'photo-002.png', 'photo-003.jpg', 'INVALID_FILE', 'photo-005.jpg'];
 
-    console.log(`\n--- Enqueuing ${images.length} resize jobs ---`);
+console.log(`\n--- Enqueuing ${images.length} resize jobs ---`);
 
-    for (let i = 0; i < images.length; i++) {
-      const result = await client.sendQueueMessage(
-        createQueueMessage({
-          channel,
-          body: `resize:${images[i]}`,
-          tags: {
-            width: '800',
-            format: 'webp',
-            priority: i === 0 ? 'high' : 'normal',
-          },
-        }),
-      );
-      console.log(`  Enqueued: ${images[i]} (id=${result.messageId})`);
-    }
+for (let i = 0; i < images.length; i++) {
+  const result = await client.sendQueueMessage(
+    createQueueMessage({
+      channel,
+      body: `resize:${images[i]}`,
+      tags: {
+        width: '800',
+        format: 'webp',
+        priority: i === 0 ? 'high' : 'normal',
+      },
+    }),
+  );
+  console.log(`  Enqueued: ${images[i]} (id=${result.messageId})`);
+}
 ```
 
 We include `INVALID_FILE` deliberately — this lets us demonstrate rejection handling in the next step. In real systems, workers still need to handle malformed input gracefully.
@@ -78,44 +72,43 @@ We include `INVALID_FILE` deliberately — this lets us demonstrate rejection ha
 The `receiveQueueMessages` method performs a long-poll: it waits up to `waitTimeoutSeconds` for messages to arrive, then returns an array. Each message must be explicitly acknowledged or rejected.
 
 ```typescript
-    console.log('\n--- Processing jobs ---');
+console.log('\n--- Processing jobs ---');
 
-    const messages = await client.receiveQueueMessages({
-      channel,
-      maxMessages: 10,
-      visibilitySeconds: 30,
-      waitTimeoutSeconds: 5,
-    });
+const messages = await client.receiveQueueMessages({
+  channel,
+  maxMessages: 10,
+  waitTimeoutSeconds: 5,
+});
 
-    let processed = 0;
-    let failed = 0;
+let processed = 0;
+let failed = 0;
 
-    for (const msg of messages) {
-      const body = new TextDecoder().decode(msg.body);
-      const fileName = body.replace('resize:', '');
-      console.log(`\n  Processing: ${fileName}`);
+for (const msg of messages) {
+  const body = new TextDecoder().decode(msg.body);
+  const fileName = body.replace('resize:', '');
+  console.log(`\n  Processing: ${fileName}`);
 
-      if (msg.tags) {
-        const tagStr = Object.entries(msg.tags)
-          .map(([k, v]) => `${k}=${v}`)
-          .join(', ');
-        console.log(`    Tags: ${tagStr}`);
-      }
+  if (msg.tags) {
+    const tagStr = Object.entries(msg.tags)
+      .map(([k, v]) => `${k}=${v}`)
+      .join(', ');
+    console.log(`    Tags: ${tagStr}`);
+  }
 
-      if (fileName.startsWith('INVALID')) {
-        await msg.reject();
-        console.log('    -> REJECTED (invalid file name)');
-        failed++;
-      } else {
-        await simulateResize(fileName);
-        await msg.ack();
-        console.log('    -> ACKNOWLEDGED (resize complete)');
-        processed++;
-      }
-    }
+  if (fileName.startsWith('INVALID')) {
+    await msg.nack();
+    console.log('    -> REJECTED (invalid file name)');
+    failed++;
+  } else {
+    await simulateResize(fileName);
+    await msg.ack();
+    console.log('    -> ACKNOWLEDGED (resize complete)');
+    processed++;
+  }
+}
 ```
 
-The `ack()` / `reject()` pattern is the backbone of reliable messaging. An acknowledged message is permanently removed from the queue. A rejected message becomes available again for redelivery — or routes to a dead-letter queue if configured.
+The `ack()` / `nack()` pattern is the backbone of reliable messaging. An acknowledged message is permanently removed from the queue. A nack'd message becomes available again for redelivery — or routes to a dead-letter queue if configured.
 
 ## Step 4 — Summary and Cleanup
 
@@ -183,7 +176,6 @@ async function main(): Promise<void> {
     const messages = await client.receiveQueueMessages({
       channel,
       maxMessages: 10,
-      visibilitySeconds: 30,
       waitTimeoutSeconds: 5,
     });
 
@@ -203,7 +195,7 @@ async function main(): Promise<void> {
       }
 
       if (fileName.startsWith('INVALID')) {
-        await msg.reject();
+        await msg.nack();
         console.log('    -> REJECTED (invalid file name)');
         failed++;
       } else {
@@ -280,11 +272,11 @@ Image processing pipeline shut down.
 
 ## Error Handling
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `Empty array returned` | Queue is empty or timeout too short | Increase `waitTimeoutSeconds` or verify messages were enqueued |
-| `sendQueueMessage rejects` | Channel doesn't exist or server issue | Verify server is running and channel name is correct |
-| `Message redelivered` | Message was rejected, not acknowledged | Configure a dead-letter queue to capture repeated failures |
+| Error                      | Cause                                  | Fix                                                            |
+| -------------------------- | -------------------------------------- | -------------------------------------------------------------- |
+| `Empty array returned`     | Queue is empty or timeout too short    | Increase `waitTimeoutSeconds` or verify messages were enqueued |
+| `sendQueueMessage rejects` | Channel doesn't exist or server issue  | Verify server is running and channel name is correct           |
+| `Message redelivered`      | Message was rejected, not acknowledged | Configure a dead-letter queue to capture repeated failures     |
 
 For production workers, use an async polling loop:
 
@@ -297,7 +289,6 @@ async function workerLoop(client: KubeMQClient, channel: string): Promise<void> 
       const messages = await client.receiveQueueMessages({
         channel,
         maxMessages: 10,
-        visibilitySeconds: 30,
         waitTimeoutSeconds: 5,
       });
 
@@ -315,7 +306,7 @@ async function workerLoop(client: KubeMQClient, channel: string): Promise<void> 
           await msg.ack();
         } catch (err) {
           console.error('Processing failed:', err);
-          await msg.reject();
+          await msg.nack();
         }
       }
     } catch (err) {

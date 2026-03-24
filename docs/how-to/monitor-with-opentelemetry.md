@@ -37,7 +37,7 @@ const client = await KubeMQClient.create({
 });
 
 // 3. Operations produce spans automatically
-await client.publishEvent(
+await client.sendEvent(
   createEventMessage({
     channel: 'orders.created',
     body: JSON.stringify({ orderId: 'ORD-001', total: 99.99 }),
@@ -79,26 +79,26 @@ const client = await KubeMQClient.create({
 
 Every SDK span includes these semantic attributes:
 
-| Attribute | Example |
-|---|---|
-| `messaging.system` | `kubemq` |
-| `messaging.operation.name` | `publish`, `receive`, `send`, `process` |
-| `messaging.destination.name` | `orders.created` |
-| `messaging.client.id` | `traced-service` |
-| `messaging.message.id` | `<uuid>` |
-| `server.address` | `localhost` |
-| `server.port` | `50000` |
+| Attribute                    | Example                                 |
+| ---------------------------- | --------------------------------------- |
+| `messaging.system`           | `kubemq`                                |
+| `messaging.operation.name`   | `publish`, `receive`, `send`, `process` |
+| `messaging.destination.name` | `orders.created`                        |
+| `messaging.client.id`        | `traced-service`                        |
+| `messaging.message.id`       | `<uuid>`                                |
+| `server.address`             | `localhost`                             |
+| `server.port`                | `50000`                                 |
 
 ## Metrics Emitted
 
-| Metric | Type | Description |
-|---|---|---|
-| `kubemq.messages.sent` | Counter | Messages published/sent |
-| `kubemq.messages.consumed` | Counter | Messages received |
-| `kubemq.operation.duration` | Histogram | Operation latency (seconds) |
-| `kubemq.connection.changes` | Counter | Connection state transitions |
-| `kubemq.retry.attempts` | Counter | Retry attempts |
-| `kubemq.retry.exhausted` | Counter | Operations that exhausted all retries |
+| Metric                      | Type      | Description                           |
+| --------------------------- | --------- | ------------------------------------- |
+| `kubemq.messages.sent`      | Counter   | Messages published/sent               |
+| `kubemq.messages.consumed`  | Counter   | Messages received                     |
+| `kubemq.operation.duration` | Histogram | Operation latency (seconds)           |
+| `kubemq.connection.changes` | Counter   | Connection state transitions          |
+| `kubemq.retry.attempts`     | Counter   | Retry attempts                        |
+| `kubemq.retry.exhausted`    | Counter   | Operations that exhausted all retries |
 
 ## Custom Parent Spans
 
@@ -117,7 +117,7 @@ const client = await KubeMQClient.create({
 await tracer.startActiveSpan('processOrder', async (span) => {
   try {
     // KubeMQ spans are automatically children of the active span
-    await client.publishEvent(
+    await client.sendEvent(
       createEventMessage({
         channel: 'orders.created',
         body: JSON.stringify({ orderId: 'ORD-002' }),
@@ -138,10 +138,10 @@ await client.close();
 
 ## Troubleshooting
 
-| Symptom | Cause | Fix |
-|---|---|---|
-| No spans in collector | `tracerProvider` not passed to client | Pass `trace.getTracerProvider()` in `create()` |
-| Spans appear but not exported | Exporter misconfigured | Verify OTel collector URL and protocol |
-| Missing parent-child links | OTel SDK started after client creation | Initialize OTel SDK **before** `KubeMQClient.create()` |
-| Metrics not appearing | `meterProvider` not passed | Pass `metrics.getMeterProvider()` in `create()` |
-| High memory from metrics | Too many unique label combos | Use structured channel naming to reduce cardinality |
+| Symptom                       | Cause                                  | Fix                                                    |
+| ----------------------------- | -------------------------------------- | ------------------------------------------------------ |
+| No spans in collector         | `tracerProvider` not passed to client  | Pass `trace.getTracerProvider()` in `create()`         |
+| Spans appear but not exported | Exporter misconfigured                 | Verify OTel collector URL and protocol                 |
+| Missing parent-child links    | OTel SDK started after client creation | Initialize OTel SDK **before** `KubeMQClient.create()` |
+| Metrics not appearing         | `meterProvider` not passed             | Pass `metrics.getMeterProvider()` in `create()`        |
+| High memory from metrics      | Too many unique label combos           | Use structured channel naming to reduce cardinality    |

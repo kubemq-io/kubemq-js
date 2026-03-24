@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { KubeMQClient } from '../../src/client.js';
 import { createTestClientOptions, uniqueChannel } from '../fixtures/test-helpers.js';
-import type { ReceivedEvent } from '../../src/messages/events.js';
+import type { EventReceived } from '../../src/messages/events.js';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -20,17 +20,17 @@ describe('Events integration', () => {
   it('publishes and receives a single event', async () => {
     client = await KubeMQClient.create(createTestClientOptions());
     const channel = uniqueChannel('events-single');
-    const received: ReceivedEvent[] = [];
+    const received: EventReceived[] = [];
 
     const sub = client.subscribeToEvents({
       channel,
       group: '',
-      onMessage: (msg) => received.push(msg),
+      onEvent: (msg) => received.push(msg),
       onError: () => {},
     });
     await sleep(500);
 
-    await client.publishEvent({ channel, body: new TextEncoder().encode('hello') });
+    await client.sendEvent({ channel, body: new TextEncoder().encode('hello') });
     await sleep(1000);
 
     expect(received.length).toBeGreaterThanOrEqual(1);
@@ -41,17 +41,17 @@ describe('Events integration', () => {
   it('publishes event with metadata and tags', async () => {
     client = await KubeMQClient.create(createTestClientOptions());
     const channel = uniqueChannel('events-meta');
-    const received: ReceivedEvent[] = [];
+    const received: EventReceived[] = [];
 
     const sub = client.subscribeToEvents({
       channel,
       group: '',
-      onMessage: (msg) => received.push(msg),
+      onEvent: (msg) => received.push(msg),
       onError: () => {},
     });
     await sleep(500);
 
-    await client.publishEvent({
+    await client.sendEvent({
       channel,
       body: new TextEncoder().encode('body'),
       metadata: 'my-metadata',
@@ -68,25 +68,25 @@ describe('Events integration', () => {
   it('group-based subscription delivers to one consumer', async () => {
     client = await KubeMQClient.create(createTestClientOptions());
     const channel = uniqueChannel('events-group');
-    const received1: ReceivedEvent[] = [];
-    const received2: ReceivedEvent[] = [];
+    const received1: EventReceived[] = [];
+    const received2: EventReceived[] = [];
     const group = 'test-group';
 
     const sub1 = client.subscribeToEvents({
       channel,
       group,
-      onMessage: (msg) => received1.push(msg),
+      onEvent: (msg) => received1.push(msg),
       onError: () => {},
     });
     const sub2 = client.subscribeToEvents({
       channel,
       group,
-      onMessage: (msg) => received2.push(msg),
+      onEvent: (msg) => received2.push(msg),
       onError: () => {},
     });
     await sleep(500);
 
-    await client.publishEvent({ channel, body: new TextEncoder().encode('group-msg') });
+    await client.sendEvent({ channel, body: new TextEncoder().encode('group-msg') });
     await sleep(1000);
 
     expect(received1.length + received2.length).toBe(1);
@@ -97,19 +97,19 @@ describe('Events integration', () => {
   it('subscription cancel stops data delivery', async () => {
     client = await KubeMQClient.create(createTestClientOptions());
     const channel = uniqueChannel('events-cancel');
-    const received: ReceivedEvent[] = [];
+    const received: EventReceived[] = [];
 
     const sub = client.subscribeToEvents({
       channel,
       group: '',
-      onMessage: (msg) => received.push(msg),
+      onEvent: (msg) => received.push(msg),
       onError: () => {},
     });
     await sleep(500);
     sub.cancel();
     await sleep(200);
 
-    await client.publishEvent({ channel, body: new TextEncoder().encode('after-cancel') });
+    await client.sendEvent({ channel, body: new TextEncoder().encode('after-cancel') });
     await sleep(500);
 
     expect(received.length).toBe(0);
@@ -118,24 +118,24 @@ describe('Events integration', () => {
   it('multiple subscribers on same channel all receive events', async () => {
     client = await KubeMQClient.create(createTestClientOptions());
     const channel = uniqueChannel('events-multi');
-    const received1: ReceivedEvent[] = [];
-    const received2: ReceivedEvent[] = [];
+    const received1: EventReceived[] = [];
+    const received2: EventReceived[] = [];
 
     const sub1 = client.subscribeToEvents({
       channel,
       group: '',
-      onMessage: (msg) => received1.push(msg),
+      onEvent: (msg) => received1.push(msg),
       onError: () => {},
     });
     const sub2 = client.subscribeToEvents({
       channel,
       group: '',
-      onMessage: (msg) => received2.push(msg),
+      onEvent: (msg) => received2.push(msg),
       onError: () => {},
     });
     await sleep(500);
 
-    await client.publishEvent({ channel, body: new TextEncoder().encode('broadcast') });
+    await client.sendEvent({ channel, body: new TextEncoder().encode('broadcast') });
     await sleep(1000);
 
     expect(received1.length).toBeGreaterThanOrEqual(1);

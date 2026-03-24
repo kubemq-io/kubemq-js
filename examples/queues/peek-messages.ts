@@ -13,7 +13,10 @@
 import { KubeMQClient, createQueueMessage } from '../../src/index.js';
 
 async function main(): Promise<void> {
-  const client = await KubeMQClient.create({ address: 'localhost:50000', clientId: 'js-queues-peek-messages-client' });
+  const client = await KubeMQClient.create({
+    address: 'localhost:50000',
+    clientId: 'js-queues-peek-messages-client',
+  });
 
   try {
     // Send a few messages to inspect.
@@ -29,7 +32,6 @@ async function main(): Promise<void> {
     // Peek at waiting messages — they remain in the queue.
     const peeked = await client.receiveQueueMessages({
       channel: 'js-queues.peek-messages',
-      visibilitySeconds: 0, // peek mode
       waitTimeoutSeconds: 5,
       maxMessages: 10,
     });

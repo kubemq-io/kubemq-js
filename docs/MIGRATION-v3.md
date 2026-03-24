@@ -17,25 +17,25 @@ KubeMQ JS/TS SDK v3 is a major release that unifies the three separate client cl
 
 ## Breaking Changes Table
 
-| #   | Area             | v2 Behavior                                                             | v3 Behavior                                         | Migration Action                  |
-| --- | ---------------- | ----------------------------------------------------------------------- | --------------------------------------------------- | --------------------------------- |
-| 1   | Client classes   | 3 separate classes (`PubsubClient`, `CQClient`, `QueuesClient`)         | Single `KubeMQClient`                               | Replace all client instantiation  |
-| 2   | Client creation  | `new PubsubClient(config)` (sync)                                       | `await KubeMQClient.create(options)` (async)        | Add `await`, update options shape |
-| 3   | Error types      | Raw `Error` and gRPC `ServiceError`                                     | Typed `KubeMQError` hierarchy with `isRetryable`    | Update catch blocks               |
-| 4   | Error callbacks  | `onErrorCallback?: (error: string) => void`                             | `onError: (err: KubeMQError) => void`               | Update callback signature         |
-| 5   | Auth config      | `authToken: string` flat field                                          | `credentials: CredentialProvider \| string`         | Rename field                      |
-| 6   | TLS config       | 4 separate fields (`tls`, `tlsCertFile`, `tlsKeyFile`, `tlsCaCertFile`) | Single `tls: TlsOptions \| boolean` nested object   | Restructure TLS config            |
-| 7   | TLS default      | Always `false`                                                          | Smart default: `true` for non-localhost addresses   | Review TLS expectations           |
-| 8   | Cert validation  | Deferred to first RPC                                                   | Fail-fast at `create()`                             | Expect errors at creation time    |
-| 9   | Console output   | 65 `console.log/error/debug` calls in production                        | Silent by default (`noopLogger`)                    | Remove console output workarounds |
-| 10  | Config shape     | `Config` interface (10 optional fields)                                 | `ClientOptions` with validated defaults             | Rename fields, update structure   |
-| 11  | Method names     | `sendEventsMessage()`, `sendEventStoreMessage()`                        | `publishEvent()`, `publishEventStore()`             | Rename method calls               |
-| 12  | Message creation | Object literals with `Utils.stringToBytes()`                            | Factory functions: `createEventMessage()`, etc.     | Use factory functions             |
-| 13  | Subscriptions    | Callback on request class, `onErrorCallback` optional                   | `onMessage` + `onError` callbacks in options object | Restructure subscription code     |
-| 14  | Module format    | CommonJS only                                                           | ESM-first with CJS compatibility                    | Update import syntax if needed    |
-| 15  | Node.js version  | `>=14.0.0`                                                              | `>=20.11.0`                                         | Upgrade Node.js                   |
-| 16  | Close semantics  | `client.close()` (sync, no drain)                                       | `await client.close()` (async, drains in-flight)    | Add `await`                       |
-| 17  | Timeouts         | No timeouts (infinite by default)                                       | Default timeouts (5s send, 10s RPC)                 | Review timeout expectations       |
+| #   | Area             | v2 Behavior                                                             | v3 Behavior                                       | Migration Action                  |
+| --- | ---------------- | ----------------------------------------------------------------------- | ------------------------------------------------- | --------------------------------- |
+| 1   | Client classes   | 3 separate classes (`PubsubClient`, `CQClient`, `QueuesClient`)         | Single `KubeMQClient`                             | Replace all client instantiation  |
+| 2   | Client creation  | `new PubsubClient(config)` (sync)                                       | `await KubeMQClient.create(options)` (async)      | Add `await`, update options shape |
+| 3   | Error types      | Raw `Error` and gRPC `ServiceError`                                     | Typed `KubeMQError` hierarchy with `isRetryable`  | Update catch blocks               |
+| 4   | Error callbacks  | `onErrorCallback?: (error: string) => void`                             | `onError: (err: KubeMQError) => void`             | Update callback signature         |
+| 5   | Auth config      | `authToken: string` flat field                                          | `credentials: CredentialProvider \| string`       | Rename field                      |
+| 6   | TLS config       | 4 separate fields (`tls`, `tlsCertFile`, `tlsKeyFile`, `tlsCaCertFile`) | Single `tls: TlsOptions \| boolean` nested object | Restructure TLS config            |
+| 7   | TLS default      | Always `false`                                                          | Smart default: `true` for non-localhost addresses | Review TLS expectations           |
+| 8   | Cert validation  | Deferred to first RPC                                                   | Fail-fast at `create()`                           | Expect errors at creation time    |
+| 9   | Console output   | 65 `console.log/error/debug` calls in production                        | Silent by default (`noopLogger`)                  | Remove console output workarounds |
+| 10  | Config shape     | `Config` interface (10 optional fields)                                 | `ClientOptions` with validated defaults           | Rename fields, update structure   |
+| 11  | Method names     | `sendEventsMessage()`, `sendEventStoreMessage()`                        | `sendEvent()`, `sendEventStore()`                 | Rename method calls               |
+| 12  | Message creation | Object literals with `Utils.stringToBytes()`                            | Factory functions: `createEventMessage()`, etc.   | Use factory functions             |
+| 13  | Subscriptions    | Callback on request class, `onErrorCallback` optional                   | `onEvent` + `onError` callbacks in options object | Restructure subscription code     |
+| 14  | Module format    | CommonJS only                                                           | ESM-first with CJS compatibility                  | Update import syntax if needed    |
+| 15  | Node.js version  | `>=14.0.0`                                                              | `>=20.11.0`                                       | Upgrade Node.js                   |
+| 16  | Close semantics  | `client.close()` (sync, no drain)                                       | `await client.close()` (async, drains in-flight)  | Add `await`                       |
+| 17  | Timeouts         | No timeouts (infinite by default)                                       | Default timeouts (5s send, 10s RPC)               | Review timeout expectations       |
 
 ## Step-by-Step Upgrade Procedure
 
@@ -106,7 +106,7 @@ await pubsubClient.sendEventsMessage({
 ```typescript
 import { createEventMessage } from 'kubemq-js';
 
-await client.publishEvent(createEventMessage({ channel: 'events.single', body: 'event message' }));
+await client.sendEvent(createEventMessage({ channel: 'events.single', body: 'event message' }));
 ```
 
 **v2 — Events Store:**
@@ -124,7 +124,7 @@ await pubsubClient.sendEventStoreMessage({
 ```typescript
 import { createEventStoreMessage } from 'kubemq-js';
 
-await client.publishEventStore(
+await client.sendEventStore(
   createEventStoreMessage({ channel: 'events_store.single', body: 'event store message' }),
 );
 ```
@@ -164,7 +164,7 @@ const response = await cqClient.sendCommandRequest({
 import { createCommand } from 'kubemq-js';
 
 const response = await client.sendCommand(
-  createCommand({ channel: 'commands.test', body: 'command body', timeoutMs: 10000 }),
+  createCommand({ channel: 'commands.test', body: 'command body', timeoutInSeconds: 10 }),
 );
 ```
 
@@ -184,14 +184,14 @@ const response = await cqClient.sendQueryRequest({
 import { createQuery } from 'kubemq-js';
 
 const response = await client.sendQuery(
-  createQuery({ channel: 'queries.test', body: 'query body', timeoutMs: 10000 }),
+  createQuery({ channel: 'queries.test', body: 'query body', timeoutInSeconds: 10 }),
 );
 ```
 
 Key differences:
 
 - `Utils.stringToBytes()` is no longer needed — factory functions accept `string` directly for `body`
-- Method names changed: `sendEventsMessage` → `publishEvent`, `sendEventStoreMessage` → `publishEventStore`
+- Method names changed: `sendEventsMessage` → `sendEvent`, `sendEventStoreMessage` → `sendEventStore`
 - Use factory functions (`createEventMessage`, etc.) instead of plain object literals
 
 ### Step 5: Update Subscriptions
@@ -217,7 +217,7 @@ await pubsubClient.subscribeToEvents(request);
 ```typescript
 const subscription = client.subscribeToEvents({
   channel: 'events.A',
-  onMessage: (event) => {
+  onEvent: (event) => {
     console.log('Received:', new TextDecoder().decode(event.body));
   },
   onError: (err) => {
@@ -250,13 +250,13 @@ await pubsubClient.subscribeToEvents(request);
 **v3 — Events Store:**
 
 ```typescript
-import { EventStoreType } from 'kubemq-js';
+import { EventStoreStartPosition } from 'kubemq-js';
 
 const subscription = client.subscribeToEventsStore({
   channel: 'events_store.A',
-  startFrom: EventStoreType.StartAtSequence,
+  startFrom: EventStoreStartPosition.StartAtSequence,
   startValue: 1,
-  onMessage: (event) => {
+  onEvent: (event) => {
     console.log('Received:', new TextDecoder().decode(event.body), 'seq:', event.sequence);
   },
   onError: (err) => {
@@ -300,7 +300,7 @@ const subscription = client.subscribeToCommands({
 Key differences:
 
 - Subscription request classes (`EventsSubscriptionRequest`, etc.) replaced with plain options objects
-- `onReceiveEventCallback` → `onMessage` (events) or `onCommand` / `onQuery` (RPC)
+- `onReceiveEventCallback` → `onEvent` (events) or `onCommand` / `onQuery` (RPC)
 - `onErrorCallback` (optional, received `string`) → `onError` (mandatory, receives `KubeMQError`)
 - Subscriptions return a `Subscription` handle with a `.cancel()` method
 
@@ -323,7 +323,7 @@ try {
 import { KubeMQError, ConnectionError, ValidationError } from 'kubemq-js';
 
 try {
-  await client.publishEvent(msg);
+  await client.sendEvent(msg);
 } catch (err) {
   if (err instanceof ConnectionError && err.isRetryable) {
     // Transient — SDK already retried 3 times per default policy.

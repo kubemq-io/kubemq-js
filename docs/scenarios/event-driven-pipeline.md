@@ -87,7 +87,6 @@ async function runOutputWorker(client: KubeMQClient): Promise<void> {
     channel: 'pipeline.output',
     maxMessages: 10,
     waitTimeoutSeconds: 5,
-    visibilitySeconds: 30,
   });
 
   console.log(`[Output] Received ${messages.length} messages:`);

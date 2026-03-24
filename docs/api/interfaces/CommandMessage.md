@@ -51,9 +51,9 @@ Defined in: messages/commands.ts:20
 
 ---
 
-### timeoutMs
+### timeoutInSeconds
 
-> `readonly` **timeoutMs**: `number`
+> `readonly` **timeoutInSeconds**: `number`
 
 Defined in: messages/commands.ts:21
 

@@ -761,3 +761,422 @@ describe('GrpcTransport.reloadSslCredentials() with TLS', () => {
     expect(parts).toBeDefined();
   });
 });
+
+describe('server stream handle delegation (wrapReadableStream)', () => {
+  it('pause() delegates to underlying stream', async () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    await transport.connect();
+
+    const emitter = new EventEmitter();
+    (emitter as any).cancel = vi.fn();
+    (emitter as any).pause = vi.fn();
+    (emitter as any).resume = vi.fn();
+    (emitter as any).removeAllListeners = vi.fn();
+    const fakeClient = lastFakeClient;
+    fakeClient.SubscribeToEvents.mockReturnValue(emitter);
+
+    const handle = transport.serverStream('SubscribeToEvents', {});
+    handle.pause();
+    expect((emitter as any).pause).toHaveBeenCalled();
+  });
+
+  it('resume() delegates to underlying stream', async () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    await transport.connect();
+
+    const emitter = new EventEmitter();
+    (emitter as any).cancel = vi.fn();
+    (emitter as any).pause = vi.fn();
+    (emitter as any).resume = vi.fn();
+    (emitter as any).removeAllListeners = vi.fn();
+    const fakeClient = lastFakeClient;
+    fakeClient.SubscribeToEvents.mockReturnValue(emitter);
+
+    const handle = transport.serverStream('SubscribeToEvents', {});
+    handle.resume();
+    expect((emitter as any).resume).toHaveBeenCalled();
+  });
+
+  it('removeAllListeners() delegates to underlying stream', async () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    await transport.connect();
+
+    const emitter = new EventEmitter();
+    (emitter as any).cancel = vi.fn();
+    (emitter as any).pause = vi.fn();
+    (emitter as any).resume = vi.fn();
+    (emitter as any).removeAllListeners = vi.fn();
+    const fakeClient = lastFakeClient;
+    fakeClient.SubscribeToEvents.mockReturnValue(emitter);
+
+    const handle = transport.serverStream('SubscribeToEvents', {});
+    handle.removeAllListeners();
+    expect((emitter as any).removeAllListeners).toHaveBeenCalled();
+  });
+
+  it('onDrain() is a no-op for readable streams', async () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    await transport.connect();
+
+    const emitter = new EventEmitter();
+    (emitter as any).cancel = vi.fn();
+    (emitter as any).once = vi.fn();
+    const fakeClient = lastFakeClient;
+    fakeClient.SubscribeToEvents.mockReturnValue(emitter);
+
+    const handle = transport.serverStream('SubscribeToEvents', {});
+    const handler = vi.fn();
+    // onDrain on readable stream is a no-op, should not call stream.once
+    handle.onDrain(handler);
+    expect((emitter as any).once).not.toHaveBeenCalled();
+  });
+});
+
+describe('duplex stream handle delegation (wrapDuplexStream)', () => {
+  it('pause() delegates to underlying stream', async () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    await transport.connect();
+
+    const emitter = new EventEmitter();
+    (emitter as any).cancel = vi.fn();
+    (emitter as any).write = vi.fn(() => true);
+    (emitter as any).end = vi.fn();
+    (emitter as any).pause = vi.fn();
+    (emitter as any).resume = vi.fn();
+    (emitter as any).removeAllListeners = vi.fn();
+    const fakeClient = lastFakeClient;
+    fakeClient.QueuesDownstream.mockReturnValue(emitter);
+
+    const handle = transport.duplexStream('QueuesDownstream');
+    handle.pause();
+    expect((emitter as any).pause).toHaveBeenCalled();
+  });
+
+  it('resume() delegates to underlying stream', async () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    await transport.connect();
+
+    const emitter = new EventEmitter();
+    (emitter as any).cancel = vi.fn();
+    (emitter as any).write = vi.fn(() => true);
+    (emitter as any).end = vi.fn();
+    (emitter as any).pause = vi.fn();
+    (emitter as any).resume = vi.fn();
+    (emitter as any).removeAllListeners = vi.fn();
+    const fakeClient = lastFakeClient;
+    fakeClient.QueuesDownstream.mockReturnValue(emitter);
+
+    const handle = transport.duplexStream('QueuesDownstream');
+    handle.resume();
+    expect((emitter as any).resume).toHaveBeenCalled();
+  });
+
+  it('removeAllListeners() delegates to underlying stream', async () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    await transport.connect();
+
+    const emitter = new EventEmitter();
+    (emitter as any).cancel = vi.fn();
+    (emitter as any).write = vi.fn(() => true);
+    (emitter as any).end = vi.fn();
+    (emitter as any).pause = vi.fn();
+    (emitter as any).resume = vi.fn();
+    (emitter as any).removeAllListeners = vi.fn();
+    const fakeClient = lastFakeClient;
+    fakeClient.QueuesDownstream.mockReturnValue(emitter);
+
+    const handle = transport.duplexStream('QueuesDownstream');
+    handle.removeAllListeners();
+    expect((emitter as any).removeAllListeners).toHaveBeenCalled();
+  });
+
+  it('onDrain() delegates to stream.once("drain", handler)', async () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    await transport.connect();
+
+    const emitter = new EventEmitter();
+    (emitter as any).cancel = vi.fn();
+    (emitter as any).write = vi.fn(() => true);
+    (emitter as any).end = vi.fn();
+    (emitter as any).once = vi.fn();
+    const fakeClient = lastFakeClient;
+    fakeClient.QueuesDownstream.mockReturnValue(emitter);
+
+    const handle = transport.duplexStream('QueuesDownstream');
+    const drainHandler = vi.fn();
+    handle.onDrain(drainHandler);
+    expect((emitter as any).once).toHaveBeenCalledWith('drain', drainHandler);
+  });
+
+  it('write() returns false when underlying stream signals backpressure', async () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    await transport.connect();
+
+    const emitter = new EventEmitter();
+    (emitter as any).cancel = vi.fn();
+    (emitter as any).write = vi.fn(() => false);
+    (emitter as any).end = vi.fn();
+    const fakeClient = lastFakeClient;
+    fakeClient.QueuesDownstream.mockReturnValue(emitter);
+
+    const handle = transport.duplexStream('QueuesDownstream');
+    const result = handle.write({ data: 'test' } as any);
+    expect(result).toBe(false);
+    expect((emitter as any).write).toHaveBeenCalledWith({ data: 'test' });
+  });
+});
+
+describe('GrpcTransport.close() edge cases', () => {
+  it('close() is a no-op when already CLOSED', async () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    await transport.connect();
+    await transport.close();
+    expect(transport.state).toBe(ConnectionState.CLOSED);
+
+    // Calling close again should be a no-op
+    await transport.close();
+    expect(transport.state).toBe(ConnectionState.CLOSED);
+  });
+
+  it('throws ClientClosedError for serverStream after close', async () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    await transport.connect();
+    await transport.close();
+    expect(() => transport.serverStream('SubscribeToEvents', {})).toThrow('Client is closed');
+  });
+
+  it('throws ClientClosedError for duplexStream after close', async () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    await transport.connect();
+    await transport.close();
+    expect(() => transport.duplexStream('QueuesDownstream')).toThrow('Client is closed');
+  });
+});
+
+describe('GrpcTransport accessor methods', () => {
+  it('getInFlightTracker() returns the in-flight tracker', () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    const tracker = transport.getInFlightTracker();
+    expect(tracker).toBeDefined();
+  });
+
+  it('getMessageBuffer() returns the message buffer', () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    const buffer = transport.getMessageBuffer();
+    expect(buffer).toBeDefined();
+  });
+
+  it('getReconnectionManager() returns the reconnection manager', () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    const manager = transport.getReconnectionManager();
+    expect(manager).toBeDefined();
+  });
+
+  it('getSubscriptionTracker() returns the subscription tracker', () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    const tracker = transport.getSubscriptionTracker();
+    expect(tracker).toBeDefined();
+  });
+
+  it('getChannelOptions() returns the channel options', () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    const options = transport.getChannelOptions();
+    expect(options).toBeDefined();
+    expect(options['grpc.max_receive_message_length']).toBe(104_857_600);
+  });
+
+  it('getMetadata() returns current metadata as a plain object', async () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    transport.setMetadata('x-key', 'val');
+    const meta = transport.getMetadata();
+    expect(meta).toEqual({ 'x-key': 'val' });
+  });
+
+  it('getCredentialProvider() returns undefined when no credentials', () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    expect(transport.getCredentialProvider()).toBeUndefined();
+  });
+
+  it('getCredentialProvider() returns provider when credentials are set', () => {
+    const transport = new GrpcTransport({
+      address: 'localhost:50000',
+      credentials: 'my-token',
+    });
+    expect(transport.getCredentialProvider()).toBeDefined();
+  });
+
+  it('getResolvedTls() returns normalized TLS options', () => {
+    const transport = new GrpcTransport({
+      address: 'remote.host:50000',
+      tls: { enabled: true, insecureSkipVerify: true },
+    });
+    const resolved = transport.getResolvedTls();
+    expect(resolved.enabled).toBe(true);
+    expect(resolved.insecureSkipVerify).toBe(true);
+  });
+
+  it('getResolvedTls() returns disabled for localhost without explicit TLS', () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    const resolved = transport.getResolvedTls();
+    expect(resolved.enabled).toBe(false);
+  });
+});
+
+describe('GrpcTransport metadata with insecure token (no TLS)', () => {
+  it('includes token in metadata on each unary call (no caching)', async () => {
+    const transport = new GrpcTransport({
+      address: 'localhost:50000',
+      tls: false,
+      credentials: 'insecure-token',
+    });
+    await transport.connect();
+
+    // The token cache should have fetched the token during connect
+    const cache = transport.getTokenCache()!;
+    expect(cache).toBeDefined();
+
+    let capturedMeta: any;
+    const fakeClient = lastFakeClient;
+    fakeClient.SendEvent.mockImplementation((_req: any, meta: any, _opts: any, cb: any) => {
+      capturedMeta = meta;
+      cb(null, { Sent: true });
+      return { cancel: vi.fn() };
+    });
+
+    await transport.unaryCall('SendEvent', {});
+    expect(capturedMeta.get('authorization')).toBe('insecure-token');
+  });
+});
+
+describe('GrpcTransport.resolveSslCredentials() without TLS', () => {
+  it('returns undefined when TLS is disabled', async () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    const parts = await transport.resolveSslCredentials();
+    expect(parts).toBeUndefined();
+  });
+});
+
+describe('GrpcTransport.reloadSslCredentials() without TLS', () => {
+  it('returns undefined when TLS is disabled', async () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    const parts = await transport.reloadSslCredentials();
+    expect(parts).toBeUndefined();
+  });
+});
+
+describe('GrpcTransport buildGrpcMetadata caching', () => {
+  it('caches metadata across multiple calls when no token cache', async () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    await transport.connect();
+    transport.setMetadata('x-test', 'cached-value');
+
+    let capturedMeta1: any;
+    let capturedMeta2: any;
+    const fakeClient = lastFakeClient;
+    fakeClient.SendEvent
+      .mockImplementationOnce((_req: any, meta: any, _opts: any, cb: any) => {
+        capturedMeta1 = meta;
+        cb(null, { Sent: true });
+        return { cancel: vi.fn() };
+      })
+      .mockImplementationOnce((_req: any, meta: any, _opts: any, cb: any) => {
+        capturedMeta2 = meta;
+        cb(null, { Sent: true });
+        return { cancel: vi.fn() };
+      });
+
+    await transport.unaryCall('SendEvent', {});
+    await transport.unaryCall('SendEvent', {});
+
+    // The cached metadata object should be the exact same reference
+    expect(capturedMeta1).toBe(capturedMeta2);
+    expect(capturedMeta1.get('x-test')).toBe('cached-value');
+  });
+
+  it('invalidates metadata cache when setMetadata is called', async () => {
+    const transport = new GrpcTransport({ address: 'localhost:50000' });
+    await transport.connect();
+    transport.setMetadata('x-first', 'v1');
+
+    let capturedMeta1: any;
+    let capturedMeta2: any;
+    const fakeClient = lastFakeClient;
+    fakeClient.SendEvent
+      .mockImplementationOnce((_req: any, meta: any, _opts: any, cb: any) => {
+        capturedMeta1 = meta;
+        cb(null, { Sent: true });
+        return { cancel: vi.fn() };
+      })
+      .mockImplementationOnce((_req: any, meta: any, _opts: any, cb: any) => {
+        capturedMeta2 = meta;
+        cb(null, { Sent: true });
+        return { cancel: vi.fn() };
+      });
+
+    await transport.unaryCall('SendEvent', {});
+
+    // Set new metadata — should invalidate cache
+    transport.setMetadata('x-second', 'v2');
+    await transport.unaryCall('SendEvent', {});
+
+    // After cache invalidation, a new metadata object should be built
+    expect(capturedMeta1).not.toBe(capturedMeta2);
+    expect(capturedMeta2.get('x-second')).toBe('v2');
+  });
+
+  it('includes custom metadata in insecure-token path', async () => {
+    const transport = new GrpcTransport({
+      address: 'localhost:50000',
+      tls: false,
+      credentials: 'my-token',
+    });
+    await transport.connect();
+    transport.setMetadata('x-custom', 'custom-val');
+
+    let capturedMeta: any;
+    const fakeClient = lastFakeClient;
+    fakeClient.SendEvent.mockImplementation((_req: any, meta: any, _opts: any, cb: any) => {
+      capturedMeta = meta;
+      cb(null, { Sent: true });
+      return { cancel: vi.fn() };
+    });
+
+    await transport.unaryCall('SendEvent', {});
+    // Both the custom metadata and the token should be present
+    expect(capturedMeta.get('x-custom')).toBe('custom-val');
+    expect(capturedMeta.get('authorization')).toBe('my-token');
+  });
+});
+
+describe('GrpcTransport.buildChannelOptions()', () => {
+  it('applies serverNameOverride when set in TLS options', () => {
+    const transport = new GrpcTransport({
+      address: 'remote.host:50000',
+      tls: { enabled: true, insecureSkipVerify: true, serverNameOverride: 'override.host' },
+    });
+    const options = transport.getChannelOptions();
+    expect(options['grpc.ssl_target_name_override']).toBe('override.host');
+  });
+
+  it('uses custom keepalive options', () => {
+    const transport = new GrpcTransport({
+      address: 'localhost:50000',
+      keepalive: { timeMs: 5000, timeoutMs: 2000, permitWithoutCalls: true },
+    });
+    const options = transport.getChannelOptions();
+    expect(options['grpc.keepalive_time_ms']).toBe(5000);
+    expect(options['grpc.keepalive_timeout_ms']).toBe(2000);
+    expect(options['grpc.keepalive_permit_without_calls']).toBe(1);
+  });
+
+  it('uses custom max message sizes', () => {
+    const transport = new GrpcTransport({
+      address: 'localhost:50000',
+      maxReceiveMessageSize: 1024,
+      maxSendMessageSize: 2048,
+    });
+    const options = transport.getChannelOptions();
+    expect(options['grpc.max_receive_message_length']).toBe(1024);
+    expect(options['grpc.max_send_message_length']).toBe(2048);
+  });
+});

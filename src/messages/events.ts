@@ -32,7 +32,7 @@ export interface EventMessage {
  * Do not modify received message objects — they are shared references from
  * the subscription's delivery pipeline. Fields are readonly.
  */
-export interface ReceivedEvent {
+export interface EventReceived {
   readonly id: string;
   readonly channel: string;
   readonly timestamp: Date;
@@ -53,7 +53,7 @@ export interface ReceivedEvent {
 export interface EventsSubscription {
   readonly channel: string;
   readonly group?: string;
-  readonly onMessage: (event: ReceivedEvent) => void;
+  readonly onEvent: (event: EventReceived) => void;
   readonly onError: (err: KubeMQError) => void;
 }
 
@@ -70,8 +70,8 @@ export interface EventsSubscription {
  * @see {@link EventMessage}
  */
 export interface EventStreamHandle {
-  /** Publish an event over the stream. Fire-and-forget — does not await server confirmation. */
-  send(msg: EventMessage): void;
+  /** Publish an event over the stream. Returns a Promise that resolves when the write buffer has capacity (backpressure-aware). */
+  send(msg: EventMessage): Promise<void>;
   /** Register a handler for asynchronous stream errors. */
   onError(handler: (err: Error) => void): void;
   /** Close the stream and release resources. */
@@ -96,7 +96,7 @@ export interface EventStreamHandle {
  *   metadata: 'greeting',
  *   tags: { source: 'api' },
  * });
- * await client.publishEvent(event);
+ * await client.sendEvent(event);
  * ```
  */
 export function createEventMessage(

@@ -10,14 +10,19 @@
  *
  * Run: npx tsx examples/configuration/custom-timeouts.ts
  */
-import { KubeMQClient, createEventMessage, CancellationError, KubeMQTimeoutError } from '../../src/index.js';
+import {
+  KubeMQClient,
+  createEventMessage,
+  CancellationError,
+  KubeMQTimeoutError,
+} from '../../src/index.js';
 
 async function main(): Promise<void> {
   // Client-level timeout configuration.
   const client = await KubeMQClient.create({
     address: 'localhost:50000',
     clientId: 'js-configuration-custom-timeouts-client',
-    connectionTimeoutMs: 15_000,
+    connectionTimeoutSeconds: 15,
     retry: {
       maxRetries: 5,
       initialBackoffMs: 1000,
@@ -29,7 +34,7 @@ async function main(): Promise<void> {
 
   try {
     // Per-operation timeout override.
-    await client.publishEvent(
+    await client.sendEvent(
       createEventMessage({ channel: 'js-configuration.custom-timeouts', body: 'p99=42ms' }),
       { timeout: 2000 },
     );
@@ -42,7 +47,7 @@ async function main(): Promise<void> {
     }, 3000);
 
     try {
-      await client.publishEvent(
+      await client.sendEvent(
         createEventMessage({ channel: 'js-configuration.custom-timeouts', body: 'p99=38ms' }),
         { signal: controller.signal },
       );

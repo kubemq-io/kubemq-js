@@ -13,7 +13,10 @@
 import { KubeMQClient } from '../../src/index.js';
 
 async function main(): Promise<void> {
-  const client = await KubeMQClient.create({ address: 'localhost:50000', clientId: 'js-rpc-handle-command-client' });
+  const client = await KubeMQClient.create({
+    address: 'localhost:50000',
+    clientId: 'js-rpc-handle-command-client',
+  });
 
   try {
     const subscription = client.subscribeToCommands({

@@ -116,17 +116,18 @@ export { validateMessageSize } from './internal/validation/message-size.js';
 // Messages — Events (owned by GS-09)
 export type {
   EventMessage,
-  ReceivedEvent,
+  EventReceived,
   EventsSubscription,
   EventStreamHandle,
 } from './messages/events.js';
 export { createEventMessage } from './messages/events.js';
 
 // Messages — Events Store (owned by GS-09)
-export { EventStoreType, createEventStoreMessage } from './messages/events-store.js';
+export { EventStoreStartPosition, createEventStoreMessage } from './messages/events-store.js';
 export type {
   EventStoreMessage,
-  ReceivedEventStore,
+  EventStoreReceived,
+  EventStoreResult,
   EventStoreSubscription,
   EventStoreStreamHandle,
 } from './messages/events-store.js';
@@ -152,7 +153,7 @@ export { createQueueMessage } from './messages/queues.js';
 // Messages — Commands (owned by GS-09)
 export type {
   CommandMessage,
-  ReceivedCommand,
+  CommandReceived,
   CommandResponse,
   CommandSubscription,
 } from './messages/commands.js';
@@ -161,7 +162,7 @@ export { createCommand } from './messages/commands.js';
 // Messages — Queries (owned by GS-09)
 export type {
   QueryMessage,
-  ReceivedQuery,
+  QueryReceived,
   QueryResponse,
   QuerySubscription,
 } from './messages/queries.js';
