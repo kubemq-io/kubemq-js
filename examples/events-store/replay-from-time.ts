@@ -10,13 +10,16 @@
  *
  * Run: npx tsx examples/events-store/replay-from-time.ts
  */
-import { KubeMQClient, createEventStoreMessage, EventStoreType } from '../../src/index.js';
+import { KubeMQClient, createEventStoreMessage, EventStoreStartPosition } from '../../src/index.js';
 
 async function main(): Promise<void> {
-  const client = await KubeMQClient.create({ address: 'localhost:50000', clientId: 'js-events-store-replay-from-time-client' });
+  const client = await KubeMQClient.create({
+    address: 'localhost:50000',
+    clientId: 'js-events-store-replay-from-time-client',
+  });
 
   try {
-    await client.publishEventStore(
+    await client.sendEventStore(
       createEventStoreMessage({
         channel: 'js-events-store.replay-from-time',
         body: 'Deployed v2.4.1 to production',
@@ -26,9 +29,9 @@ async function main(): Promise<void> {
     // Subscribe from 60 seconds ago — catches recent events.
     const subscription = client.subscribeToEventsStore({
       channel: 'js-events-store.replay-from-time',
-      startFrom: EventStoreType.StartAtTimeDelta,
+      startFrom: EventStoreStartPosition.StartAtTimeDelta,
       startValue: 60, // seconds ago
-      onMessage: (event) => {
+      onEvent: (event) => {
         console.log(`[${event.timestamp.toISOString()}] ${new TextDecoder().decode(event.body)}`);
       },
       onError: (err) => {

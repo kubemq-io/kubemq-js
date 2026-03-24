@@ -3,10 +3,11 @@
 import { randomUUID } from 'node:crypto';
 import { kubemq } from '../../protos/kubemq.js';
 import type { EventMessage } from '../../messages/events.js';
-import type { ReceivedEvent } from '../../messages/events.js';
+import type { EventReceived } from '../../messages/events.js';
 import type {
   EventStoreMessage,
-  ReceivedEventStore,
+  EventStoreReceived,
+  EventStoreResult,
   EventStoreSubscription,
 } from '../../messages/events-store.js';
 import type {
@@ -17,20 +18,22 @@ import type {
   QueueStreamOptions,
 } from '../../messages/queues.js';
 import type { BatchSendResult } from '../../messages/queues.js';
-import type { CommandMessage, ReceivedCommand, CommandResponse } from '../../messages/commands.js';
-import type { QueryMessage, ReceivedQuery, QueryResponse } from '../../messages/queries.js';
+import type { CommandMessage, CommandReceived, CommandResponse } from '../../messages/commands.js';
+import type { QueryMessage, QueryReceived, QueryResponse } from '../../messages/queries.js';
 import type { ServerInfo } from '../../client.js';
 import { normalizeBody } from '../utils/body.js';
 import { KubeMQError, ErrorCode } from '../../errors.js';
 
 // ─── Helper: Record<string,string> → Map<string,string> ─────────────
 
+// L2 fix: avoid Map allocation when tags are empty/undefined
 function toTagsMap(tags?: Record<string, string>): Map<string, string> {
+  if (!tags) return new Map<string, string>();
+  const keys = Object.keys(tags);
+  if (keys.length === 0) return new Map<string, string>();
   const map = new Map<string, string>();
-  if (tags) {
-    for (const [k, v] of Object.entries(tags)) {
-      map.set(k, v);
-    }
+  for (const [k, v] of Object.entries(tags)) {
+    map.set(k, v);
   }
   return map;
 }
@@ -141,14 +144,14 @@ export function toProtoRequest(
     Channel: msg.channel,
     Metadata: msg.metadata ?? '',
     Body: msg.body !== undefined ? bodyBytes(msg.body) : new Uint8Array(0),
-    Timeout: msg.timeoutMs,
+    Timeout: msg.timeoutInSeconds * 1000,
     Tags: toTagsMap(msg.tags),
   });
 
   if (type === 'Query') {
     const queryMsg = msg as QueryMessage;
     if (queryMsg.cacheKey) req.CacheKey = queryMsg.cacheKey;
-    if (queryMsg.cacheTTL) req.CacheTTL = queryMsg.cacheTTL;
+    if (queryMsg.cacheTtlInSeconds) req.CacheTTL = queryMsg.cacheTtlInSeconds;
   }
 
   const msgRecord = msg as unknown as Record<string, unknown>;
@@ -228,6 +231,8 @@ export function toProtoBatchRequest(
 
 // ─── Proto → SDK ─────────────────────────────────────────────────────
 /* eslint-disable @typescript-eslint/no-unnecessary-condition */
+// int64 fields can be Long/BigInt at runtime despite TS declaring number — Number() is needed.
+/* eslint-disable @typescript-eslint/no-unnecessary-type-conversion */
 
 export function fromProtoPingResult(result: kubemq.PingResult): ServerInfo {
   return {
@@ -249,7 +254,15 @@ export function fromProtoResult(result: kubemq.Result, operation: string): void 
   }
 }
 
-export function fromProtoReceivedEvent(data: kubemq.EventReceive): ReceivedEvent {
+export function fromProtoEventStoreResult(result: kubemq.Result): EventStoreResult {
+  return {
+    id: result.EventID,
+    sent: result.Sent,
+    error: result.Error || '',
+  };
+}
+
+export function fromProtoReceivedEvent(data: kubemq.EventReceive): EventReceived {
   return {
     id: data.EventID,
     channel: data.Channel,
@@ -260,7 +273,7 @@ export function fromProtoReceivedEvent(data: kubemq.EventReceive): ReceivedEvent
   };
 }
 
-export function fromProtoReceivedEventStore(data: kubemq.EventReceive): ReceivedEventStore {
+export function fromProtoReceivedEventStore(data: kubemq.EventReceive): EventStoreReceived {
   return {
     id: data.EventID,
     channel: data.Channel,
@@ -272,7 +285,7 @@ export function fromProtoReceivedEventStore(data: kubemq.EventReceive): Received
   };
 }
 
-export function fromProtoReceivedCommand(data: kubemq.Request): ReceivedCommand {
+export function fromProtoReceivedCommand(data: kubemq.Request): CommandReceived {
   return {
     id: data.RequestID,
     channel: data.Channel,
@@ -285,7 +298,7 @@ export function fromProtoReceivedCommand(data: kubemq.Request): ReceivedCommand 
   };
 }
 
-export function fromProtoReceivedQuery(data: kubemq.Request): ReceivedQuery {
+export function fromProtoReceivedQuery(data: kubemq.Request): QueryReceived {
   return {
     id: data.RequestID,
     channel: data.Channel,
@@ -373,7 +386,7 @@ export function fromProtoBatchResponse(
 
 export function fromProtoReceivedQueueMessage(
   msg: kubemq.QueueMessage,
-): Omit<ReceivedQueueMessage, 'ack' | 'reject' | 'reQueue'> {
+): Omit<ReceivedQueueMessage, 'ack' | 'nack' | 'reQueue'> {
   const attrs = msg.Attributes;
   return {
     id: msg.MessageID,
@@ -395,7 +408,7 @@ export function fromProtoReceivedQueueMessage(
 export function fromProtoReceiveQueueResponse(
   response: kubemq.ReceiveQueueMessagesResponse,
   operation: string,
-): Omit<ReceivedQueueMessage, 'ack' | 'reject' | 'reQueue'>[] {
+): Omit<ReceivedQueueMessage, 'ack' | 'nack' | 'reQueue'>[] {
   if (response.IsError) {
     throw new KubeMQError({
       code: ErrorCode.Fatal,

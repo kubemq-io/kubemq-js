@@ -49,12 +49,10 @@ export interface QueueMessage {
  * Received queue message with acknowledgment methods.
  *
  * @remarks
- * **Async safety:** The `ack()`, `reject()`, and `reQueue()` methods are safe
+ * **Async safety:** The `ack()`, `nack()`, and `reQueue()` methods are safe
  * to call from any async context, but each message MUST be acknowledged exactly
- * once. Calling `ack()` after `reject()` (or vice versa) throws a
- * `ValidationError`. The visibility timer runs independently — if the message
- * is not acknowledged before the visibility timeout expires, it becomes
- * available to other consumers.
+ * once. Calling `ack()` after `nack()` (or vice versa) throws a
+ * `ValidationError`.
  */
 export interface ReceivedQueueMessage {
   readonly id: string;
@@ -72,7 +70,7 @@ export interface ReceivedQueueMessage {
   readonly delayedTo?: Date;
 
   ack(): Promise<void>;
-  reject(): Promise<void>;
+  nack(): Promise<void>;
   reQueue(channel: string): Promise<void>;
 }
 
@@ -89,13 +87,15 @@ export interface ReceivedQueueMessage {
 export interface QueuePollRequest {
   /** Queue channel to poll from. */
   readonly channel: string;
-  /** Time in seconds that received messages remain invisible to other consumers. */
-  readonly visibilitySeconds?: number;
   /** Maximum time in seconds to wait for messages before returning an empty result. */
   readonly waitTimeoutSeconds: number;
   /** Maximum number of messages to receive in a single poll. Default: 1. */
   readonly maxMessages?: number;
-  /** Automatically acknowledge messages upon receipt. Default: `false`. */
+  /**
+   * Automatically acknowledge messages upon receipt. Default: `false`.
+   * @remarks **No effect on the unary receive API** — messages are always auto-acked server-side.
+   * Use {@link KubeMQClient.streamQueueMessages} for explicit ack/reject control.
+   */
   readonly autoAck?: boolean;
 }
 
@@ -180,7 +180,7 @@ export interface QueueStreamOptions {
  *
  * @remarks
  * Unlike {@link ReceivedQueueMessage} (from the poll API), the streaming message's
- * `ack()`, `reject()`, and `reQueue()` methods are synchronous — they write to
+ * `ack()`, `nack()`, and `reQueue()` methods are synchronous — they write to
  * the underlying gRPC stream without awaiting a response.
  *
  * Each message within a transaction must be settled exactly once.
@@ -218,8 +218,8 @@ export interface QueueStreamMessage {
 
   /** Acknowledge the message, removing it from the queue. */
   ack(): void;
-  /** Reject the message, returning it to the queue for redelivery. */
-  reject(): void;
+  /** Reject (nack) the message, returning it to the queue for redelivery. */
+  nack(): void;
   /** Move the message to a different queue channel. */
   reQueue(channel: string): void;
 }
@@ -261,9 +261,9 @@ export interface QueueStreamHandle {
   nackRange(sequences: number[]): void;
   /** Re-queue specific messages by their sequence numbers to a different channel. */
   reQueueRange(channel: string, sequences: number[]): void;
-  /** Retrieve the sequence offsets of messages currently in active transactions. */
+  /** @deprecated Not supported by the server — throws NotImplementedError. Reserved for future use. */
   getActiveOffsets(): Promise<number[]>;
-  /** Check whether the current transaction is complete. */
+  /** @deprecated Not supported by the server — throws NotImplementedError. Reserved for future use. */
   getTransactionStatus(): Promise<boolean>;
 }
 

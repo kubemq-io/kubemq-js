@@ -14,7 +14,10 @@ async function main() {
 
     for (let i = 1; i <= 5; i++) {
       await stream.send(
-        createEventStoreMessage({ channel: 'js-events-store.stream-send', body: `persisted #${i}` }),
+        createEventStoreMessage({
+          channel: 'js-events-store.stream-send',
+          body: `persisted #${i}`,
+        }),
       );
       console.log('Persisted event', i);
     }

@@ -6,17 +6,17 @@ Understand the error hierarchy, check retryability, and configure automatic retr
 
 All SDK errors extend `KubeMQError`. Key subtypes:
 
-| Error Class | Retryable | When |
-|---|---|---|
-| `ConnectionError` | Yes | Network failure, server unreachable |
-| `TransientError` | Yes | Temporary server-side issue |
-| `KubeMQTimeoutError` | Yes | Operation exceeded deadline |
-| `RetryExhaustedError` | No | All retry attempts failed |
-| `AuthenticationError` | No | Invalid/expired token |
-| `ValidationError` | No | Bad input (empty channel, missing body) |
-| `ConfigurationError` | No | Invalid client options |
-| `ClientClosedError` | No | Client already closed |
-| `CancellationError` | No | Operation cancelled via AbortSignal |
+| Error Class           | Retryable | When                                    |
+| --------------------- | --------- | --------------------------------------- |
+| `ConnectionError`     | Yes       | Network failure, server unreachable     |
+| `TransientError`      | Yes       | Temporary server-side issue             |
+| `KubeMQTimeoutError`  | Yes       | Operation exceeded deadline             |
+| `RetryExhaustedError` | No        | All retry attempts failed               |
+| `AuthenticationError` | No        | Invalid/expired token                   |
+| `ValidationError`     | No        | Bad input (empty channel, missing body) |
+| `ConfigurationError`  | No        | Invalid client options                  |
+| `ClientClosedError`   | No        | Client already closed                   |
+| `CancellationError`   | No        | Operation cancelled via AbortSignal     |
 
 ## Catching and Inspecting Errors
 
@@ -33,9 +33,7 @@ import {
 const client = await KubeMQClient.create({ address: 'localhost:50000' });
 
 try {
-  await client.publishEvent(
-    createEventMessage({ channel: 'demo.errors', body: 'hello' }),
-  );
+  await client.sendEvent(createEventMessage({ channel: 'demo.errors', body: 'hello' }));
 } catch (err) {
   if (err instanceof ValidationError) {
     console.error('Invalid input:', err.message);
@@ -74,9 +72,7 @@ const client = await KubeMQClient.create({
 });
 
 // All operations automatically retry on transient failures
-await client.publishEvent(
-  createEventMessage({ channel: 'demo.retry', body: 'auto-retried' }),
-);
+await client.sendEvent(createEventMessage({ channel: 'demo.retry', body: 'auto-retried' }));
 
 await client.close();
 ```
@@ -89,10 +85,7 @@ import { KubeMQClient, createEventMessage } from 'kubemq-js';
 const client = await KubeMQClient.create({ address: 'localhost:50000' });
 
 // Timeout override for a single operation
-await client.publishEvent(
-  createEventMessage({ channel: 'demo', body: 'fast' }),
-  { timeout: 2000 },
-);
+await client.sendEvent(createEventMessage({ channel: 'demo', body: 'fast' }), { timeout: 2000 });
 
 // Cancellation via AbortSignal
 const controller = new AbortController();
@@ -120,7 +113,7 @@ import { KubeMQClient, ConnectionState } from 'kubemq-js';
 const client = await KubeMQClient.create({
   address: 'localhost:50000',
   reconnect: {
-    maxAttempts: -1,          // unlimited
+    maxAttempts: -1, // unlimited
     initialDelayMs: 500,
     maxDelayMs: 30_000,
     multiplier: 2.0,
@@ -130,15 +123,13 @@ const client = await KubeMQClient.create({
 
 client.on('connected', () => console.log('Connected'));
 client.on('disconnected', () => console.log('Disconnected'));
-client.on('reconnecting', (attempt: number) =>
-  console.log(`Reconnecting (attempt ${attempt})...`),
-);
+client.on('reconnecting', (attempt: number) => console.log(`Reconnecting (attempt ${attempt})...`));
 client.on('reconnected', () => console.log('Reconnected'));
 
 // Subscriptions auto-resubscribe after reconnection
 client.subscribeToEvents({
   channel: 'orders.created',
-  onMessage: (event) => console.log('Event:', event.id),
+  onEvent: (event) => console.log('Event:', event.id),
   onError: (err) => console.error('Sub error:', err.message),
 });
 ```
@@ -152,14 +143,20 @@ import { KubeMQClient, KubeMQError, createEventMessage } from 'kubemq-js';
 
 const client = await KubeMQClient.create({
   address: 'localhost:50000',
-  retry: { maxRetries: 0, initialBackoffMs: 500, maxBackoffMs: 30000, multiplier: 2, jitter: 'none' },
+  retry: {
+    maxRetries: 0,
+    initialBackoffMs: 500,
+    maxBackoffMs: 30000,
+    multiplier: 2,
+    jitter: 'none',
+  },
 });
 
 const msg = createEventMessage({ channel: 'demo.critical', body: 'important' });
 
 for (let attempt = 0; attempt < 3; attempt++) {
   try {
-    await client.publishEvent(msg);
+    await client.sendEvent(msg);
     console.log(`Sent on attempt ${attempt + 1}`);
     break;
   } catch (err) {
@@ -176,10 +173,10 @@ await client.close();
 
 ## Troubleshooting
 
-| Symptom | Cause | Fix |
-|---|---|---|
-| `ClientClosedError` | Using client after `close()` | Create a new client instance |
-| `RetryExhaustedError` | All retry attempts failed | Increase `maxRetries` or fix the underlying issue |
-| `CancellationError` | AbortSignal triggered | Expected if using timeouts or manual cancellation |
-| Subscription silently stops | Stream broke, no `onError` handler | Always provide `onError` callback in subscriptions |
-| Operations hang during reconnection | `waitForReady` not set | Set `waitForReady: true` (default) |
+| Symptom                             | Cause                              | Fix                                                |
+| ----------------------------------- | ---------------------------------- | -------------------------------------------------- |
+| `ClientClosedError`                 | Using client after `close()`       | Create a new client instance                       |
+| `RetryExhaustedError`               | All retry attempts failed          | Increase `maxRetries` or fix the underlying issue  |
+| `CancellationError`                 | AbortSignal triggered              | Expected if using timeouts or manual cancellation  |
+| Subscription silently stops         | Stream broke, no `onError` handler | Always provide `onError` callback in subscriptions |
+| Operations hang during reconnection | `waitForReady` not set             | Set `waitForReady: true` (default)                 |

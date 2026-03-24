@@ -45,7 +45,7 @@ Defined in: messages/queries.ts:74
 
 ##### query
 
-[`ReceivedQuery`](ReceivedQuery.md)
+[`QueryReceived`](ReceivedQuery.md)
 
 #### Returns
 

@@ -35,9 +35,9 @@ Defined in: messages/events.ts:55
 
 ---
 
-### onMessage()
+### onEvent()
 
-> `readonly` **onMessage**: (`event`) => `void`
+> `readonly` **onEvent**: (`event`) => `void`
 
 Defined in: messages/events.ts:56
 
@@ -45,7 +45,7 @@ Defined in: messages/events.ts:56
 
 ##### event
 
-[`ReceivedEvent`](ReceivedEvent.md)
+[`EventReceived`](ReceivedEvent.md)
 
 #### Returns
 

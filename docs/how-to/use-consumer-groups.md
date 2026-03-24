@@ -19,7 +19,7 @@ const client = await KubeMQClient.create({
 const sub1 = client.subscribeToEvents({
   channel: 'orders.created',
   group: 'processors',
-  onMessage: (event) => {
+  onEvent: (event) => {
     console.log('[Worker A]', new TextDecoder().decode(event.body));
   },
   onError: (err) => console.error('Worker A error:', err.message),
@@ -28,16 +28,14 @@ const sub1 = client.subscribeToEvents({
 const sub2 = client.subscribeToEvents({
   channel: 'orders.created',
   group: 'processors',
-  onMessage: (event) => {
+  onEvent: (event) => {
     console.log('[Worker B]', new TextDecoder().decode(event.body));
   },
   onError: (err) => console.error('Worker B error:', err.message),
 });
 
 for (let i = 1; i <= 6; i++) {
-  await client.publishEvent(
-    createEventMessage({ channel: 'orders.created', body: `Order #${i}` }),
-  );
+  await client.sendEvent(createEventMessage({ channel: 'orders.created', body: `Order #${i}` }));
 }
 
 await new Promise((r) => setTimeout(r, 1000));
@@ -50,7 +48,7 @@ await client.close();
 ## Events Store — Persistent with Group
 
 ```typescript
-import { KubeMQClient, EventStoreType } from 'kubemq-js';
+import { KubeMQClient, EventStoreStartPosition } from 'kubemq-js';
 
 const client = await KubeMQClient.create({
   address: 'localhost:50000',
@@ -60,14 +58,14 @@ const client = await KubeMQClient.create({
 const sub = client.subscribeToEventsStore({
   channel: 'audit.logs',
   group: 'log-indexers',
-  startFrom: EventStoreType.StartFromFirst,
-  onMessage: (event) => {
+  startFrom: EventStoreStartPosition.StartFromFirst,
+  onEvent: (event) => {
     console.log(`[Indexer] seq=${event.sequence}`, new TextDecoder().decode(event.body));
   },
   onError: (err) => console.error('Error:', err.message),
 });
 
-await client.publishEventStore({
+await client.sendEventStore({
   channel: 'audit.logs',
   body: new TextEncoder().encode('Log entry 1'),
 });
@@ -106,7 +104,7 @@ await new Promise((r) => setTimeout(r, 1000));
 const response = await client.sendCommand({
   channel: 'commands.process',
   body: new TextEncoder().encode('do-work'),
-  timeoutMs: 5000,
+  timeoutInSeconds: 5,
 });
 console.log('Executed:', response.executed);
 
@@ -144,7 +142,7 @@ await new Promise((r) => setTimeout(r, 1000));
 const result = await client.sendQuery({
   channel: 'queries.lookup',
   body: new TextEncoder().encode('find-user'),
-  timeoutMs: 5000,
+  timeoutInSeconds: 5,
 });
 console.log('Response:', new TextDecoder().decode(result.body));
 
@@ -164,7 +162,7 @@ const sub = client.subscribeToEvents(
   {
     channel: 'events.work',
     group: 'workers',
-    onMessage: (event) => console.log('Got:', event.id),
+    onEvent: (event) => console.log('Got:', event.id),
     onError: (err) => console.error(err.message),
   },
   { signal: controller.signal },
@@ -176,9 +174,9 @@ setTimeout(() => controller.abort(), 30_000);
 
 ## Troubleshooting
 
-| Symptom | Cause | Fix |
-|---|---|---|
-| All subscribers receive every message | No `group` set | Add `group: 'my-group'` to the subscription |
-| One subscriber gets all messages | Only one subscriber in the group | Scale up by adding more group members |
-| Messages stop after subscriber crash | No other group member available | Run 2+ subscribers per group for HA |
-| Different groups get the same message | Groups are independent | This is correct — groups are isolated fan-out targets |
+| Symptom                               | Cause                            | Fix                                                   |
+| ------------------------------------- | -------------------------------- | ----------------------------------------------------- |
+| All subscribers receive every message | No `group` set                   | Add `group: 'my-group'` to the subscription           |
+| One subscriber gets all messages      | Only one subscriber in the group | Scale up by adding more group members                 |
+| Messages stop after subscriber crash  | No other group member available  | Run 2+ subscribers per group for HA                   |
+| Different groups get the same message | Groups are independent           | This is correct — groups are isolated fan-out targets |

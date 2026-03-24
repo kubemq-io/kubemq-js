@@ -9,11 +9,7 @@
  *
  * Run: npx tsx examples/connection/connect.ts
  */
-import {
-  KubeMQClient,
-  ConnectionState,
-  createConsoleLogger,
-} from '../../src/index.js';
+import { KubeMQClient, ConnectionState, createConsoleLogger } from '../../src/index.js';
 
 async function main(): Promise<void> {
   // --- Option 1: Minimal connection (address only) ---
@@ -38,7 +34,7 @@ async function main(): Promise<void> {
   const configured = await KubeMQClient.create({
     address: 'localhost:50000',
     clientId: 'js-connection-connect-configured-client',
-    connectionTimeoutMs: 15_000,
+    connectionTimeoutSeconds: 15,
     logger: createConsoleLogger('info'),
     keepalive: {
       timeMs: 10_000,

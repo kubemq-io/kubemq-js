@@ -12,13 +12,16 @@
 import { KubeMQClient, createEventMessage } from '../../src/index.js';
 
 async function main(): Promise<void> {
-  const client = await KubeMQClient.create({ address: 'localhost:50000', clientId: 'js-events-wildcard-subscription-client' });
+  const client = await KubeMQClient.create({
+    address: 'localhost:50000',
+    clientId: 'js-events-wildcard-subscription-client',
+  });
 
   try {
     // Subscribe to all channels under "js-events.wildcard-subscription.*"
     const subscription = client.subscribeToEvents({
       channel: 'js-events.wildcard-subscription.*',
-      onMessage: (event) => {
+      onEvent: (event) => {
         console.log(`[${event.channel}] ${new TextDecoder().decode(event.body)}`);
       },
       onError: (err) => {
@@ -27,14 +30,23 @@ async function main(): Promise<void> {
     });
 
     // Publish to different sub-channels — all match the wildcard.
-    await client.publishEvent(
-      createEventMessage({ channel: 'js-events.wildcard-subscription.created', body: 'Order #1001 created' }),
+    await client.sendEvent(
+      createEventMessage({
+        channel: 'js-events.wildcard-subscription.created',
+        body: 'Order #1001 created',
+      }),
     );
-    await client.publishEvent(
-      createEventMessage({ channel: 'js-events.wildcard-subscription.shipped', body: 'Order #1001 shipped' }),
+    await client.sendEvent(
+      createEventMessage({
+        channel: 'js-events.wildcard-subscription.shipped',
+        body: 'Order #1001 shipped',
+      }),
     );
-    await client.publishEvent(
-      createEventMessage({ channel: 'js-events.wildcard-subscription.delivered', body: 'Order #1001 delivered' }),
+    await client.sendEvent(
+      createEventMessage({
+        channel: 'js-events.wildcard-subscription.delivered',
+        body: 'Order #1001 delivered',
+      }),
     );
 
     await new Promise((resolve) => setTimeout(resolve, 1000));

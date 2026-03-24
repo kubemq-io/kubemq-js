@@ -20,6 +20,8 @@ import {
   NotImplementedError,
   PartialFailureError,
   HandlerError,
+  SenderDisconnectedError,
+  SenderClosedError,
   ErrorCode,
   ErrorCategory,
 } from '../../src/errors.js';
@@ -30,7 +32,7 @@ describe('KubeMQError base class', () => {
     const err = new KubeMQError({
       code: ErrorCode.Unavailable,
       message: 'server down',
-      operation: 'publishEvent',
+      operation: 'sendEvent',
       channel: 'orders',
       isRetryable: true,
       cause,
@@ -44,7 +46,7 @@ describe('KubeMQError base class', () => {
     expect(err).toBeInstanceOf(KubeMQError);
     expect(err.code).toBe(ErrorCode.Unavailable);
     expect(err.message).toBe('server down');
-    expect(err.operation).toBe('publishEvent');
+    expect(err.operation).toBe('sendEvent');
     expect(err.channel).toBe('orders');
     expect(err.isRetryable).toBe(true);
     expect(err.cause).toBe(cause);
@@ -96,13 +98,13 @@ describe('KubeMQError base class', () => {
     const err = new KubeMQError({
       code: ErrorCode.Unavailable,
       message: 'connection lost',
-      operation: 'publishEvent',
+      operation: 'sendEvent',
       channel: 'orders',
       isRetryable: true,
       suggestion: 'Check server',
     });
     const str = err.toSanitizedString();
-    expect(str).toContain('publishEvent');
+    expect(str).toContain('sendEvent');
     expect(str).toContain('orders');
     expect(str).toContain('Suggestion:');
   });
@@ -138,7 +140,7 @@ describe('Error hierarchy instanceof chain', () => {
     const err = new ConnectionNotReadyError({
       code: ErrorCode.ConnectionNotReady,
       message: 'not ready',
-      operation: 'publishEvent',
+      operation: 'sendEvent',
       isRetryable: false,
     });
     expect(err).toBeInstanceOf(ConnectionError);
@@ -190,7 +192,7 @@ describe('Error cause chain (ES2022)', () => {
     const sdkErr = new ConnectionError({
       code: ErrorCode.Unavailable,
       message: 'connection lost',
-      operation: 'publishEvent',
+      operation: 'sendEvent',
       channel: 'orders',
       isRetryable: true,
       cause: grpcErr,
@@ -237,7 +239,7 @@ describe('RetryExhaustedError', () => {
     });
     const err = new RetryExhaustedError({
       message: 'exhausted',
-      operation: 'publishEvent',
+      operation: 'sendEvent',
       attempts: 3,
       totalDuration: 1500,
       lastError: lastErr,
@@ -310,10 +312,52 @@ describe('ClientClosedError', () => {
   it('is fatal and not retryable', () => {
     const err = new ClientClosedError({
       message: 'closed',
-      operation: 'publishEvent',
+      operation: 'sendEvent',
     });
     expect(err.name).toBe('ClientClosedError');
     expect(err.category).toBe(ErrorCategory.Fatal);
     expect(err.isRetryable).toBe(false);
+  });
+});
+
+describe('SenderDisconnectedError', () => {
+  it('has correct defaults', () => {
+    const err = new SenderDisconnectedError({
+      message: 'disconnected',
+      operation: 'send',
+    });
+    expect(err.name).toBe('SenderDisconnectedError');
+    expect(err.isRetryable).toBe(true);
+    expect(err).toBeInstanceOf(KubeMQError);
+  });
+
+  it('accepts custom code and isRetryable', () => {
+    const err = new SenderDisconnectedError({
+      message: 'custom',
+      operation: 'send',
+      isRetryable: false,
+    });
+    expect(err.isRetryable).toBe(false);
+  });
+});
+
+describe('SenderClosedError', () => {
+  it('has correct defaults', () => {
+    const err = new SenderClosedError({
+      message: 'closed',
+      operation: 'send',
+    });
+    expect(err.name).toBe('SenderClosedError');
+    expect(err.isRetryable).toBe(false);
+    expect(err).toBeInstanceOf(KubeMQError);
+  });
+
+  it('accepts custom code and isRetryable', () => {
+    const err = new SenderClosedError({
+      message: 'custom',
+      operation: 'send',
+      isRetryable: true,
+    });
+    expect(err.isRetryable).toBe(true);
   });
 });

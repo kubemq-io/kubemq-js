@@ -29,10 +29,10 @@ export function validateClientOptions(opts: ClientOptions): void {
     });
   }
 
-  if (opts.connectionTimeoutMs !== undefined && opts.connectionTimeoutMs <= 0) {
+  if (opts.connectionTimeoutSeconds !== undefined && opts.connectionTimeoutSeconds <= 0) {
     throw new ConfigurationError({
       code: ErrorCode.ConfigurationError,
-      message: `connectionTimeoutMs must be positive, got ${String(opts.connectionTimeoutMs)}`,
+      message: `connectionTimeoutSeconds must be positive, got ${String(opts.connectionTimeoutSeconds)}`,
       operation: 'KubeMQClient.create',
       isRetryable: false,
     });

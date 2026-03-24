@@ -10,7 +10,7 @@ async function main() {
     let received = 0;
     const sub = client.subscribeToEvents({
       channel: 'js-events.cancel-subscription',
-      onMessage: (event) => {
+      onEvent: (event) => {
         received++;
         console.log(`Received #${received}:`, new TextDecoder().decode(event.body));
         if (received >= 3) sub.cancel();
@@ -21,7 +21,7 @@ async function main() {
     });
 
     for (let i = 1; i <= 5; i++) {
-      await client.publishEvent(
+      await client.sendEvent(
         createEventMessage({ channel: 'js-events.cancel-subscription', body: `msg-${i}` }),
       );
     }

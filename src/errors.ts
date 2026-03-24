@@ -110,7 +110,7 @@ export interface KubeMQErrorOptions {
   code?: ErrorCode;
   /** Human-readable error description. */
   message: string;
-  /** The SDK operation that failed (e.g. `'publishEvent'`). */
+  /** The SDK operation that failed (e.g. `'sendEvent'`). */
   operation: string;
   /** The channel involved, if any. */
   channel?: string;
@@ -735,6 +735,49 @@ export class HandlerError extends KubeMQError {
       isRetryable: options.isRetryable ?? false,
     });
     this.name = 'HandlerError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+/**
+ * All pending sends failed because the shared streaming sender's gRPC stream
+ * disconnected. The caller can retry after the client reconnects.
+ */
+export class SenderDisconnectedError extends TransientError {
+  constructor(
+    options: Omit<KubeMQErrorOptions, 'code' | 'isRetryable'> & {
+      code?: ErrorCode;
+      isRetryable?: boolean;
+    },
+  ) {
+    super({
+      ...options,
+      code: options.code ?? ErrorCode.StreamBroken,
+      isRetryable: options.isRetryable ?? true,
+    });
+    this.name = 'SenderDisconnectedError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+/**
+ * A send was attempted on a sender that has been closed.
+ */
+export class SenderClosedError extends KubeMQError {
+  override readonly category = ErrorCategory.Fatal;
+
+  constructor(
+    options: Omit<KubeMQErrorOptions, 'code' | 'isRetryable'> & {
+      code?: ErrorCode;
+      isRetryable?: boolean;
+    },
+  ) {
+    super({
+      ...options,
+      code: options.code ?? ErrorCode.ClientClosed,
+      isRetryable: options.isRetryable ?? false,
+    });
+    this.name = 'SenderClosedError';
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }

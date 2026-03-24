@@ -26,7 +26,7 @@ async function main() {
 
     await new Promise((r) => setTimeout(r, 500));
     const resp = await client.sendQuery(
-      createQuery({ channel: 'js-rpc.query-group', body: 'question', timeoutMs: 5000 }),
+      createQuery({ channel: 'js-rpc.query-group', body: 'question', timeoutInSeconds: 5 }),
     );
     console.log('Query executed:', resp.executed);
     if (resp.body) console.log('Response body:', new TextDecoder().decode(resp.body));

@@ -8,7 +8,7 @@ async function main() {
 
   try {
     const resp = await client.sendCommand(
-      createCommand({ channel: 'js-rpc.command-timeout', body: 'ping', timeoutMs: 1000 }),
+      createCommand({ channel: 'js-rpc.command-timeout', body: 'ping', timeoutInSeconds: 1 }),
     );
     console.log('Executed:', resp.executed);
   } catch (err) {

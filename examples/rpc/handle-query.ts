@@ -19,7 +19,10 @@ const inventory: Record<string, { inStock: number; price: number }> = {
 };
 
 async function main(): Promise<void> {
-  const client = await KubeMQClient.create({ address: 'localhost:50000', clientId: 'js-rpc-handle-query-client' });
+  const client = await KubeMQClient.create({
+    address: 'localhost:50000',
+    clientId: 'js-rpc-handle-query-client',
+  });
 
   try {
     const subscription = client.subscribeToQueries({
