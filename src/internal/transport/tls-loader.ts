@@ -13,7 +13,9 @@
  */
 
 import { readFile } from 'node:fs/promises';
+import { normalize } from 'node:path';
 import type { TlsOptions } from '../../options.js';
+import { ConfigurationError, ErrorCode } from '../../errors.js';
 
 export interface ResolvedTlsCredentials {
   rootCerts: Buffer | null;
@@ -47,6 +49,16 @@ async function loadPemOrFile(input: string | Buffer): Promise<Buffer> {
   }
   if (typeof input === 'string' && input.startsWith('-----BEGIN')) {
     return Buffer.from(input, 'utf-8');
+  }
+  const normalized = normalize(input);
+  if (normalized.includes('..')) {
+    throw new ConfigurationError({
+      code: ErrorCode.ConfigurationError,
+      message: `TLS file path must not contain path traversal segments: ${input}`,
+      operation: 'loadPemOrFile',
+      isRetryable: false,
+      suggestion: 'Use an absolute path or a relative path without ".." segments.',
+    });
   }
   return readFile(input);
 }
