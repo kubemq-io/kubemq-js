@@ -951,6 +951,9 @@ export class KubeMQClient implements AsyncDisposable {
     // sequential Get → Settle → Get flow. Concurrent transactions are not supported.
     let activeTransactionId: string | undefined;
     let lastResponseMetadata: Record<string, string> = {};
+    // burn-in bug 3: tracks whether a bulk settlement (ackAll/reQueueAll/ackRange)
+    // has already scheduled a re-poll, so per-message onMessageSettled won't double-poll.
+    let bulkSettled = false;
 
     const clientId = this.clientId;
     const tracker = this.#transport.getSubscriptionTracker();
@@ -1010,6 +1013,7 @@ export class KubeMQClient implements AsyncDisposable {
         }
 
         activeTransactionId = data.TransactionId;
+        bulkSettled = false; // reset for new batch
         if (data.Metadata instanceof Map) {
           const md: Record<string, string> = {};
           data.Metadata.forEach((v, k) => {
@@ -1025,6 +1029,8 @@ export class KubeMQClient implements AsyncDisposable {
 
         const onMessageSettled = () => {
           settledCount++;
+          // Skip if a bulk settlement (ackAll/ackRange/reQueueAll) already handled re-poll
+          if (bulkSettled) return;
           if (settledCount === batchSize) {
             // All messages in the batch are settled — clear transaction and re-poll
             activeTransactionId = undefined;
@@ -1149,6 +1155,9 @@ export class KubeMQClient implements AsyncDisposable {
       channel: opts.channel,
       resubscribe: () => {
         if (!active) return;
+        // Clean up old stream listeners to prevent memory leak (burn-in bug 2)
+        try { stream.removeAllListeners(); } catch { /* ignore */ }
+        activeTransactionId = undefined;
         stream = this.#transport.duplexStream<
           kubemq.QueuesDownstreamRequest,
           kubemq.QueuesDownstreamResponse
@@ -1177,6 +1186,8 @@ export class KubeMQClient implements AsyncDisposable {
       },
       ackAll() {
         writeDownstream(2);
+        bulkSettled = true;
+        activeTransactionId = undefined;
         scheduleRePoll();
       },
       nackAll() {
@@ -1184,10 +1195,14 @@ export class KubeMQClient implements AsyncDisposable {
       },
       reQueueAll(channel: string) {
         writeDownstream(6, { ReQueueChannel: channel });
+        bulkSettled = true;
+        activeTransactionId = undefined;
         scheduleRePoll();
       },
       ackRange(sequences: number[]) {
         writeDownstream(3, { SequenceRange: sequences });
+        bulkSettled = true;
+        activeTransactionId = undefined;
         scheduleRePoll();
       },
       nackRange(sequences: number[]) {
@@ -2301,6 +2316,11 @@ export class KubeMQClient implements AsyncDisposable {
       channel: '__upstream__',
       resubscribe: () => {
         if (!active) return;
+        // Clean up old stream listeners to prevent memory leak (burn-in bug 1)
+        try { stream.removeAllListeners(); } catch { /* ignore */ }
+        // Reject any in-flight promises so they don't dangle forever
+        for (const [, p] of pending) p.reject(new Error('Queue upstream stream reconnecting'));
+        pending.clear();
         stream = this.#transport.duplexStream<
           kubemq.QueuesUpstreamRequest,
           kubemq.QueuesUpstreamResponse
