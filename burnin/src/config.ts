@@ -364,7 +364,9 @@ export function loadConfig(cliPath: string): { config: Config; warnings: string[
     if (raw) warnings = mergeYamlConfig(cfg, raw);
   }
 
-  // No BURNIN_* env var overrides in v2 -- config via YAML or API only
+  // Environment variable override for broker address
+  const envAddr = process.env.KUBEMQ_BROKER_ADDRESS;
+  if (envAddr) cfg.broker.address = envAddr;
 
   if (!cfg.run_id) cfg.run_id = randomBytes(4).toString('hex');
   if (cfg.mode === 'benchmark' && !cfg.warmup.warmup_duration) cfg.warmup.warmup_duration = '60s';
@@ -674,6 +676,7 @@ export interface ApiPatternConfigV2 {
 }
 
 export interface ApiRunConfig {
+  broker?: { address?: string };
   mode?: string;
   duration?: string;
   run_id?: string;
@@ -701,6 +704,9 @@ export interface ApiRunConfig {
 
 export function translateApiConfig(api: ApiRunConfig, startup: Config): Config {
   const cfg = JSON.parse(JSON.stringify(startup)) as Config;
+
+  // Broker address override from API
+  if (api.broker?.address) cfg.broker.address = api.broker.address;
 
   if (api.mode !== undefined) cfg.mode = api.mode;
   if (api.duration !== undefined) cfg.duration = api.duration;
