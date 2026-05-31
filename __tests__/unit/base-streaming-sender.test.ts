@@ -11,7 +11,6 @@ import {
   CancellationError,
   KubeMQTimeoutError,
 } from '../../src/errors.js';
-import { ConnectionState } from '../../src/internal/transport/connection-state.js';
 
 // ── Test interfaces ──
 
@@ -46,12 +45,13 @@ class TestableStreamingSender extends BaseStreamingSender<TestRequest, TestRespo
   }
 
   protected responseErrorMessage(res: TestResponse): string {
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- an empty error string should fall through to the default message, so || is intended here
     return res.error || 'test error';
   }
 
   // Expose protected methods for testing
   sendTracked(req: TestRequest, deadline?: Date, signal?: AbortSignal): Promise<TestResponse> {
-    return this.enqueue(req, true, deadline, signal) as Promise<TestResponse>;
+    return this.enqueue(req, true, deadline, signal)!;
   }
 
   sendFireAndForget(req: TestRequest): void {
@@ -471,7 +471,7 @@ describe('BaseStreamingSender', () => {
       await transport.connect();
       sender.start(transport);
 
-      const stream = getStream();
+      const _stream = getStream();
 
       // Enqueue a tracked item — it gets written and moved to pendingMap
       const promise = sender.sendTracked({ id: 'req-1' });
@@ -538,7 +538,7 @@ describe('BaseStreamingSender', () => {
       // Make end() throw by adding a handler that throws
       // But the real implementation wraps stream.end() in try/catch
       // Let's override end() on the stream to throw
-      const origEnd = stream.end.bind(stream);
+      const _origEnd = stream.end.bind(stream);
       stream.end = () => {
         throw new Error('end failed');
       };
@@ -561,7 +561,7 @@ describe('BaseStreamingSender', () => {
       await transport.connect();
       sender.start(transport);
 
-      const stream = getStream();
+      const _stream = getStream();
 
       // Send a tracked request with a deadline that is already in the past
       // We need the deadline to be in the future when enqueue runs (so it

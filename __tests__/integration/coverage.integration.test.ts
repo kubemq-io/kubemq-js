@@ -7,7 +7,6 @@ import { KubeMQClient } from '../../src/client.js';
 import { ConnectionState } from '../../src/internal/transport/connection-state.js';
 import { createTestClientOptions, uniqueChannel } from '../fixtures/test-helpers.js';
 import type { EventReceived } from '../../src/messages/events.js';
-import type { EventStoreReceived } from '../../src/messages/events-store.js';
 import type { CommandReceived } from '../../src/messages/commands.js';
 import type { QueryReceived } from '../../src/messages/queries.js';
 
