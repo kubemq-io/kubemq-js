@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.1] - 2026-05-31
+
+### Improvements
+- Bump protobufjs 7.5.4 → 7.6.2 (clears a CRITICAL advisory), @grpc/grpc-js → 1.14.4, @grpc/proto-loader → 0.8.1, and vite → 6.4.2, plus in-range transitive updates. `npm audit` reports 0 vulnerabilities.
+
 ## [3.0.0] - 2026-03-11
 
 ### ⚠️ BREAKING CHANGES

@@ -1,6 +1,6 @@
 {
   "name": "kubemq-js",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "KubeMQ SDK for Node.js — gRPC-based messaging client for Events, Queues, Commands, and Queries",
   "type": "module",
   "main": "./dist/index.cjs",
