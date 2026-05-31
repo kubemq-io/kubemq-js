@@ -50,7 +50,6 @@ Stream-based queue operations for high-throughput scenarios.
 | ------------------------------------------------------------ | --------------------------------------- | ------------------------------------------------------ |
 | [stream-send.ts](queues-stream/stream-send.ts)               | High-throughput sending via gRPC stream | `npx tsx examples/queues-stream/stream-send.ts`        |
 | [stream-receive.ts](queues-stream/stream-receive.ts)         | Receive with ack/reject per message     | `npx tsx examples/queues-stream/stream-receive.ts`     |
-| [visibility-timeout.ts](queues-stream/visibility-timeout.ts) | Visibility timeout handling             | `npx tsx examples/queues-stream/visibility-timeout.ts` |
 
 ## RPC (Commands & Queries)
 
