@@ -95,7 +95,7 @@ export interface QueryResponse {
 export interface QuerySubscription {
   readonly channel: string;
   readonly group?: string;
-  readonly onQuery: (query: QueryReceived) => void;
+  readonly onQuery: (query: QueryReceived) => void | Promise<void>;
   readonly onError: (err: KubeMQError) => void;
 }
 
@@ -124,7 +124,7 @@ export interface QuerySubscription {
 export function createQuery(
   opts: Omit<QueryMessage, 'id'> & { id?: string },
 ): Readonly<QueryMessage> {
-  validateQueryMessage(opts as QueryMessage, 'createQuery');
+  validateQueryMessage(opts, 'createQuery');
 
   const msg: QueryMessage = {
     channel: opts.channel,

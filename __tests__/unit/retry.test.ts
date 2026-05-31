@@ -11,7 +11,6 @@ import {
   ValidationError,
   KubeMQTimeoutError,
   RetryExhaustedError,
-  CancellationError,
   KubeMQError,
   ErrorCode,
 } from '../../src/errors.js';

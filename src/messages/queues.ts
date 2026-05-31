@@ -351,7 +351,7 @@ export interface QueueBatch {
 export function createQueueMessage(
   opts: Omit<QueueMessage, 'id'> & { id?: string },
 ): Readonly<QueueMessage> {
-  validateQueueMessage(opts as QueueMessage, 'createQueueMessage');
+  validateQueueMessage(opts, 'createQueueMessage');
 
   const msg: QueueMessage = {
     channel: opts.channel,

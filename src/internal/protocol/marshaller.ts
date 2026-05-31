@@ -100,7 +100,7 @@ export function toProtoSubscribeEventsStore(
     ClientID: clientId,
     Channel: sub.channel,
     Group: sub.group ?? '',
-    EventsStoreTypeData: sub.startFrom as number as kubemq.Subscribe.EventsStoreType,
+    EventsStoreTypeData: sub.startFrom as unknown as kubemq.Subscribe.EventsStoreType,
     EventsStoreTypeValue: sub.startValue ?? 0,
   });
 }

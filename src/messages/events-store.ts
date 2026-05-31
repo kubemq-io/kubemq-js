@@ -140,7 +140,7 @@ export interface EventStoreStreamHandle {
 export function createEventStoreMessage(
   opts: Omit<EventStoreMessage, 'id'> & { id?: string },
 ): Readonly<EventStoreMessage> {
-  validateEventStoreMessage(opts as EventStoreMessage, 'createEventStoreMessage');
+  validateEventStoreMessage(opts, 'createEventStoreMessage');
 
   const msg: EventStoreMessage = {
     channel: opts.channel,

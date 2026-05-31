@@ -102,7 +102,7 @@ export interface EventStreamHandle {
 export function createEventMessage(
   opts: Omit<EventMessage, 'id'> & { id?: string },
 ): Readonly<EventMessage> {
-  validateEventMessage(opts as EventMessage, 'createEventMessage');
+  validateEventMessage(opts, 'createEventMessage');
 
   const msg: EventMessage = {
     channel: opts.channel,
