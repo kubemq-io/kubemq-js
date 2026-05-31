@@ -2544,7 +2544,7 @@ describe('KubeMQClient', () => {
     });
 
     it('on/off delegates to transport state machine', () => {
-      const { client, transport } = createClient();
+      const { client } = createClient();
       const handler = () => {};
       client.on('stateChange', handler);
       client.off('stateChange', handler);

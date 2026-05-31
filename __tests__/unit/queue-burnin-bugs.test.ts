@@ -34,7 +34,7 @@ function createClient(transport?: MockTransport) {
  * Captures ALL duplex streams created (not just the last one).
  */
 function captureAllDuplexStreams(transport: MockTransport) {
-  const streams: Array<{ method: string; stream: any }> = [];
+  const streams: { method: string; stream: any }[] = [];
   const origDuplex = transport.duplexStream.bind(transport);
   transport.duplexStream = (...args: any[]) => {
     const s = (origDuplex as any)(...args);

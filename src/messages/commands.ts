@@ -90,7 +90,7 @@ export interface CommandResponse {
 export interface CommandSubscription {
   readonly channel: string;
   readonly group?: string;
-  readonly onCommand: (cmd: CommandReceived) => void;
+  readonly onCommand: (cmd: CommandReceived) => void | Promise<void>;
   readonly onError: (err: KubeMQError) => void;
 }
 
@@ -118,7 +118,7 @@ export interface CommandSubscription {
 export function createCommand(
   opts: Omit<CommandMessage, 'id'> & { id?: string },
 ): Readonly<CommandMessage> {
-  validateCommandMessage(opts as CommandMessage, 'createCommand');
+  validateCommandMessage(opts, 'createCommand');
 
   const msg: CommandMessage = {
     channel: opts.channel,

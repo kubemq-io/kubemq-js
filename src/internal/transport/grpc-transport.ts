@@ -579,7 +579,7 @@ export class GrpcTransport implements Transport {
       meta[key] = String(values);
     }
     rawErr.metadata = meta;
-    return rawErr as RawTransportError;
+    return rawErr;
   }
 
   private wrapReadableStream<TRes>(

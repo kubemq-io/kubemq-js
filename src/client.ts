@@ -483,7 +483,7 @@ export class KubeMQClient implements AsyncDisposable {
       onHighWater: () => currentStream?.pause(),
       onLowWater: () => currentStream?.resume(),
     });
-    this.#activeDispatchers.add(dispatcher as CallbackDispatcher<unknown>);
+    this.#activeDispatchers.add(dispatcher);
 
     const subId = randomUUID();
     const tracker = this.#transport.getSubscriptionTracker();
@@ -538,7 +538,7 @@ export class KubeMQClient implements AsyncDisposable {
       tracker.unregister(subId);
       originalCancel();
       dispatcher.close();
-      this.#activeDispatchers.delete(dispatcher as CallbackDispatcher<unknown>);
+      this.#activeDispatchers.delete(dispatcher);
     };
 
     if (opts?.signal) {
@@ -587,7 +587,7 @@ export class KubeMQClient implements AsyncDisposable {
       onHighWater: () => currentStream?.pause(),
       onLowWater: () => currentStream?.resume(),
     });
-    this.#activeDispatchers.add(dispatcher as CallbackDispatcher<unknown>);
+    this.#activeDispatchers.add(dispatcher);
 
     const subId = randomUUID();
     const tracker = this.#transport.getSubscriptionTracker();
@@ -656,7 +656,7 @@ export class KubeMQClient implements AsyncDisposable {
       tracker.unregister(subId);
       originalCancel();
       dispatcher.close();
-      this.#activeDispatchers.delete(dispatcher as CallbackDispatcher<unknown>);
+      this.#activeDispatchers.delete(dispatcher);
     };
 
     if (opts?.signal) {
@@ -792,7 +792,7 @@ export class KubeMQClient implements AsyncDisposable {
         this.#retryPolicy,
         {
           operation: 'sendQueueMessagesBatch',
-          operationType: 'queueSend' as OperationType,
+          operationType: 'queueSend',
           channel,
           serverAddress: this.address,
         },
@@ -1296,7 +1296,7 @@ export class KubeMQClient implements AsyncDisposable {
         this.#retryPolicy,
         {
           operation: 'peekQueueMessages',
-          operationType: 'queueSend' as OperationType,
+          operationType: 'queueSend',
           channel: req.channel,
           serverAddress: this.address,
         },
@@ -1385,7 +1385,7 @@ export class KubeMQClient implements AsyncDisposable {
         this.#retryPolicy,
         {
           operation: 'sendCommand',
-          operationType: 'command' as OperationType,
+          operationType: 'command',
           channel: msg.channel,
           serverAddress: this.address,
         },
@@ -1468,7 +1468,7 @@ export class KubeMQClient implements AsyncDisposable {
         this.#retryPolicy,
         {
           operation: 'sendQuery',
-          operationType: 'query' as OperationType,
+          operationType: 'query',
           channel: msg.channel,
           serverAddress: this.address,
         },
@@ -1525,7 +1525,7 @@ export class KubeMQClient implements AsyncDisposable {
       onHighWater: () => currentStream?.pause(),
       onLowWater: () => currentStream?.resume(),
     });
-    this.#activeDispatchers.add(dispatcher as CallbackDispatcher<unknown>);
+    this.#activeDispatchers.add(dispatcher);
 
     const subId = randomUUID();
     const tracker = this.#transport.getSubscriptionTracker();
@@ -1580,7 +1580,7 @@ export class KubeMQClient implements AsyncDisposable {
       tracker.unregister(subId);
       originalCancel();
       dispatcher.close();
-      this.#activeDispatchers.delete(dispatcher as CallbackDispatcher<unknown>);
+      this.#activeDispatchers.delete(dispatcher);
     };
 
     if (opts?.signal) {
@@ -1626,7 +1626,7 @@ export class KubeMQClient implements AsyncDisposable {
       onHighWater: () => currentStream?.pause(),
       onLowWater: () => currentStream?.resume(),
     });
-    this.#activeDispatchers.add(dispatcher as CallbackDispatcher<unknown>);
+    this.#activeDispatchers.add(dispatcher);
 
     const subId = randomUUID();
     const tracker = this.#transport.getSubscriptionTracker();
@@ -1681,7 +1681,7 @@ export class KubeMQClient implements AsyncDisposable {
       tracker.unregister(subId);
       originalCancel();
       dispatcher.close();
-      this.#activeDispatchers.delete(dispatcher as CallbackDispatcher<unknown>);
+      this.#activeDispatchers.delete(dispatcher);
     };
 
     if (opts?.signal) {
@@ -1731,7 +1731,7 @@ export class KubeMQClient implements AsyncDisposable {
         this.#retryPolicy,
         {
           operation: 'sendCommandResponse',
-          operationType: 'command' as OperationType,
+          operationType: 'command',
           channel: resp.replyChannel,
           serverAddress: this.address,
         },
@@ -1786,7 +1786,7 @@ export class KubeMQClient implements AsyncDisposable {
         this.#retryPolicy,
         {
           operation: 'sendQueryResponse',
-          operationType: 'query' as OperationType,
+          operationType: 'query',
           channel: resp.replyChannel,
           serverAddress: this.address,
         },
@@ -2150,7 +2150,7 @@ export class KubeMQClient implements AsyncDisposable {
         this.#retryPolicy,
         {
           operation: 'ping',
-          operationType: 'events' as OperationType,
+          operationType: 'events',
           serverAddress: this.address,
         },
         this.#resolved.logger,
@@ -2222,7 +2222,7 @@ export class KubeMQClient implements AsyncDisposable {
         this.#retryPolicy,
         {
           operation: 'ackAllQueueMessages',
-          operationType: 'queueSend' as OperationType,
+          operationType: 'queueSend',
           channel,
           serverAddress: this.address,
         },
@@ -2493,23 +2493,31 @@ export class KubeMQClient implements AsyncDisposable {
         // Wait for transport to be READY (poll with backoff)
         let delay = 500;
         const maxDelay = 5000;
+        // active/streamReady are closure flags flipped by the stream's onError/onEnd
+        // handlers (and resubscribe/close) during the awaits below. TS's flow analysis
+        // can't model the cross-closure mutation and reports the rechecks as redundant,
+        // but they are load-bearing under async interleaving — do not remove them.
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         while (active && transport.state !== ConnectionState.READY) {
           await new Promise<void>((r) => setTimeout(r, delay));
           delay = Math.min(delay * 1.5, maxDelay);
         }
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (!active) return;
         // If resubscribe() already fixed the stream while we were waiting, skip
         if (streamReady) return;
         // Small extra delay to let the new gRPC client stabilize
         await new Promise<void>((r) => setTimeout(r, 500));
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (!active || streamReady) return;
         recreateStream();
       } catch {
         // If stream creation fails, wait and retry
         healingInProgress = false;
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (active) {
           await new Promise<void>((r) => setTimeout(r, 1000));
-          selfHeal();
+          void selfHeal();
         }
       } finally {
         healingInProgress = false;
@@ -2526,13 +2534,13 @@ export class KubeMQClient implements AsyncDisposable {
         if (errHandler) errHandler(err);
         // JS-1v2: break the stream and self-heal
         breakStream();
-        selfHeal();
+        void selfHeal();
       });
       stream.onEnd(() => {
         // JS-1v2: if the stream ends unexpectedly, treat it like an error
         if (!active || healingInProgress) return; // already healing or closed
         breakStream();
-        selfHeal();
+        void selfHeal();
       });
     };
     attachHandlers();
@@ -2548,7 +2556,7 @@ export class KubeMQClient implements AsyncDisposable {
       },
     });
 
-    const drainQueue: Array<{ resolve: () => void; reject: (err: Error) => void }> = [];
+    const drainQueue: { resolve: () => void; reject: (err: Error) => void }[] = [];
     let drainListenerAttached = false;
 
     const ensureDrainListener = () => {
@@ -2642,23 +2650,31 @@ export class KubeMQClient implements AsyncDisposable {
         // Wait for transport to be READY (poll with backoff)
         let delay = 500;
         const maxDelay = 5000;
+        // active/streamReady are closure flags flipped by the stream's onError/onEnd
+        // handlers (and resubscribe/close) during the awaits below. TS's flow analysis
+        // can't model the cross-closure mutation and reports the rechecks as redundant,
+        // but they are load-bearing under async interleaving — do not remove them.
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         while (active && transport.state !== ConnectionState.READY) {
           await new Promise<void>((r) => setTimeout(r, delay));
           delay = Math.min(delay * 1.5, maxDelay);
         }
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (!active) return;
         // If resubscribe() already fixed the stream while we were waiting, skip
         if (streamReady) return;
         // Small extra delay to let the new gRPC client stabilize
         await new Promise<void>((r) => setTimeout(r, 500));
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (!active || streamReady) return;
         recreateStream();
       } catch {
         // If stream creation fails, wait and retry
         healingInProgress = false;
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (active) {
           await new Promise<void>((r) => setTimeout(r, 1000));
-          selfHeal();
+          void selfHeal();
         }
       } finally {
         healingInProgress = false;
@@ -2679,13 +2695,13 @@ export class KubeMQClient implements AsyncDisposable {
         if (errHandler) errHandler(err);
         // JS-1v2: break the stream and self-heal
         breakStream();
-        selfHeal();
+        void selfHeal();
       });
       stream.onEnd(() => {
         // JS-1v2: if the stream ends unexpectedly, treat it like an error
         if (!active || healingInProgress) return; // already healing or closed
         breakStream();
-        selfHeal();
+        void selfHeal();
       });
     };
     attachHandlers();
@@ -2760,7 +2776,7 @@ export class KubeMQClient implements AsyncDisposable {
     return this.#telemetry.startSpan({
       operationName,
       channel,
-      spanKind: spanKind as SpanConfig['spanKind'],
+      spanKind: spanKind,
       clientId: this.clientId,
       serverAddress: host,
       serverPort: port,
