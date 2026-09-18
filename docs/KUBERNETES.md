@@ -48,7 +48,7 @@ spec:
     spec:
       containers:
         - name: kubemq
-          image: kubemq/kubemq:latest
+          image: europe-docker.pkg.dev/kubemq/images/kubemq-next:latest
           ports:
             - containerPort: 50000
               name: grpc
@@ -134,7 +134,7 @@ spec:
               value: 'localhost:50000'
 
         - name: kubemq
-          image: kubemq/kubemq:latest
+          image: europe-docker.pkg.dev/kubemq/images/kubemq-next:latest
           ports:
             - containerPort: 50000
             - containerPort: 8080
